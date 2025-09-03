@@ -1,0 +1,340 @@
+package main
+
+import (
+	"context"
+	"database/sql"
+	"flag"
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/google/go-github/v55/github"
+	"golang.org/x/oauth2"
+	_ "modernc.org/sqlite"
+)
+
+const (
+	envOrg         = "GHUB_DESK_ORGANIZATION"
+	envGithubToken = "GHUB_DESK_GITHUB_TOKEN"
+)
+
+func main() {
+	if len(os.Args) < 2 {
+		usage()
+		os.Exit(1)
+	}
+
+	cmd := os.Args[1]
+	switch cmd {
+	case "pull":
+		pullCmd(os.Args[2:])
+	case "view":
+		viewCmd(os.Args[2:])
+	case "push":
+		pushCmd(os.Args[2:])
+	case "help":
+		usage()
+	default:
+		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", cmd)
+		usage()
+		os.Exit(1)
+	}
+}
+
+func usage() {
+	fmt.Println(`ghub-desk CLI
+
+Usage:
+  ghub-desk pull [--store] <target>
+  ghub-desk view <target>
+  ghub-desk push remove [--exec] <target>
+
+Targets:
+  users, teams, {team_name}/users, repos, ...
+`)
+}
+
+func getEnvVars() (string, string) {
+	org := os.Getenv(envOrg)
+	githubToken := os.Getenv(envGithubToken)
+	if org == "" || githubToken == "" {
+		fmt.Fprintln(os.Stderr, "環境変数 GHUB_DESK_ORGANIZATION, GHUB_DESK_GITHUB_TOKEN を設定してください")
+		os.Exit(1)
+	}
+	return org, githubToken
+}
+
+func pullCmd(args []string) {
+	fs := flag.NewFlagSet("pull", flag.ExitOnError)
+	store := fs.Bool("store", false, "Save to SQLite")
+	fs.Parse(args)
+	targets := fs.Args()
+	if len(targets) == 0 {
+		fmt.Fprintln(os.Stderr, "pull対象を指定してください")
+		os.Exit(1)
+	}
+	target := targets[0]
+	org, githubToken := getEnvVars()
+	ctx := context.Background()
+	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: githubToken})
+	tc := oauth2.NewClient(ctx, ts)
+	client := github.NewClient(tc)
+
+	var db *sql.DB
+	var err error
+	if *store {
+		db, err = sql.Open("sqlite", "ghub-desk.db")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "SQLiteオープン失敗: %v\n", err)
+			os.Exit(1)
+		}
+		defer db.Close()
+	}
+
+	switch {
+	case target == "users":
+		// ユーザー一覧取得
+		opt := &github.ListMembersOptions{ListOptions: github.ListOptions{PerPage: 100}}
+		count := 0
+		if *store {
+			_, err := db.Exec(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, login TEXT, name TEXT)`)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "usersテーブル作成失敗: %v\n", err)
+				os.Exit(1)
+			}
+			db.Exec(`DELETE FROM users`)
+		}
+		for {
+			users, resp, err := client.Organizations.ListMembers(ctx, org, opt)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "GitHub API error: %v\n", err)
+				os.Exit(1)
+			}
+			count += len(users)
+			fmt.Printf("- %d件取得しました\n", count)
+			if *store {
+				for _, u := range users {
+					_, _ = db.Exec(`INSERT INTO users(id, login, name) VALUES (?, ?, ?)`, u.GetID(), u.GetLogin(), u.GetName())
+				}
+			}
+			if resp.NextPage == 0 {
+				break
+			}
+			opt.Page = resp.NextPage
+		}
+		fmt.Printf("...組織%sのユーザー一覧を取得完了\n", org)
+	case target == "teams":
+		// チーム一覧取得
+		opt := &github.ListOptions{PerPage: 100}
+		count := 0
+		if *store {
+			_, err := db.Exec(`CREATE TABLE IF NOT EXISTS teams (id INTEGER PRIMARY KEY, slug TEXT, name TEXT)`)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "teamsテーブル作成失敗: %v\n", err)
+				os.Exit(1)
+			}
+			db.Exec(`DELETE FROM teams`)
+		}
+		for {
+			teams, resp, err := client.Teams.ListTeams(ctx, org, opt)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "GitHub API error: %v\n", err)
+				os.Exit(1)
+			}
+			count += len(teams)
+			fmt.Printf("- %d件取得しました\n", count)
+			if *store {
+				for _, t := range teams {
+					_, _ = db.Exec(`INSERT INTO teams(id, slug, name) VALUES (?, ?, ?)`, t.GetID(), t.GetSlug(), t.GetName())
+				}
+			}
+			if resp.NextPage == 0 {
+				break
+			}
+			opt.Page = resp.NextPage
+		}
+		fmt.Printf("...組織%sのチーム一覧を取得完了\n", org)
+	case strings.HasSuffix(target, "/users"):
+		// チームに所属するユーザー一覧取得
+		teamSlug := strings.TrimSuffix(target, "/users")
+		opt := &github.TeamListTeamMembersOptions{ListOptions: github.ListOptions{PerPage: 100}}
+		count := 0
+		if *store {
+			_, err := db.Exec(`CREATE TABLE IF NOT EXISTS team_users (team_slug TEXT, user_id INTEGER, login TEXT, name TEXT, PRIMARY KEY(team_slug, user_id))`)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "team_usersテーブル作成失敗: %v\n", err)
+				os.Exit(1)
+			}
+			// 指定チーム分だけ削除
+			_, _ = db.Exec(`DELETE FROM team_users WHERE team_slug = ?`, teamSlug)
+		}
+		for {
+			users, resp, err := client.Teams.ListTeamMembersBySlug(ctx, org, teamSlug, opt)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "GitHub API error: %v\n", err)
+				os.Exit(1)
+			}
+			count += len(users)
+			fmt.Printf("- %d件取得しました\n", count)
+			if *store {
+				for _, u := range users {
+					_, _ = db.Exec(`INSERT OR REPLACE INTO team_users(team_slug, user_id, login, name) VALUES (?, ?, ?, ?)`, teamSlug, u.GetID(), u.GetLogin(), u.GetName())
+				}
+			}
+			if resp.NextPage == 0 {
+				break
+			}
+			opt.Page = resp.NextPage
+		}
+		fmt.Printf("...チーム%sのユーザー一覧を取得完了\n", teamSlug)
+	case target == "repos":
+		// リポジトリ一覧取得
+		opt := &github.RepositoryListByOrgOptions{ListOptions: github.ListOptions{PerPage: 100}}
+		count := 0
+		if *store {
+			_, err := db.Exec(`CREATE TABLE IF NOT EXISTS repos (id INTEGER PRIMARY KEY, name TEXT, full_name TEXT)`)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "reposテーブル作成失敗: %v\n", err)
+				os.Exit(1)
+			}
+			db.Exec(`DELETE FROM repos`)
+		}
+		for {
+			repos, resp, err := client.Repositories.ListByOrg(ctx, org, opt)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "GitHub API error: %v\n", err)
+				os.Exit(1)
+			}
+			count += len(repos)
+			fmt.Printf("- %d件取得しました\n", count)
+			if *store {
+				for _, r := range repos {
+					_, _ = db.Exec(`INSERT INTO repos(id, name, full_name) VALUES (?, ?, ?)`, r.GetID(), r.GetName(), r.GetFullName())
+				}
+			}
+			if resp.NextPage == 0 {
+				break
+			}
+			opt.Page = resp.NextPage
+		}
+		fmt.Printf("...組織%sのリポジトリ一覧を取得完了\n", org)
+	default:
+		fmt.Fprintf(os.Stderr, "未対応のpull対象: %s\n", target)
+		os.Exit(1)
+	}
+	if *store {
+		fmt.Println("(SQLiteに保存します)")
+	}
+}
+
+func viewCmd(args []string) {
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "view対象を指定してください")
+		os.Exit(1)
+	}
+	target := args[0]
+	db, err := sql.Open("sqlite", "ghub-desk.db")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "SQLiteオープン失敗: %v\n", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	switch {
+	case target == "users":
+		rows, err := db.Query(`SELECT id, login, name FROM users`)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "usersテーブル取得失敗: %v\n", err)
+			os.Exit(1)
+		}
+		defer rows.Close()
+		fmt.Println("id\tlogin\tname")
+		for rows.Next() {
+			var id int64
+			var login, name string
+			rows.Scan(&id, &login, &name)
+			fmt.Printf("%d\t%s\t%s\n", id, login, name)
+		}
+	case target == "teams":
+		rows, err := db.Query(`SELECT id, slug, name FROM teams`)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "teamsテーブル取得失敗: %v\n", err)
+			os.Exit(1)
+		}
+		defer rows.Close()
+		fmt.Println("id\tslug\tname")
+		for rows.Next() {
+			var id int64
+			var slug, name string
+			rows.Scan(&id, &slug, &name)
+			fmt.Printf("%d\t%s\t%s\n", id, slug, name)
+		}
+	case target == "repos":
+		rows, err := db.Query(`SELECT id, name, full_name FROM repos`)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "reposテーブル取得失敗: %v\n", err)
+			os.Exit(1)
+		}
+		defer rows.Close()
+		fmt.Println("id\tname\tfull_name")
+		for rows.Next() {
+			var id int64
+			var name, fullName string
+			rows.Scan(&id, &name, &fullName)
+			fmt.Printf("%d\t%s\t%s\n", id, name, fullName)
+		}
+	case strings.HasSuffix(target, "/users"):
+		teamSlug := strings.TrimSuffix(target, "/users")
+		// テーブルがなければ作成（空）
+		_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS team_users (team_slug TEXT, user_id INTEGER, login TEXT, name TEXT, PRIMARY KEY(team_slug, user_id))`)
+		rows, err := db.Query(`SELECT user_id, login, name FROM team_users WHERE team_slug = ?`, teamSlug)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "team_usersテーブル取得失敗: %v\n", err)
+			os.Exit(1)
+		}
+		defer rows.Close()
+		fmt.Println("user_id\tlogin\tname")
+		for rows.Next() {
+			var userID int64
+			var login, name string
+			rows.Scan(&userID, &login, &name)
+			fmt.Printf("%d\t%s\t%s\n", userID, login, name)
+		}
+	default:
+		fmt.Fprintf(os.Stderr, "未対応のview対象: %s\n", target)
+		os.Exit(1)
+	}
+}
+
+func pushCmd(args []string) {
+	if len(args) < 1 {
+		fmt.Fprintln(os.Stderr, "pushサブコマンドを指定してください")
+		os.Exit(1)
+	}
+	sub := args[0]
+	switch sub {
+	case "remove":
+		pushRemoveCmd(args[1:])
+	default:
+		fmt.Fprintf(os.Stderr, "Unknown push subcommand: %s\n", sub)
+		os.Exit(1)
+	}
+}
+
+func pushRemoveCmd(args []string) {
+	fs := flag.NewFlagSet("remove", flag.ExitOnError)
+	exec := fs.Bool("exec", false, "実行(DRYRUNでない)")
+	fs.Parse(args)
+	targets := fs.Args()
+	if len(targets) == 0 {
+		fmt.Fprintln(os.Stderr, "remove対象を指定してください")
+		os.Exit(1)
+	}
+	target := targets[0]
+	if *exec {
+		fmt.Printf("%s を削除します (実行)\n", target)
+	} else {
+		fmt.Printf("%s を削除します (DRYRUN)\n", target)
+	}
+	// TODO: GitHub API呼び出し
+}
