@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/google/go-github/v55/github"
 	"golang.org/x/oauth2"
@@ -32,12 +33,40 @@ func main() {
 		viewCmd(os.Args[2:])
 	case "push":
 		pushCmd(os.Args[2:])
+	case "init":
+		initTables()
+		fmt.Println("DBテーブルを初期化しました")
+		return
 	case "help":
 		usage()
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", cmd)
 		usage()
 		os.Exit(1)
+	}
+}
+
+// DBテーブル初期化
+func initTables() {
+	db, err := sql.Open("sqlite", "ghub-desk.db")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "SQLiteオープン失敗: %v\n", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	stmts := []string{
+		`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, login TEXT, name TEXT)`,
+		`CREATE TABLE IF NOT EXISTS teams (id INTEGER PRIMARY KEY, slug TEXT, name TEXT)`,
+		`CREATE TABLE IF NOT EXISTS repos (id INTEGER PRIMARY KEY, name TEXT, full_name TEXT)`,
+		`CREATE TABLE IF NOT EXISTS team_users (team_slug TEXT, user_id INTEGER, login TEXT, name TEXT, PRIMARY KEY(team_slug, user_id))`,
+	}
+	for _, stmt := range stmts {
+		_, err := db.Exec(stmt)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "テーブル初期化失敗: %v\n", err)
+			os.Exit(1)
+		}
 	}
 }
 
@@ -91,17 +120,13 @@ func pullCmd(args []string) {
 		defer db.Close()
 	}
 
+	sleepSec := 1 * time.Second
 	switch {
 	case target == "users":
 		// ユーザー一覧取得
 		opt := &github.ListMembersOptions{ListOptions: github.ListOptions{PerPage: 100}}
 		count := 0
 		if *store {
-			_, err := db.Exec(`CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, login TEXT, name TEXT)`)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "usersテーブル作成失敗: %v\n", err)
-				os.Exit(1)
-			}
 			db.Exec(`DELETE FROM users`)
 		}
 		for {
@@ -121,6 +146,7 @@ func pullCmd(args []string) {
 				break
 			}
 			opt.Page = resp.NextPage
+			time.Sleep(sleepSec)
 		}
 		fmt.Printf("...組織%sのユーザー一覧を取得完了\n", org)
 	case target == "teams":
@@ -128,11 +154,6 @@ func pullCmd(args []string) {
 		opt := &github.ListOptions{PerPage: 100}
 		count := 0
 		if *store {
-			_, err := db.Exec(`CREATE TABLE IF NOT EXISTS teams (id INTEGER PRIMARY KEY, slug TEXT, name TEXT)`)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "teamsテーブル作成失敗: %v\n", err)
-				os.Exit(1)
-			}
 			db.Exec(`DELETE FROM teams`)
 		}
 		for {
@@ -152,6 +173,7 @@ func pullCmd(args []string) {
 				break
 			}
 			opt.Page = resp.NextPage
+			time.Sleep(sleepSec)
 		}
 		fmt.Printf("...組織%sのチーム一覧を取得完了\n", org)
 	case strings.HasSuffix(target, "/users"):
@@ -160,11 +182,6 @@ func pullCmd(args []string) {
 		opt := &github.TeamListTeamMembersOptions{ListOptions: github.ListOptions{PerPage: 100}}
 		count := 0
 		if *store {
-			_, err := db.Exec(`CREATE TABLE IF NOT EXISTS team_users (team_slug TEXT, user_id INTEGER, login TEXT, name TEXT, PRIMARY KEY(team_slug, user_id))`)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "team_usersテーブル作成失敗: %v\n", err)
-				os.Exit(1)
-			}
 			// 指定チーム分だけ削除
 			_, _ = db.Exec(`DELETE FROM team_users WHERE team_slug = ?`, teamSlug)
 		}
@@ -185,6 +202,7 @@ func pullCmd(args []string) {
 				break
 			}
 			opt.Page = resp.NextPage
+			time.Sleep(sleepSec)
 		}
 		fmt.Printf("...チーム%sのユーザー一覧を取得完了\n", teamSlug)
 	case target == "repos":
@@ -192,11 +210,6 @@ func pullCmd(args []string) {
 		opt := &github.RepositoryListByOrgOptions{ListOptions: github.ListOptions{PerPage: 100}}
 		count := 0
 		if *store {
-			_, err := db.Exec(`CREATE TABLE IF NOT EXISTS repos (id INTEGER PRIMARY KEY, name TEXT, full_name TEXT)`)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "reposテーブル作成失敗: %v\n", err)
-				os.Exit(1)
-			}
 			db.Exec(`DELETE FROM repos`)
 		}
 		for {
@@ -216,6 +229,7 @@ func pullCmd(args []string) {
 				break
 			}
 			opt.Page = resp.NextPage
+			time.Sleep(sleepSec)
 		}
 		fmt.Printf("...組織%sのリポジトリ一覧を取得完了\n", org)
 	default:
@@ -285,8 +299,6 @@ func viewCmd(args []string) {
 		}
 	case strings.HasSuffix(target, "/users"):
 		teamSlug := strings.TrimSuffix(target, "/users")
-		// テーブルがなければ作成（空）
-		_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS team_users (team_slug TEXT, user_id INTEGER, login TEXT, name TEXT, PRIMARY KEY(team_slug, user_id))`)
 		rows, err := db.Query(`SELECT user_id, login, name FROM team_users WHERE team_slug = ?`, teamSlug)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "team_usersテーブル取得失敗: %v\n", err)
