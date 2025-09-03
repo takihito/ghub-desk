@@ -71,7 +71,7 @@ func initTables() {
 }
 
 func usage() {
-	fmt.Println(`ghub-desk CLI
+	fmt.Print(`ghub-desk CLI
 
 Usage:
   ghub-desk pull [--store] <target>
