@@ -222,14 +222,16 @@ func createTables(db *sql.DB) error {
 
 // pullCmd handles the 'pull' command to fetch data from GitHub API
 func pullCmd(args []string) {
-	// Simple approach: manually parse --store flag regardless of position
+	// Simple approach: manually parse flags regardless of position
 	var target string
 	var store bool
 
-	// Find the target (first non-flag argument) and check for --store flag
+	// Find the target (first non-flag argument) and check for flags
 	for _, arg := range args {
 		if arg == "--store" {
 			store = true
+		} else if arg == "--all-teams-users" {
+			target = "all-teams-users" // Set special target for all teams users
 		} else if !strings.HasPrefix(arg, "-") && target == "" {
 			target = arg
 		}
@@ -259,7 +261,7 @@ func pullCmd(args []string) {
 	client := initGitHubClient(config.GitHubToken)
 
 	var db *sql.DB
-	if store {
+	if store || target == "all-teams-users" {
 		db, err = initDatabase()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Database initialization error: %v\n", err)
@@ -287,6 +289,8 @@ func handlePullTarget(ctx context.Context, client *github.Client, db *sql.DB, or
 		return pullTeams(ctx, client, db, org, store)
 	case target == "repos":
 		return pullRepositories(ctx, client, db, org, store)
+	case target == "all-teams-users":
+		return pullAllTeamsUsers(ctx, client, db, org, store)
 	case strings.HasSuffix(target, "/users"):
 		teamSlug := strings.TrimSuffix(target, "/users")
 		return pullTeamUsers(ctx, client, db, org, teamSlug, store)
@@ -388,6 +392,48 @@ func pullTeamUsers(ctx context.Context, client *github.Client, db *sql.DB, org, 
 		},
 		db, org,
 	)
+}
+
+// pullAllTeamsUsers fetches users for all stored teams
+func pullAllTeamsUsers(ctx context.Context, client *github.Client, db *sql.DB, org string, store bool) error {
+	// Get all team slugs from the database
+	rows, err := db.Query(`SELECT slug FROM teams`)
+	if err != nil {
+		return fmt.Errorf("failed to query teams: %w", err)
+	}
+	defer rows.Close()
+
+	var teamSlugs []string
+	for rows.Next() {
+		var slug string
+		if err := rows.Scan(&slug); err != nil {
+			return fmt.Errorf("failed to scan team slug: %w", err)
+		}
+		teamSlugs = append(teamSlugs, slug)
+	}
+
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("error iterating team slugs: %w", err)
+	}
+
+	if len(teamSlugs) == 0 {
+		fmt.Println("No teams found in database. Please run 'ghub-desk pull teams --store' first.")
+		return nil
+	}
+
+	fmt.Printf("Fetching users for %d teams...\n", len(teamSlugs))
+
+	// Fetch users for each team
+	for i, teamSlug := range teamSlugs {
+		fmt.Printf("Processing team %d/%d: %s\n", i+1, len(teamSlugs), teamSlug)
+		if err := pullTeamUsers(ctx, client, db, org, teamSlug, store); err != nil {
+			fmt.Printf("Warning: failed to fetch users for team %s: %v\n", teamSlug, err)
+			continue
+		}
+	}
+
+	fmt.Printf("Completed fetching users for all teams.\n")
+	return nil
 }
 
 // fetchAndStore is a generic function that handles GitHub API pagination
