@@ -222,17 +222,30 @@ func createTables(db *sql.DB) error {
 
 // pullCmd handles the 'pull' command to fetch data from GitHub API
 func pullCmd(args []string) {
-	fs := flag.NewFlagSet("pull", flag.ExitOnError)
-	store := fs.Bool("store", false, "Save to SQLite")
-	fs.Parse(args)
-	targets := fs.Args()
+	// Simple approach: manually parse --store flag regardless of position
+	var target string
+	var store bool
 
-	if len(targets) == 0 {
+	// Find the target (first non-flag argument) and check for --store flag
+	for _, arg := range args {
+		if arg == "--store" {
+			store = true
+		} else if !strings.HasPrefix(arg, "-") && target == "" {
+			target = arg
+		}
+	}
+
+	if target == "" {
 		fmt.Fprintln(os.Stderr, "pull対象を指定してください")
 		os.Exit(1)
 	}
 
-	target := targets[0]
+	// Debug message to verify flag parsing
+	if store {
+		fmt.Printf("DEBUG: --store flag detected, will save to database\n")
+	} else {
+		fmt.Printf("DEBUG: --store flag not detected, will not save to database\n")
+	}
 
 	// Load configuration from environment variables
 	config, err := getConfig()
@@ -246,7 +259,7 @@ func pullCmd(args []string) {
 	client := initGitHubClient(config.GitHubToken)
 
 	var db *sql.DB
-	if *store {
+	if store {
 		db, err = initDatabase()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Database initialization error: %v\n", err)
@@ -256,7 +269,7 @@ func pullCmd(args []string) {
 	}
 
 	// Handle different target types with appropriate data fetching
-	err = handlePullTarget(ctx, client, db, config.Organization, target, *store)
+	err = handlePullTarget(ctx, client, db, config.Organization, target, store)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to pull %s: %v\n", target, err)
 		os.Exit(1)

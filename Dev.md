@@ -125,3 +125,10 @@ $ ghub-desk push remove  {team_name}/{user_name}
 ````
 
 
+## 修正指示
+
+### 1.重複したコードをまとめてください
+
+
+
+
