@@ -200,7 +200,7 @@ func createTables(db *sql.DB) error {
 			updated_at TEXT,
 			pushed_at TEXT
 		)`,
-		`CREATE TABLE IF NOT EXISTS ` + "`team-users`" + ` (
+		`CREATE TABLE IF NOT EXISTS team_users (
 			team_id INTEGER,
 			user_id INTEGER,
 			user_login TEXT,
@@ -280,7 +280,7 @@ func pullCmd(args []string) {
 	fmt.Printf("Successfully completed pulling %s for organization %s\n", target, config.Organization)
 }
 
-// handlePullTarget processes different types of pull targets (users, teams, repos, team-users)
+// handlePullTarget processes different types of pull targets (users, teams, repos, team_users)
 func handlePullTarget(ctx context.Context, client *github.Client, db *sql.DB, org, target string, store bool) error {
 	switch {
 	case target == "users":
@@ -373,8 +373,8 @@ func pullRepositories(ctx context.Context, client *github.Client, db *sql.DB, or
 // pullTeamUsers fetches team members and optionally stores them in database
 func pullTeamUsers(ctx context.Context, client *github.Client, db *sql.DB, org, teamSlug string, store bool) error {
 	if store {
-		if _, err := db.Exec(`DELETE FROM `+"`team-users`"+` WHERE team_slug = ?`, teamSlug); err != nil {
-			return fmt.Errorf("failed to clear team-users table: %w", err)
+		if _, err := db.Exec(`DELETE FROM team_users WHERE team_slug = ?`, teamSlug); err != nil {
+			return fmt.Errorf("failed to clear team_users table: %w", err)
 		}
 	}
 
@@ -579,7 +579,7 @@ func storeTeamUsers(db *sql.DB, users []*github.User, teamSlug string) error {
 
 	for _, user := range users {
 		_, err := db.Exec(`
-			INSERT OR REPLACE INTO `+"`team-users`"+` (team_id, user_id, user_login, team_slug, role, created_at)
+			INSERT OR REPLACE INTO team_users (team_id, user_id, user_login, team_slug, role, created_at)
 			VALUES (?, ?, ?, ?, ?, ?)`,
 			teamID,
 			user.GetID(),
@@ -779,7 +779,7 @@ func viewRepositories(db *sql.DB) error {
 func viewTeamUsers(db *sql.DB, teamSlug string) error {
 	rows, err := db.Query(`
 		SELECT user_id, user_login, role 
-		FROM `+"`team-users`"+` 
+		FROM team_users 
 		WHERE team_slug = ? 
 		ORDER BY user_login`, teamSlug)
 	if err != nil {
