@@ -123,114 +123,73 @@ func pullCmd(args []string) {
 	sleepSec := 1 * time.Second
 	switch {
 	case target == "users":
-		// ユーザー一覧取得
-		opt := &github.ListMembersOptions{ListOptions: github.ListOptions{PerPage: 100}}
-		count := 0
 		if *store {
 			db.Exec(`DELETE FROM users`)
 		}
-		for {
-			users, resp, err := client.Organizations.ListMembers(ctx, org, opt)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "GitHub API error: %v\n", err)
-				os.Exit(1)
-			}
-			count += len(users)
-			fmt.Printf("- %d件取得しました\n", count)
-			if *store {
-				for _, u := range users {
-					_, _ = db.Exec(`INSERT INTO users(id, login, name) VALUES (?, ?, ?)`, u.GetID(), u.GetLogin(), u.GetName())
-				}
-			}
-			if resp.NextPage == 0 {
-				break
-			}
-			opt.Page = resp.NextPage
-			time.Sleep(sleepSec)
-		}
+		fetchAndStore(
+			func(page int) ([]*github.User, *github.Response, error) {
+				opt := &github.ListMembersOptions{ListOptions: github.ListOptions{PerPage: 100, Page: page}}
+				return client.Organizations.ListMembers(ctx, org, opt)
+			},
+			func(db *sql.DB, u *github.User) error {
+				_, err := db.Exec(`INSERT INTO users(id, login, name) VALUES (?, ?, ?)`, u.GetID(), u.GetLogin(), u.GetName())
+				return err
+			},
+			db, *store, sleepSec,
+			func(count int) { fmt.Printf("- %d件取得しました\n", count) },
+		)
 		fmt.Printf("...組織%sのユーザー一覧を取得完了\n", org)
 	case target == "teams":
-		// チーム一覧取得
-		opt := &github.ListOptions{PerPage: 100}
-		count := 0
 		if *store {
 			db.Exec(`DELETE FROM teams`)
 		}
-		for {
-			teams, resp, err := client.Teams.ListTeams(ctx, org, opt)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "GitHub API error: %v\n", err)
-				os.Exit(1)
-			}
-			count += len(teams)
-			fmt.Printf("- %d件取得しました\n", count)
-			if *store {
-				for _, t := range teams {
-					_, _ = db.Exec(`INSERT INTO teams(id, slug, name) VALUES (?, ?, ?)`, t.GetID(), t.GetSlug(), t.GetName())
-				}
-			}
-			if resp.NextPage == 0 {
-				break
-			}
-			opt.Page = resp.NextPage
-			time.Sleep(sleepSec)
-		}
+		fetchAndStore(
+			func(page int) ([]*github.Team, *github.Response, error) {
+				opt := &github.ListOptions{PerPage: 100, Page: page}
+				return client.Teams.ListTeams(ctx, org, opt)
+			},
+			func(db *sql.DB, t *github.Team) error {
+				_, err := db.Exec(`INSERT INTO teams(id, slug, name) VALUES (?, ?, ?)`, t.GetID(), t.GetSlug(), t.GetName())
+				return err
+			},
+			db, *store, sleepSec,
+			func(count int) { fmt.Printf("- %d件取得しました\n", count) },
+		)
 		fmt.Printf("...組織%sのチーム一覧を取得完了\n", org)
 	case strings.HasSuffix(target, "/users"):
-		// チームに所属するユーザー一覧取得
 		teamSlug := strings.TrimSuffix(target, "/users")
-		opt := &github.TeamListTeamMembersOptions{ListOptions: github.ListOptions{PerPage: 100}}
-		count := 0
 		if *store {
-			// 指定チーム分だけ削除
 			_, _ = db.Exec(`DELETE FROM team_users WHERE team_slug = ?`, teamSlug)
 		}
-		for {
-			users, resp, err := client.Teams.ListTeamMembersBySlug(ctx, org, teamSlug, opt)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "GitHub API error: %v\n", err)
-				os.Exit(1)
-			}
-			count += len(users)
-			fmt.Printf("- %d件取得しました\n", count)
-			if *store {
-				for _, u := range users {
-					_, _ = db.Exec(`INSERT OR REPLACE INTO team_users(team_slug, user_id, login, name) VALUES (?, ?, ?, ?)`, teamSlug, u.GetID(), u.GetLogin(), u.GetName())
-				}
-			}
-			if resp.NextPage == 0 {
-				break
-			}
-			opt.Page = resp.NextPage
-			time.Sleep(sleepSec)
-		}
+		fetchAndStore(
+			func(page int) ([]*github.User, *github.Response, error) {
+				opt := &github.TeamListTeamMembersOptions{ListOptions: github.ListOptions{PerPage: 100, Page: page}}
+				return client.Teams.ListTeamMembersBySlug(ctx, org, teamSlug, opt)
+			},
+			func(db *sql.DB, u *github.User) error {
+				_, err := db.Exec(`INSERT OR REPLACE INTO team_users(team_slug, user_id, login, name) VALUES (?, ?, ?, ?)`, teamSlug, u.GetID(), u.GetLogin(), u.GetName())
+				return err
+			},
+			db, *store, sleepSec,
+			func(count int) { fmt.Printf("- %d件取得しました\n", count) },
+		)
 		fmt.Printf("...チーム%sのユーザー一覧を取得完了\n", teamSlug)
 	case target == "repos":
-		// リポジトリ一覧取得
-		opt := &github.RepositoryListByOrgOptions{ListOptions: github.ListOptions{PerPage: 100}}
-		count := 0
 		if *store {
 			db.Exec(`DELETE FROM repos`)
 		}
-		for {
-			repos, resp, err := client.Repositories.ListByOrg(ctx, org, opt)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "GitHub API error: %v\n", err)
-				os.Exit(1)
-			}
-			count += len(repos)
-			fmt.Printf("- %d件取得しました\n", count)
-			if *store {
-				for _, r := range repos {
-					_, _ = db.Exec(`INSERT INTO repos(id, name, full_name) VALUES (?, ?, ?)`, r.GetID(), r.GetName(), r.GetFullName())
-				}
-			}
-			if resp.NextPage == 0 {
-				break
-			}
-			opt.Page = resp.NextPage
-			time.Sleep(sleepSec)
-		}
+		fetchAndStore(
+			func(page int) ([]*github.Repository, *github.Response, error) {
+				opt := &github.RepositoryListByOrgOptions{ListOptions: github.ListOptions{PerPage: 100, Page: page}}
+				return client.Repositories.ListByOrg(ctx, org, opt)
+			},
+			func(db *sql.DB, r *github.Repository) error {
+				_, err := db.Exec(`INSERT INTO repos(id, name, full_name) VALUES (?, ?, ?)`, r.GetID(), r.GetName(), r.GetFullName())
+				return err
+			},
+			db, *store, sleepSec,
+			func(count int) { fmt.Printf("- %d件取得しました\n", count) },
+		)
 		fmt.Printf("...組織%sのリポジトリ一覧を取得完了\n", org)
 	default:
 		fmt.Fprintf(os.Stderr, "未対応のpull対象: %s\n", target)
@@ -349,4 +308,36 @@ func pushRemoveCmd(args []string) {
 		fmt.Printf("%s を削除します (DRYRUN)\n", target)
 	}
 	// TODO: GitHub API呼び出し
+}
+
+// APIページングしつつDB保存も行う共通関数
+func fetchAndStore[T any](
+	fetchPage func(page int) ([]T, *github.Response, error),
+	storeRow func(db *sql.DB, row T) error,
+	db *sql.DB,
+	store bool,
+	sleepSec time.Duration,
+	progressMsg func(count int),
+) {
+	page := 1
+	count := 0
+	for {
+		items, resp, err := fetchPage(page)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "GitHub API error: %v\n", err)
+			os.Exit(1)
+		}
+		count += len(items)
+		progressMsg(count)
+		if store && db != nil {
+			for _, item := range items {
+				_ = storeRow(db, item)
+			}
+		}
+		if resp.NextPage == 0 {
+			break
+		}
+		page = resp.NextPage
+		time.Sleep(sleepSec)
+	}
 }
