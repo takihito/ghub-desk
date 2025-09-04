@@ -87,15 +87,33 @@ $ ghub-desk pull {team_name}/users
 $ ghub-desk view {team_name}/users
 ````
 
+````
+# SQLiteに保存したチーム一覧を元に、チームユーザに所属するユーザ一覧を取得する
+# SQLiteには保存する
+$ ghub-desk pull --store --all-teams-users 
+
+# SQLiteには保存せず
+$ ghub-desk pull --all-teams-users 
+
+# SQLiteに保存されるとviewで確認することができます
+$ ghub-desk view {team_name}/users
+````
+
+
 * リポジトリ一覧の取得
 
 ````
 # SQLiteには保存する
-$ ghub-desk pull --store {team_name}/users
+$ ghub-desk pull --store repos 
 
 # SQLiteには保存せず
-$ ghub-desk pull {team_name}/users
+$ ghub-desk pull repos
+
+# SQLiteをソースとして表示する 
+$ ghub-desk view repos
 ````
+
+
 
 * チームを組織から削除
 
@@ -121,7 +139,7 @@ $ ghub-desk push remove {user_name}
 $ ghub-desk push remove --exec {team_name}/{user_name}
 
 # DRYRUN
-$ ghub-desk push remove  {team_name}/{user_name}
+$ ghub-desk push remove {team_name}/{user_name}
 ````
 
 
@@ -129,6 +147,34 @@ $ ghub-desk push remove  {team_name}/{user_name}
 
 ### 1.重複したコードをまとめてください
 
+APIを実行しDBに保存するコードが各所にあります。
+このコードを一つの関数にまとめてほしいです。関数には以下を渡す形式で再利用できるのが望ましいです。
+
+* client.Organization
+* db.execにわたすSQLと値
+ 
+
+````
+		for {
+			users, resp, err := client.Organizations.ListMembers(ctx, org, opt)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "GitHub API error: %v\n", err)
+				os.Exit(1)
+			}
+			count += len(users)
+			fmt.Printf("- %d件取得しました\n", count)
+			if *store {
+				for _, u := range users {
+					_, _ = db.Exec(`INSERT INTO users(id, login, name) VALUES (?, ?, ?)`, u.GetID(), u.GetLogin(), u.GetName())
+				}
+			}
+			if resp.NextPage == 0 {
+				break
+			}
+			opt.Page = resp.NextPage
+			time.Sleep(sleepSec)
+		}
+````
 
 
 
