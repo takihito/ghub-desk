@@ -52,39 +52,39 @@ GitHubオーガニゼーション上でメンバーやチームを操作する�
 
 ````
 # SQLiteには保存する
-$ ghub-desk pull --store users
+$ ghub-desk pull --store --users
 
 # SQLiteには保存せず
-$ ghub-desk pull users
+$ ghub-desk pull --users
 
 # SQLiteをソースとして表示する 
-$ ghub-desk view users
+$ ghub-desk view --users
 ````
 
 * チーム一覧の取得
 
 ````
 # SQLiteには保存する
-$ ghub-desk pull --store teams
+$ ghub-desk pull --store --teams
 
 # SQLiteには保存せず
-$ ghub-desk pull teams
+$ ghub-desk pull --teams
 
 # SQLiteをソースとして表示する 
-$ ghub-desk view teams 
+$ ghub-desk view --teams 
 ````
 
 * チームに所属するユーザーの一覧の取得
 
 ````
 # SQLiteには保存する
-$ ghub-desk pull --store {team_name}/users
+$ ghub-desk pull --store --teams-users {team_name}
 
 # SQLiteには保存せず
-$ ghub-desk pull {team_name}/users
+$ ghub-desk pull --teams-users {team_name}
 
 # SQLiteをソースとして表示する 
-$ ghub-desk view {team_name}/users
+$ ghub-desk view --teams-users {team_name}
 ````
 
 ````
@@ -104,13 +104,13 @@ $ ghub-desk view {team_name}/users
 
 ````
 # SQLiteには保存する
-$ ghub-desk pull --store repos 
+$ ghub-desk pull --store --repos 
 
 # SQLiteには保存せず
-$ ghub-desk pull repos
+$ ghub-desk pull --repos
 
 # SQLiteをソースとして表示する 
-$ ghub-desk view repos
+$ ghub-desk view --repos
 ````
 
 
@@ -118,28 +118,28 @@ $ ghub-desk view repos
 * チームを組織から削除
 
 ````
-$ ghub-desk push remove --exec {team_name}
+$ ghub-desk push --remove --team --exec {team_name}
 
 # DRYRUN
-$ ghub-desk push remove {team_name}
+$ ghub-desk push --remove --team {team_name}
 ````
 
 * ユーザーを組織から削除
 
 ````
-$ ghub-desk push remove --exec {user_name}
+$ ghub-desk push --remove --user --exec {user_name}
 
 # DRYRUN
-$ ghub-desk push remove {user_name}
+$ ghub-desk push --remove --user {user_name}
 ````
 
 * ユーザーをチームから削除
 
 ````
-$ ghub-desk push remove --exec {team_name}/{user_name}
+$ ghub-desk push --remove --team-user --exec {team_name}/{user_name}
 
 # DRYRUN
-$ ghub-desk push remove {team_name}/{user_name}
+$ ghub-desk push --remove --team-user  {team_name}/{user_name}
 ````
 
 
