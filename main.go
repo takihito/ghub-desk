@@ -680,12 +680,30 @@ func pushCmd(args []string) {
 		os.Exit(1)
 	}
 
+	// Load configuration
+	config, err := getConfig()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "設定の読み込みに失敗しました: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Initialize GitHub client
+	client := initGitHubClient(config.GitHubToken)
+	ctx := context.Background()
+
 	if exec {
 		fmt.Printf("%s %s を削除します (実行)\n", target, resourceName)
+		// Execute the actual removal
+		err := executePushRemove(ctx, client, config.Organization, target, resourceName)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "削除に失敗しました: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("削除が完了しました\n")
 	} else {
 		fmt.Printf("%s %s を削除します (DRYRUN)\n", target, resourceName)
+		fmt.Println("実際に削除するには --exec フラグを追加してください")
 	}
-	// TODO: GitHub API呼び出し
 }
 
 // viewCmd handles the 'view' command to display data from local database
@@ -884,4 +902,44 @@ func viewTeamUsers(db *sql.DB, teamSlug string) error {
 		fmt.Printf("%d\t%s\t%s\n", userID, login.String, role.String)
 	}
 	return nil
+}
+
+// executePushRemove executes the actual removal operation via GitHub API
+func executePushRemove(ctx context.Context, client *github.Client, org, target, resourceName string) error {
+	switch target {
+	case "team":
+		// Remove team from organization
+		_, err := client.Teams.DeleteTeamBySlug(ctx, org, resourceName)
+		if err != nil {
+			return fmt.Errorf("チーム削除エラー: %v", err)
+		}
+		return nil
+
+	case "user":
+		// Remove user from organization
+		_, err := client.Organizations.RemoveMember(ctx, org, resourceName)
+		if err != nil {
+			return fmt.Errorf("ユーザー削除エラー: %v", err)
+		}
+		return nil
+
+	case "team-user":
+		// Parse team/user format
+		parts := strings.Split(resourceName, "/")
+		if len(parts) != 2 {
+			return fmt.Errorf("チーム/ユーザー形式が正しくありません。{team_name}/{user_name} の形式で指定してください")
+		}
+		teamSlug := parts[0]
+		username := parts[1]
+
+		// Remove user from team
+		_, err := client.Teams.RemoveTeamMembershipBySlug(ctx, org, teamSlug, username)
+		if err != nil {
+			return fmt.Errorf("チームからのユーザー削除エラー: %v", err)
+		}
+		return nil
+
+	default:
+		return fmt.Errorf("サポートされていない削除対象: %s", target)
+	}
 }
