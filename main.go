@@ -6,7 +6,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -81,19 +80,20 @@ USAGE:
     ghub-desk <command> [options] [arguments]
 
 COMMANDS:
-    pull <target> [--store]    Fetch data from GitHub API
-                               Targets: users, teams, repos, <team>/users
-                               --store: Save to local SQLite database
+    pull [--store] --<target>      Fetch data from GitHub API
+                                   Targets: --users, --teams, --repos, --teams-users <team_name>, --all-teams-users
+                                   --store: Save to local SQLite database
     
-    view <target>              Display data from local database
-                               Targets: users, teams, repos, <team>/users
+    view --<target>                Display data from local database
+                                   Targets: --users, --teams, --repos, --teams-users <team_name>
     
-    push remove <target>       Remove resources from GitHub
-                               [--exec]: Execute (without this flag, runs in DRYRUN mode)
+    push --remove --<target>       Remove resources from GitHub
+                                   [--exec]: Execute (without this flag, runs in DRYRUN mode)
+                                   Targets: --team <name>, --user <name>, --team-user <team>/<user>
     
-    init                       Initialize local database tables
+    init                           Initialize local database tables
     
-    help                       Show this help message
+    help                           Show this help message
 
 ENVIRONMENT VARIABLES:
     GHUB_DESK_ORGANIZATION     GitHub organization name (required)
@@ -101,13 +101,22 @@ ENVIRONMENT VARIABLES:
 
 EXAMPLES:
     # Fetch and store organization members
-    ghub-desk pull users --store
+    ghub-desk pull --store --users
     
     # View stored teams
-    ghub-desk view teams
+    ghub-desk view --teams
     
     # Fetch team members (without storing)
-    ghub-desk pull engineering/users
+    ghub-desk pull --teams-users engineering
+    
+    # Fetch all team users
+    ghub-desk pull --all-teams-users
+    
+    # Remove team (DRYRUN)
+    ghub-desk push --remove --team old-team
+    
+    # Remove user (Execute)
+    ghub-desk push --remove --user old-user --exec
     
     # Initialize database
     ghub-desk init
@@ -222,23 +231,40 @@ func createTables(db *sql.DB) error {
 
 // pullCmd handles the 'pull' command to fetch data from GitHub API
 func pullCmd(args []string) {
-	// Simple approach: manually parse flags regardless of position
+	// Parse flags according to new specification
 	var target string
 	var store bool
+	var teamName string // For --teams-users
 
-	// Find the target (first non-flag argument) and check for flags
-	for _, arg := range args {
-		if arg == "--store" {
+	for i, arg := range args {
+		switch arg {
+		case "--store":
 			store = true
-		} else if arg == "--all-teams-users" {
-			target = "all-teams-users" // Set special target for all teams users
-		} else if !strings.HasPrefix(arg, "-") && target == "" {
-			target = arg
+		case "--users":
+			target = "users"
+		case "--teams":
+			target = "teams"
+		case "--repos":
+			target = "repos"
+		case "--teams-users":
+			target = "teams-users"
+			// Next argument should be team name
+			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+				teamName = args[i+1]
+			}
+		case "--all-teams-users":
+			target = "all-teams-users"
 		}
 	}
 
 	if target == "" {
 		fmt.Fprintln(os.Stderr, "pull対象を指定してください")
+		fmt.Fprintln(os.Stderr, "利用可能な対象: --users, --teams, --repos, --teams-users <team_name>, --all-teams-users")
+		os.Exit(1)
+	}
+
+	if target == "teams-users" && teamName == "" {
+		fmt.Fprintln(os.Stderr, "--teams-users にはチーム名を指定してください")
 		os.Exit(1)
 	}
 
@@ -271,7 +297,12 @@ func pullCmd(args []string) {
 	}
 
 	// Handle different target types with appropriate data fetching
-	err = handlePullTarget(ctx, client, db, config.Organization, target, store)
+	finalTarget := target
+	if target == "teams-users" {
+		finalTarget = teamName + "/users" // Convert to legacy format for handlePullTarget
+	}
+
+	err = handlePullTarget(ctx, client, db, config.Organization, finalTarget, store)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to pull %s: %v\n", target, err)
 		os.Exit(1)
@@ -605,47 +636,92 @@ func formatTime(t github.Timestamp) string {
 
 // pushCmd handles the 'push' command and its subcommands
 func pushCmd(args []string) {
-	if len(args) < 1 {
-		fmt.Fprintln(os.Stderr, "pushサブコマンドを指定してください")
-		os.Exit(1)
-	}
-	sub := args[0]
-	switch sub {
-	case "remove":
-		pushRemoveCmd(args[1:])
-	default:
-		fmt.Fprintf(os.Stderr, "Unknown push subcommand: %s\n", sub)
-		os.Exit(1)
-	}
-}
+	// Parse flags according to new specification
+	var remove bool
+	var exec bool
+	var target string
+	var resourceName string
 
-// pushRemoveCmd handles the 'push remove' command to remove GitHub resources
-func pushRemoveCmd(args []string) {
-	fs := flag.NewFlagSet("remove", flag.ExitOnError)
-	exec := fs.Bool("exec", false, "実行(DRYRUNでない)")
-	fs.Parse(args)
-	targets := fs.Args()
-	if len(targets) == 0 {
-		fmt.Fprintln(os.Stderr, "remove対象を指定してください")
+	for i, arg := range args {
+		switch arg {
+		case "--remove":
+			remove = true
+		case "--exec":
+			exec = true
+		case "--team":
+			target = "team"
+			// Next argument should be team name
+			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+				resourceName = args[i+1]
+			}
+		case "--user":
+			target = "user"
+			// Next argument should be user name
+			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+				resourceName = args[i+1]
+			}
+		case "--team-user":
+			target = "team-user"
+			// Next argument should be team/user name
+			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+				resourceName = args[i+1]
+			}
+		}
+	}
+
+	if !remove {
+		fmt.Fprintln(os.Stderr, "pushサブコマンドを指定してください (現在は --remove のみサポート)")
 		os.Exit(1)
 	}
-	target := targets[0]
-	if *exec {
-		fmt.Printf("%s を削除します (実行)\n", target)
+
+	if target == "" || resourceName == "" {
+		fmt.Fprintln(os.Stderr, "削除対象を指定してください")
+		fmt.Fprintln(os.Stderr, "利用可能な対象: --team <name>, --user <name>, --team-user <team>/<user>")
+		os.Exit(1)
+	}
+
+	if exec {
+		fmt.Printf("%s %s を削除します (実行)\n", target, resourceName)
 	} else {
-		fmt.Printf("%s を削除します (DRYRUN)\n", target)
+		fmt.Printf("%s %s を削除します (DRYRUN)\n", target, resourceName)
 	}
 	// TODO: GitHub API呼び出し
 }
 
 // viewCmd handles the 'view' command to display data from local database
 func viewCmd(args []string) {
-	if len(args) == 0 {
+	// Parse flags according to new specification
+	var target string
+	var teamName string // For --teams-users
+
+	for i, arg := range args {
+		switch arg {
+		case "--users":
+			target = "users"
+		case "--teams":
+			target = "teams"
+		case "--repos":
+			target = "repos"
+		case "--teams-users":
+			target = "teams-users"
+			// Next argument should be team name
+			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+				teamName = args[i+1]
+			}
+		}
+	}
+
+	if target == "" {
 		fmt.Fprintln(os.Stderr, "view対象を指定してください")
+		fmt.Fprintln(os.Stderr, "利用可能な対象: --users, --teams, --repos, --teams-users <team_name>")
 		os.Exit(1)
 	}
 
-	target := args[0]
+	if target == "teams-users" && teamName == "" {
+		fmt.Fprintln(os.Stderr, "--teams-users にはチーム名を指定してください")
+		os.Exit(1)
+	}
+
 	db, err := initDatabase()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Database initialization error: %v\n", err)
@@ -653,7 +729,13 @@ func viewCmd(args []string) {
 	}
 	defer db.Close()
 
-	err = handleViewTarget(db, target)
+	// Handle different target types
+	finalTarget := target
+	if target == "teams-users" {
+		finalTarget = teamName + "/users" // Convert to legacy format for handleViewTarget
+	}
+
+	err = handleViewTarget(db, finalTarget)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to view %s: %v\n", target, err)
 		os.Exit(1)
