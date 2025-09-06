@@ -81,11 +81,11 @@ USAGE:
 
 COMMANDS:
     pull [--store] --<target>      Fetch data from GitHub API
-                                   Targets: --users, --teams, --repos, --teams-users <team_name>, --all-teams-users
+                                   Targets: --users, --teams, --repos, --teams-users <team_name>, --all-teams-users, --token-permission
                                    --store: Save to local SQLite database
     
     view --<target>                Display data from local database
-                                   Targets: --users, --teams, --repos, --teams-users <team_name>
+                                   Targets: --users, --teams, --repos, --teams-users <team_name>, --token-permission
     
     push --remove --<target>       Remove resources from GitHub
                                    [--exec]: Execute (without this flag, runs in DRYRUN mode)
@@ -218,6 +218,18 @@ func createTables(db *sql.DB) error {
 			created_at TEXT,
 			PRIMARY KEY (team_id, user_id)
 		)`,
+		`CREATE TABLE IF NOT EXISTS token_permissions (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			scopes TEXT,
+			x_oauth_scopes TEXT,
+			x_accepted_oauth_scopes TEXT,
+			x_github_media_type TEXT,
+			x_ratelimit_limit INTEGER,
+			x_ratelimit_remaining INTEGER,
+			x_ratelimit_reset INTEGER,
+			created_at TEXT,
+			updated_at TEXT
+		)`,
 	}
 
 	for _, query := range tables {
@@ -254,12 +266,14 @@ func pullCmd(args []string) {
 			}
 		case "--all-teams-users":
 			target = "all-teams-users"
+		case "--token-permission":
+			target = "token-permission"
 		}
 	}
 
 	if target == "" {
 		fmt.Fprintln(os.Stderr, "pull対象を指定してください")
-		fmt.Fprintln(os.Stderr, "利用可能な対象: --users, --teams, --repos, --teams-users <team_name>, --all-teams-users")
+		fmt.Fprintln(os.Stderr, "利用可能な対象: --users, --teams, --repos, --teams-users <team_name>, --all-teams-users, --token-permission")
 		os.Exit(1)
 	}
 
@@ -322,6 +336,8 @@ func handlePullTarget(ctx context.Context, client *github.Client, db *sql.DB, or
 		return pullRepositories(ctx, client, db, org, store)
 	case target == "all-teams-users":
 		return pullAllTeamsUsers(ctx, client, db, org, store)
+	case target == "token-permission":
+		return pullTokenPermission(ctx, client, db, store)
 	case strings.HasSuffix(target, "/users"):
 		teamSlug := strings.TrimSuffix(target, "/users")
 		return pullTeamUsers(ctx, client, db, org, teamSlug, store)
@@ -464,6 +480,57 @@ func pullAllTeamsUsers(ctx context.Context, client *github.Client, db *sql.DB, o
 	}
 
 	fmt.Printf("Completed fetching users for all teams.\n")
+	return nil
+}
+
+// pullTokenPermission fetches GitHub token permissions and optionally stores them in database
+func pullTokenPermission(ctx context.Context, client *github.Client, db *sql.DB, store bool) error {
+	// Make a simple API call to get token information from response headers
+	_, resp, err := client.Users.Get(ctx, "")
+	if err != nil {
+		return fmt.Errorf("failed to get token information: %w", err)
+	}
+
+	// Extract permission information from response headers
+	scopes := resp.Header.Get("X-OAuth-Scopes")
+	acceptedScopes := resp.Header.Get("X-Accepted-OAuth-Scopes")
+	mediaType := resp.Header.Get("X-GitHub-Media-Type")
+	rateLimit := resp.Rate.Limit
+	rateRemaining := resp.Rate.Remaining
+	rateReset := resp.Rate.Reset.Unix()
+
+	fmt.Printf("Token Permissions:\n")
+	fmt.Printf("  OAuth Scopes: %s\n", scopes)
+	fmt.Printf("  Accepted OAuth Scopes: %s\n", acceptedScopes)
+	fmt.Printf("  GitHub Media Type: %s\n", mediaType)
+	fmt.Printf("  Rate Limit: %d\n", rateLimit)
+	fmt.Printf("  Rate Remaining: %d\n", rateRemaining)
+	fmt.Printf("  Rate Reset: %d\n", rateReset)
+
+	if store && db != nil {
+		// Clear existing token permission data
+		if _, err := db.Exec(`DELETE FROM token_permissions`); err != nil {
+			return fmt.Errorf("failed to clear token_permissions table: %w", err)
+		}
+
+		// Store new token permission data
+		now := time.Now().Format(time.RFC3339)
+		_, err = db.Exec(`
+			INSERT INTO token_permissions (
+				scopes, x_oauth_scopes, x_accepted_oauth_scopes, x_github_media_type,
+				x_ratelimit_limit, x_ratelimit_remaining, x_ratelimit_reset,
+				created_at, updated_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			scopes, scopes, acceptedScopes, mediaType,
+			rateLimit, rateRemaining, rateReset,
+			now, now,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to store token permissions: %w", err)
+		}
+		fmt.Printf("Token permission information stored in database\n")
+	}
+
 	return nil
 }
 
@@ -726,12 +793,14 @@ func viewCmd(args []string) {
 			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
 				teamName = args[i+1]
 			}
+		case "--token-permission":
+			target = "token-permission"
 		}
 	}
 
 	if target == "" {
 		fmt.Fprintln(os.Stderr, "view対象を指定してください")
-		fmt.Fprintln(os.Stderr, "利用可能な対象: --users, --teams, --repos, --teams-users <team_name>")
+		fmt.Fprintln(os.Stderr, "利用可能な対象: --users, --teams, --repos, --teams-users <team_name>, --token-permission")
 		os.Exit(1)
 	}
 
@@ -769,6 +838,8 @@ func handleViewTarget(db *sql.DB, target string) error {
 		return viewTeams(db)
 	case "repos", "repositories":
 		return viewRepositories(db)
+	case "token-permission":
+		return viewTokenPermission(db)
 	default:
 		if strings.HasSuffix(target, "/users") {
 			teamSlug := strings.TrimSuffix(target, "/users")
@@ -901,6 +972,50 @@ func viewTeamUsers(db *sql.DB, teamSlug string) error {
 
 		fmt.Printf("%d\t%s\t%s\n", userID, login.String, role.String)
 	}
+	return nil
+}
+
+// viewTokenPermission displays token permissions from the database
+func viewTokenPermission(db *sql.DB) error {
+	rows, err := db.Query(`
+		SELECT scopes, x_oauth_scopes, x_accepted_oauth_scopes, x_github_media_type,
+		       x_ratelimit_limit, x_ratelimit_remaining, x_ratelimit_reset,
+		       created_at, updated_at
+		FROM token_permissions 
+		ORDER BY created_at DESC 
+		LIMIT 1`)
+	if err != nil {
+		return fmt.Errorf("failed to query token permissions: %w", err)
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		fmt.Println("No token permission data found in database.")
+		fmt.Println("Run 'ghub-desk pull --token-permission --store' first.")
+		return nil
+	}
+
+	var scopes, oauthScopes, acceptedScopes, mediaType, createdAt, updatedAt sql.NullString
+	var rateLimit, rateRemaining, rateReset int
+
+	err = rows.Scan(&scopes, &oauthScopes, &acceptedScopes, &mediaType,
+		&rateLimit, &rateRemaining, &rateReset,
+		&createdAt, &updatedAt)
+	if err != nil {
+		return fmt.Errorf("failed to scan token permission row: %w", err)
+	}
+
+	fmt.Println("Token Permissions (from database):")
+	fmt.Println("===================================")
+	fmt.Printf("OAuth Scopes: %s\n", oauthScopes.String)
+	fmt.Printf("Accepted OAuth Scopes: %s\n", acceptedScopes.String)
+	fmt.Printf("GitHub Media Type: %s\n", mediaType.String)
+	fmt.Printf("Rate Limit: %d\n", rateLimit)
+	fmt.Printf("Rate Remaining: %d\n", rateRemaining)
+	fmt.Printf("Rate Reset: %d\n", rateReset)
+	fmt.Printf("Created At: %s\n", createdAt.String)
+	fmt.Printf("Updated At: %s\n", updatedAt.String)
+
 	return nil
 }
 
