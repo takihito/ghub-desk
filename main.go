@@ -223,6 +223,7 @@ func createTables(db *sql.DB) error {
 			scopes TEXT,
 			x_oauth_scopes TEXT,
 			x_accepted_oauth_scopes TEXT,
+			x_accepted_github_permissions TEXT,
 			x_github_media_type TEXT,
 			x_ratelimit_limit INTEGER,
 			x_ratelimit_remaining INTEGER,
@@ -494,6 +495,7 @@ func pullTokenPermission(ctx context.Context, client *github.Client, db *sql.DB,
 	// Extract permission information from response headers
 	scopes := resp.Header.Get("X-OAuth-Scopes")
 	acceptedScopes := resp.Header.Get("X-Accepted-OAuth-Scopes")
+	acceptedGitHubPermissions := resp.Header.Get("X-Accepted-GitHub-Permissions")
 	mediaType := resp.Header.Get("X-GitHub-Media-Type")
 	rateLimit := resp.Rate.Limit
 	rateRemaining := resp.Rate.Remaining
@@ -502,6 +504,7 @@ func pullTokenPermission(ctx context.Context, client *github.Client, db *sql.DB,
 	fmt.Printf("Token Permissions:\n")
 	fmt.Printf("  OAuth Scopes: %s\n", scopes)
 	fmt.Printf("  Accepted OAuth Scopes: %s\n", acceptedScopes)
+	fmt.Printf("  Accepted GitHub Permissions: %s\n", acceptedGitHubPermissions)
 	fmt.Printf("  GitHub Media Type: %s\n", mediaType)
 	fmt.Printf("  Rate Limit: %d\n", rateLimit)
 	fmt.Printf("  Rate Remaining: %d\n", rateRemaining)
@@ -517,11 +520,11 @@ func pullTokenPermission(ctx context.Context, client *github.Client, db *sql.DB,
 		now := time.Now().Format(time.RFC3339)
 		_, err = db.Exec(`
 			INSERT INTO token_permissions (
-				scopes, x_oauth_scopes, x_accepted_oauth_scopes, x_github_media_type,
+				scopes, x_oauth_scopes, x_accepted_oauth_scopes, x_accepted_github_permissions, x_github_media_type,
 				x_ratelimit_limit, x_ratelimit_remaining, x_ratelimit_reset,
 				created_at, updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			scopes, scopes, acceptedScopes, mediaType,
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			scopes, scopes, acceptedScopes, acceptedGitHubPermissions, mediaType,
 			rateLimit, rateRemaining, rateReset,
 			now, now,
 		)
@@ -978,7 +981,7 @@ func viewTeamUsers(db *sql.DB, teamSlug string) error {
 // viewTokenPermission displays token permissions from the database
 func viewTokenPermission(db *sql.DB) error {
 	rows, err := db.Query(`
-		SELECT scopes, x_oauth_scopes, x_accepted_oauth_scopes, x_github_media_type,
+		SELECT scopes, x_oauth_scopes, x_accepted_oauth_scopes, x_accepted_github_permissions, x_github_media_type,
 		       x_ratelimit_limit, x_ratelimit_remaining, x_ratelimit_reset,
 		       created_at, updated_at
 		FROM token_permissions 
@@ -995,10 +998,10 @@ func viewTokenPermission(db *sql.DB) error {
 		return nil
 	}
 
-	var scopes, oauthScopes, acceptedScopes, mediaType, createdAt, updatedAt sql.NullString
+	var scopes, oauthScopes, acceptedScopes, acceptedGitHubPermissions, mediaType, createdAt, updatedAt sql.NullString
 	var rateLimit, rateRemaining, rateReset int
 
-	err = rows.Scan(&scopes, &oauthScopes, &acceptedScopes, &mediaType,
+	err = rows.Scan(&scopes, &oauthScopes, &acceptedScopes, &acceptedGitHubPermissions, &mediaType,
 		&rateLimit, &rateRemaining, &rateReset,
 		&createdAt, &updatedAt)
 	if err != nil {
@@ -1009,6 +1012,7 @@ func viewTokenPermission(db *sql.DB) error {
 	fmt.Println("===================================")
 	fmt.Printf("OAuth Scopes: %s\n", oauthScopes.String)
 	fmt.Printf("Accepted OAuth Scopes: %s\n", acceptedScopes.String)
+	fmt.Printf("Accepted GitHub Permissions: %s\n", acceptedGitHubPermissions.String)
 	fmt.Printf("GitHub Media Type: %s\n", mediaType.String)
 	fmt.Printf("Rate Limit: %d\n", rateLimit)
 	fmt.Printf("Rate Remaining: %d\n", rateRemaining)
