@@ -118,7 +118,7 @@ $ ghub-desk view --repos
 * チームを組織から削除
 
 ````
-$ ghub-desk push --remove --team --exec {team_name}
+$ ghub-desk push --remove --team {team_name} --exec
 
 # DRYRUN
 $ ghub-desk push --remove --team {team_name}
@@ -127,7 +127,7 @@ $ ghub-desk push --remove --team {team_name}
 * ユーザーを組織から削除
 
 ````
-$ ghub-desk push --remove --user --exec {user_name}
+$ ghub-desk push --remove --user {user_name} --exec
 
 # DRYRUN
 $ ghub-desk push --remove --user {user_name}
@@ -136,11 +136,25 @@ $ ghub-desk push --remove --user {user_name}
 * ユーザーをチームから削除
 
 ````
-$ ghub-desk push --remove --team-user --exec {team_name}/{user_name}
+$ ghub-desk push --remove --team-user {team_name}/{user_name} --exec
 
 # DRYRUN
 $ ghub-desk push --remove --team-user  {team_name}/{user_name}
 ````
+
+* TOKENの権限チェック
+
+````
+# GITHUB API で使用しているトークンの権限を表示します
+$ ghub-desk pull --token-permission
+
+# SQLiteに保存します
+$ ghub-desk pull --token-permission --store
+
+#SQLiteに保存したトークンの権限情報を表示します
+$ ghub-desk view --token-permission
+````
+
 
 
 ## 修正指示
@@ -177,4 +191,48 @@ APIを実行しDBに保存するコードが各所にあります。
 ````
 
 
+------
 
+### 今後の差別化提案
+
+
+「組織管理ダッシュボード」としてのポジション
+# 組織の健康状態チェック
+ghub-desk analytics --teams-activity
+ghub-desk report --user-distribution
+
+
+「データ分析・レポート機能」
+# 時系列分析
+ghub-desk analyze --team-growth --period 6months
+ghub-desk export --format csv --teams-users
+
+
+
+
+「コンプライアンス・監査機能」
+
+# アクセス権監査
+ghub-desk audit --inactive-users --days 90
+ghub-desk compliance --team-permissions
+
+
+推奨される方向性
+
+A. 組織管理特化ツールとして発展
+# 管理者向け機能
+ghub-desk dashboard          # 組織概要表示
+ghub-desk alerts --inactive  # 非アクティブユーザー検出
+ghub-desk sync --with-ldap   # 外部システムとの同期
+
+データ分析・BI機能
+# 分析機能
+ghub-desk metrics --team-activity
+ghub-desk visualize --user-contributions
+ghub-desk benchmark --against-industry
+
+C. 自動化・CI/CD連携
+# 自動化
+ghub-desk schedule --daily-sync
+ghub-desk webhook --team-changes
+ghub-desk integration --slack-notifications
