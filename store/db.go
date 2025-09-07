@@ -115,10 +115,11 @@ func StoreUsers(db *sql.DB, users []*github.User) error {
 
 // StoreTeams stores GitHub teams in the database
 func StoreTeams(db *sql.DB, teams []*github.Team) error {
+	now := time.Now().Format("2006-01-02 15:04:05")
 	for _, t := range teams {
 		_, err := db.Exec(`INSERT OR REPLACE INTO teams(id, name, slug, description, privacy, permission, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 			t.GetID(), t.GetName(), t.GetSlug(), t.GetDescription(), t.GetPrivacy(), t.GetPermission(),
-			"", "")
+			now, now)
 		if err != nil {
 			return fmt.Errorf("failed to insert team %s: %w", t.GetSlug(), err)
 		}
