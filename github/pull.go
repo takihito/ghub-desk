@@ -83,7 +83,7 @@ func PullDetailUsers(ctx context.Context, client *github.Client, db *sql.DB, org
 			if !storeData || db == nil {
 				return nil
 			}
-			// Fetch detailed user information for each user with GraphQL support and SSO email lookup
+			// Fetch detailed user information for each user
 			return store.StoreUsersWithDetails(ctx, client, db, users, token, org)
 		},
 		db, org,
