@@ -61,6 +61,18 @@ $ ghub-desk pull --users
 $ ghub-desk view --users
 ````
 
+````
+# より詳細なユーザ情報を取得する
+# SQLiteには保存する
+$ ghub-desk pull --store --detail-users
+
+# SQLiteには保存せず
+$ ghub-desk pull --detail-users
+
+# SQLiteをソースとして表示する 
+$ ghub-desk view --detail-users
+````
+
 * チーム一覧の取得
 
 ````
