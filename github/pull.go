@@ -19,12 +19,12 @@ const (
 )
 
 // HandlePullTarget processes different types of pull targets (users, teams, repos, team_users)
-func HandlePullTarget(ctx context.Context, client *github.Client, db *sql.DB, org, target string, storeData bool) error {
+func HandlePullTarget(ctx context.Context, client *github.Client, db *sql.DB, org, target, token string, storeData bool) error {
 	switch {
 	case target == "users":
 		return PullUsers(ctx, client, db, org, storeData)
 	case target == "detail-users":
-		return PullDetailUsers(ctx, client, db, org, storeData)
+		return PullDetailUsers(ctx, client, db, org, token, storeData)
 	case target == "teams":
 		return PullTeams(ctx, client, db, org, storeData)
 	case target == "repos":
@@ -66,7 +66,7 @@ func PullUsers(ctx context.Context, client *github.Client, db *sql.DB, org strin
 }
 
 // PullDetailUsers fetches organization members with detailed information and optionally stores them in database
-func PullDetailUsers(ctx context.Context, client *github.Client, db *sql.DB, org string, storeData bool) error {
+func PullDetailUsers(ctx context.Context, client *github.Client, db *sql.DB, org, token string, storeData bool) error {
 	if storeData {
 		if _, err := db.Exec(`DELETE FROM users`); err != nil {
 			return fmt.Errorf("failed to clear users table: %w", err)
@@ -83,8 +83,8 @@ func PullDetailUsers(ctx context.Context, client *github.Client, db *sql.DB, org
 			if !storeData || db == nil {
 				return nil
 			}
-			// Fetch detailed user information for each user
-			return store.StoreUsersWithDetails(ctx, client, db, users)
+			// Fetch detailed user information for each user with GraphQL support and SSO email lookup
+			return store.StoreUsersWithDetails(ctx, client, db, users, token, org)
 		},
 		db, org,
 	)
@@ -212,7 +212,7 @@ func PullTokenPermission(ctx context.Context, client *github.Client, db *sql.DB,
 	}
 
 	// Extract permission information from response headers
-	scopes := resp.Header.Get("X-OAuth-Scopes")
+	x_oauth_scopes := resp.Header.Get("X-OAuth-Scopes")
 	acceptedScopes := resp.Header.Get("X-Accepted-OAuth-Scopes")
 	acceptedGitHubPermissions := resp.Header.Get("X-Accepted-GitHub-Permissions")
 	mediaType := resp.Header.Get("X-GitHub-Media-Type")
@@ -221,7 +221,7 @@ func PullTokenPermission(ctx context.Context, client *github.Client, db *sql.DB,
 	rateReset := resp.Rate.Reset.Unix()
 
 	fmt.Printf("Token Permissions:\n")
-	fmt.Printf("  OAuth Scopes: %s\n", scopes)
+	fmt.Printf("  OAuth Scopes: %s\n", x_oauth_scopes)
 	fmt.Printf("  Accepted OAuth Scopes: %s\n", acceptedScopes)
 	fmt.Printf("  Accepted GitHub Permissions: %s\n", acceptedGitHubPermissions)
 	fmt.Printf("  GitHub Media Type: %s\n", mediaType)
@@ -243,7 +243,7 @@ func PullTokenPermission(ctx context.Context, client *github.Client, db *sql.DB,
 				x_ratelimit_limit, x_ratelimit_remaining, x_ratelimit_reset,
 				created_at, updated_at
 			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			scopes, scopes, acceptedScopes, acceptedGitHubPermissions, mediaType,
+			"", x_oauth_scopes, acceptedScopes, acceptedGitHubPermissions, mediaType,
 			rateLimit, rateRemaining, rateReset,
 			now, now,
 		)

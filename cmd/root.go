@@ -181,7 +181,7 @@ func PullCmd(args []string) error {
 		finalTarget = teamName + "/users" // Convert to legacy format for HandlePullTarget
 	}
 
-	err = github.HandlePullTarget(ctx, client, db, cfg.Organization, finalTarget, storeData)
+	err = github.HandlePullTarget(ctx, client, db, cfg.Organization, finalTarget, cfg.GitHubToken, storeData)
 	if err != nil {
 		return fmt.Errorf("failed to pull %s: %w", target, err)
 	}

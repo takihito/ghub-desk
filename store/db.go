@@ -116,7 +116,7 @@ func StoreUsers(db *sql.DB, users []*github.User) error {
 }
 
 // StoreUsersWithDetails stores GitHub users with detailed information fetched individually
-func StoreUsersWithDetails(ctx context.Context, client *github.Client, db *sql.DB, users []*github.User) error {
+func StoreUsersWithDetails(ctx context.Context, client *github.Client, db *sql.DB, users []*github.User, token, orgName string) error {
 	now := time.Now().Format("2006-01-02 15:04:05")
 
 	for i, u := range users {
