@@ -23,6 +23,8 @@ func HandlePullTarget(ctx context.Context, client *github.Client, db *sql.DB, or
 	switch {
 	case target == "users":
 		return PullUsers(ctx, client, db, org, storeData)
+	case target == "detail-users":
+		return PullDetailUsers(ctx, client, db, org, storeData)
 	case target == "teams":
 		return PullTeams(ctx, client, db, org, storeData)
 	case target == "repos":
@@ -58,6 +60,31 @@ func PullUsers(ctx context.Context, client *github.Client, db *sql.DB, org strin
 				return nil
 			}
 			return store.StoreUsers(db, users)
+		},
+		db, org,
+	)
+}
+
+// PullDetailUsers fetches organization members with detailed information and optionally stores them in database
+func PullDetailUsers(ctx context.Context, client *github.Client, db *sql.DB, org string, storeData bool) error {
+	if storeData {
+		if _, err := db.Exec(`DELETE FROM users`); err != nil {
+			return fmt.Errorf("failed to clear users table: %w", err)
+		}
+	}
+
+	return fetchAndStore(
+		ctx, client,
+		func(ctx context.Context, org string, opts *github.ListOptions) ([]*github.User, *github.Response, error) {
+			memberOpts := &github.ListMembersOptions{ListOptions: *opts}
+			return client.Organizations.ListMembers(ctx, org, memberOpts)
+		},
+		func(db *sql.DB, users []*github.User) error {
+			if !storeData || db == nil {
+				return nil
+			}
+			// Fetch detailed user information for each user
+			return store.StoreUsersWithDetails(ctx, client, db, users)
 		},
 		db, org,
 	)

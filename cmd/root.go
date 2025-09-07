@@ -59,11 +59,11 @@ USAGE:
 
 COMMANDS:
     pull [--store] --<target>      Fetch data from GitHub API
-                                   Targets: --users, --teams, --repos, --teams-users <team_name>, --all-teams-users, --token-permission
+                                   Targets: --users, --detail-users, --teams, --repos, --teams-users <team_name>, --all-teams-users, --token-permission
                                    --store: Save to local SQLite database
     
     view --<target>                Display data from local database
-                                   Targets: --users, --teams, --repos, --teams-users <team_name>, --token-permission
+                                   Targets: --users, --detail-users, --teams, --repos, --teams-users <team_name>, --token-permission
     
     push --remove --<target>       Remove resources from GitHub
                                    [--exec]: Execute (without this flag, runs in DRYRUN mode)
@@ -78,11 +78,17 @@ ENVIRONMENT VARIABLES:
     GHUB_DESK_GITHUB_TOKEN     GitHub personal access token (required)
 
 EXAMPLES:
-    # Fetch and store organization members
+    # Fetch and store organization members (basic info)
     ghub-desk pull --store --users
+    
+    # Fetch and store organization members with detailed information
+    ghub-desk pull --store --detail-users
     
     # View stored teams
     ghub-desk view --teams
+    
+    # View stored users (including detailed info if fetched)
+    ghub-desk view --detail-users
     
     # Fetch team members (without storing)
     ghub-desk pull --teams-users engineering
@@ -116,6 +122,8 @@ func PullCmd(args []string) error {
 			storeData = true
 		case "--users":
 			target = "users"
+		case "--detail-users":
+			target = "detail-users"
 		case "--teams":
 			target = "teams"
 		case "--repos":
@@ -134,7 +142,7 @@ func PullCmd(args []string) error {
 	}
 
 	if target == "" {
-		return fmt.Errorf("pull対象を指定してください\n利用可能な対象: --users, --teams, --repos, --teams-users <team_name>, --all-teams-users, --token-permission")
+		return fmt.Errorf("pull対象を指定してください\n利用可能な対象: --users, --detail-users, --teams, --repos, --teams-users <team_name>, --all-teams-users, --token-permission")
 	}
 
 	if target == "teams-users" && teamName == "" {
@@ -192,6 +200,8 @@ func ViewCmd(args []string) error {
 		switch arg {
 		case "--users":
 			target = "users"
+		case "--detail-users":
+			target = "detail-users"
 		case "--teams":
 			target = "teams"
 		case "--repos":
@@ -208,7 +218,7 @@ func ViewCmd(args []string) error {
 	}
 
 	if target == "" {
-		return fmt.Errorf("view対象を指定してください\n利用可能な対象: --users, --teams, --repos, --teams-users <team_name>, --token-permission")
+		return fmt.Errorf("view対象を指定してください\n利用可能な対象: --users, --detail-users, --teams, --repos, --teams-users <team_name>, --token-permission")
 	}
 
 	if target == "teams-users" && teamName == "" {

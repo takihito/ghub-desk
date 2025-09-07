@@ -9,7 +9,7 @@ import (
 // HandleViewTarget processes different types of view targets
 func HandleViewTarget(db *sql.DB, target string) error {
 	switch target {
-	case "users":
+	case "users", "detail-users":
 		return ViewUsers(db)
 	case "teams":
 		return ViewTeams(db)
