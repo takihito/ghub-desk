@@ -9,9 +9,9 @@ BUILD_DIR=./build
 GO_FILES=$(shell find . -name "*.go")
 
 # Version information
-#  ref: git tag v0.01
+#  ref: git tag v0.0.1
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-# VERSION ?= 0.01  # 固定バージョンを使いたい場合はこちらをコメントアウト
+# VERSION ?= 0.0.1  # 固定バージョンを使いたい場合はこちらをコメントアウト
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
