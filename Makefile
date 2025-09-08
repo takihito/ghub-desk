@@ -97,3 +97,7 @@ setup: deps build
 	@echo "  export GHUB_DESK_GITHUB_TOKEN=\"your-github-token\""
 	@echo ""
 	@echo "Then run: make run-help"
+
+ goreleaser_build:
+	@echo "🚀 Building release..."
+	@goreleaser release --rm-dist

@@ -240,7 +240,7 @@ ghub-desk sync --with-ldap   # 外部システムとの同期
 データ分析・BI機能
 # 分析機能
 ghub-desk metrics --team-activity
-ghub-desk visualize --user-contributions
+ghub-desk visualize --user-contributions 
 ghub-desk benchmark --against-industry
 
 C. 自動化・CI/CD連携
@@ -248,3 +248,8 @@ C. 自動化・CI/CD連携
 ghub-desk schedule --daily-sync
 ghub-desk webhook --team-changes
 ghub-desk integration --slack-notifications
+
+
+## MCPサーバ機能
+
+* Gemini CLIのMCP機能は、JSON-RPC (JSON Remote Procedure Call) プロトコルを使用してMCPサーバーと通信します。このプロトコルでは、コマンドの入力と出力はすべてJSON形式である必要があります。
