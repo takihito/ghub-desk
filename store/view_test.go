@@ -14,12 +14,21 @@ func setupTestDB(t *testing.T) *sql.DB {
 		t.Fatalf("Failed to open test database: %v", err)
 	}
 
+	// deferを使用してエラー時にもクリーンアップを保証
+	// ただし、正常時は呼び出し元でClose()する責任がある
+	var success bool
+	defer func() {
+		if !success {
+			db.Close()
+		}
+	}()
+
 	err = createTables(db)
 	if err != nil {
 		t.Fatalf("Failed to create tables: %v", err)
-		db.Close()
 	}
 
+	success = true
 	return db
 }
 
