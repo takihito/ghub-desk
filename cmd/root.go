@@ -12,6 +12,20 @@ import (
 	"ghub-desk/store"
 )
 
+var (
+	// Version information - set by main.go
+	appVersion = "dev"
+	appCommit  = "none"
+	appDate    = "unknown"
+)
+
+// SetVersionInfo sets the version information
+func SetVersionInfo(version, commit, date string) {
+	appVersion = version
+	appCommit = commit
+	appDate = date
+}
+
 // Execute is the main entry point for all commands
 func Execute() error {
 	if len(os.Args) < 2 {
@@ -29,6 +43,9 @@ func Execute() error {
 		return PushCmd(os.Args[2:])
 	case "init":
 		return InitCmd()
+	case "version", "-v", "--version":
+		VersionCmd()
+		return nil
 	case "help", "-h", "--help":
 		Usage()
 		return nil
@@ -48,6 +65,13 @@ func InitCmd() error {
 
 	fmt.Println("Database initialization completed")
 	return nil
+}
+
+// VersionCmd displays version information
+func VersionCmd() {
+	fmt.Printf("ghub-desk version %s\n", appVersion)
+	fmt.Printf("commit: %s\n", appCommit)
+	fmt.Printf("built at: %s\n", appDate)
 }
 
 // Usage displays help information for the CLI tool
@@ -70,6 +94,8 @@ COMMANDS:
                                    Targets: --team <name>, --user <name>, --team-user <team>/<user>
     
     init                           Initialize local database tables
+    
+    version                        Show version information
     
     help                           Show this help message
 

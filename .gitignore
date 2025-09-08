@@ -41,3 +41,5 @@ vendor/
 
 # Log files
 *.log
+# Added by goreleaser init:
+dist/
