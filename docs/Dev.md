@@ -253,3 +253,4 @@ ghub-desk integration --slack-notifications
 ## MCPサーバ機能
 
 * Gemini CLIのMCP機能は、JSON-RPC (JSON Remote Procedure Call) プロトコルを使用してMCPサーバーと通信します。このプロトコルでは、コマンドの入力と出力はすべてJSON形式である必要があります。
+  * https://github.com/takihito/ghub-desk/pull/4#discussion_r2329395563
