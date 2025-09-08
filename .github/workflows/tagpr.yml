@@ -1,9 +1,20 @@
 name: tagpr
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "release tag"
+        required: false
+        type: string
+permissions:
+  pull-requests: write
+  packages: write
+  contents: write
+  actions: write
+  issues: write
 
 jobs:
   tagpr:
