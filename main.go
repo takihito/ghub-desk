@@ -12,8 +12,7 @@ import (
 
 var (
 	// version is set during build via ldflags
-	version = "dev" // devを指定した時はダミーバージョンが自動生成される
-	//version = "0.01"
+	version = "dev"
 	// commit is set during build via ldflags
 	commit = "none"
 	// date is set during build via ldflags

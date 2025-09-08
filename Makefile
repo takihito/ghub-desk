@@ -98,6 +98,6 @@ setup: deps build
 	@echo ""
 	@echo "Then run: make run-help"
 
- goreleaser_build:
+goreleaser_build:
 	@echo "🚀 Building release..."
-	@goreleaser release --rm-dist
+	@goreleaser release --clean
