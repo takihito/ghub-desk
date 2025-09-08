@@ -1,12 +1,21 @@
 APP=ghub-desk
 
 
-.PHONY: build clean install test run-help deps examples dev setup
+.PHONY: build clean install test run-help deps examples dev setup version
 
 # Variables
 BINARY_NAME=ghub-desk
 BUILD_DIR=./build
 GO_FILES=$(shell find . -name "*.go")
+
+# Version information
+#  ref: git tag v0.0.1
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+# Linker flags for version information
+LDFLAGS = -ldflags "-s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)"
 
 # Default target
 all: build
@@ -15,7 +24,7 @@ all: build
 build:
 	@echo "🏗️  Building $(BINARY_NAME)..."
 	@mkdir -p $(BUILD_DIR)
-	@go build -o $(BUILD_DIR)/$(BINARY_NAME) main.go
+	@go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) main.go
 	@echo "✅ Build completed: $(BUILD_DIR)/$(BINARY_NAME)"
 
 # Install dependencies
@@ -35,8 +44,13 @@ clean:
 # Install the binary to GOPATH/bin
 install: build
 	@echo "📥 Installing $(BINARY_NAME)..."
-	@go install
+	@go install $(LDFLAGS)
 	@echo "✅ $(BINARY_NAME) installed"
+
+# Show version information
+version: build
+	@echo "📋 Version information:"
+	@$(BUILD_DIR)/$(BINARY_NAME) version
 
 # Run tests
 test:
@@ -82,3 +96,7 @@ setup: deps build
 	@echo "  export GHUB_DESK_GITHUB_TOKEN=\"your-github-token\""
 	@echo ""
 	@echo "Then run: make run-help"
+
+goreleaser_build:
+	@echo "🚀 Building release..."
+	@goreleaser release --clean

@@ -41,3 +41,12 @@ vendor/
 
 # Log files
 *.log
+
+# Added by goreleaser init:
+dist/
+
+# JSON
+*.json
+
+# Ignore  Markdown
+.*.md
