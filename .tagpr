@@ -1,0 +1,7 @@
+[tagpr]
+vPrefix = true
+releaseBranch = "main"
+versionFile = "main.go"
+release = "draft"
+
+
