@@ -242,14 +242,21 @@ func TestExecuteInitCommand(t *testing.T) {
 
 	// Create a temporary directory for testing
 	tmpDir := t.TempDir()
-	originalDir, _ := os.Getwd()
-	defer os.Chdir(originalDir)
-	os.Chdir(tmpDir)
+	originalDir, err := os.Getwd()
+	//defer os.Chdir(originalDir)
+	//os.Chdir(tmpDir)
 
-	err := Execute()
+	if err != nil {
+		t.Fatalf("Failed to get current working directory: %v", err)
+	}
+	defer os.Chdir(originalDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
 	// Init command might fail due to database setup, but should not fail on command parsing
 	// The important thing is that it's recognized as a valid command
-	if err != nil {
+	if err := Execute(); err != nil {
 		// If it's a command parsing error, that would be bad
 		if strings.Contains(err.Error(), "unknown command") {
 			t.Errorf("Init command should be recognized, got: %v", err)
