@@ -65,7 +65,6 @@ func TestViewUsers(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	// Insert test users
 	users := []*github.User{
 		{
 			ID:       github.Int64(1),
@@ -97,7 +96,6 @@ func TestViewTeams(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	// Insert test teams
 	teams := []*github.Team{
 		{
 			ID:          github.Int64(1),
@@ -124,7 +122,6 @@ func TestViewRepositories(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
-	// Insert test repositories
 	repos := []*github.Repository{
 		{
 			ID:              github.Int64(1),
@@ -202,7 +199,6 @@ func TestViewTokenPermission(t *testing.T) {
 		t.Errorf("ViewTokenPermission() with no data error = %v", err)
 	}
 
-	// Insert test token permission data
 	_, err = db.Exec(`INSERT INTO token_permissions(
 		scopes, x_oauth_scopes, x_accepted_oauth_scopes, x_accepted_github_permissions, 
 		x_github_media_type, x_ratelimit_limit, x_ratelimit_remaining, x_ratelimit_reset,

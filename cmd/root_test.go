@@ -243,8 +243,6 @@ func TestExecuteInitCommand(t *testing.T) {
 	// Create a temporary directory for testing
 	tmpDir := t.TempDir()
 	originalDir, err := os.Getwd()
-	//defer os.Chdir(originalDir)
-	//os.Chdir(tmpDir)
 
 	if err != nil {
 		t.Fatalf("Failed to get current working directory: %v", err)
