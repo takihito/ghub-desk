@@ -300,7 +300,9 @@ func fetchAndStore[T any](
 		opts := &github.ListOptions{Page: page, PerPage: DefaultPerPage}
 		items, resp, err := listFunc(ctx, org, opts)
 		if err != nil {
-			return fmt.Errorf("failed to fetch page %d: %w", page, err)
+			scopePermission := fmt.Errorf("X-Accepted-OAuth-Scopes:%s, X-Accepted-GitHub-Permissions:%s",
+				resp.Header.Get("X-Accepted-OAuth-Scopes"), resp.Header.Get("X-Accepted-GitHub-Permissions"))
+			return fmt.Errorf("failed to fetch page %d: %w, Required permission scope: %w", page, err, scopePermission)
 		}
 
 		allItems = append(allItems, items...)
