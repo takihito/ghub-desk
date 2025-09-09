@@ -2,7 +2,7 @@
 vPrefix = true
 releaseBranch = "main"
 versionFile = "version.go"
-# release = true
-release = "draft"
+release = true
+#release = "draft"
 
 
