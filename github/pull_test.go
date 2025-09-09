@@ -24,7 +24,7 @@ func TestHandlePullTarget_UnknownTarget(t *testing.T) {
 	storeData := true
 
 	// Test with unknown target
-	err = HandlePullTarget(ctx, client, db, org, "unknown-target", token, storeData)
+	err = HandlePullTarget(ctx, client, db, org, "unknown-target", token, storeData, DefaultSleep)
 	if err == nil {
 		t.Error("Expected error for unknown target, got nil")
 	}
@@ -66,7 +66,7 @@ func TestHandlePullTarget_ValidTargets(t *testing.T) {
 			storeData := false // Set to false to avoid actual storage
 
 			// This will likely fail due to invalid credentials, but should not fail on target parsing
-			err = HandlePullTarget(ctx, client, db, org, target, token, storeData)
+			err = HandlePullTarget(ctx, client, db, org, target, token, storeData, DefaultSleep)
 
 			// We expect these to fail with API errors, not parsing errors
 			if err != nil && err.Error() == "unknown target: "+target {

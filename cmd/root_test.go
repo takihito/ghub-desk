@@ -92,6 +92,18 @@ func TestExecuteHelpCommands(t *testing.T) {
 
 // Tests for PullCmd argument parsing
 func TestPullCmdArgumentParsing(t *testing.T) {
+	// Save original environment variables
+	origOrg := os.Getenv("GHUB_DESK_ORGANIZATION")
+	origToken := os.Getenv("GHUB_DESK_GITHUB_TOKEN")
+	defer func() {
+		os.Setenv("GHUB_DESK_ORGANIZATION", origOrg)
+		os.Setenv("GHUB_DESK_GITHUB_TOKEN", origToken)
+	}()
+
+	// Unset environment variables to prevent actual API calls
+	os.Unsetenv("GHUB_DESK_ORGANIZATION")
+	os.Unsetenv("GHUB_DESK_GITHUB_TOKEN")
+
 	tests := []struct {
 		name        string
 		args        []string
@@ -289,6 +301,18 @@ func TestExecuteValidCommands(t *testing.T) {
 
 // Tests for PullCmd with valid options (without actual execution)
 func TestPullCmdValidOptions(t *testing.T) {
+	// Save original environment variables
+	origOrg := os.Getenv("GHUB_DESK_ORGANIZATION")
+	origToken := os.Getenv("GHUB_DESK_GITHUB_TOKEN")
+	defer func() {
+		os.Setenv("GHUB_DESK_ORGANIZATION", origOrg)
+		os.Setenv("GHUB_DESK_GITHUB_TOKEN", origToken)
+	}()
+
+	// Unset environment variables to prevent actual API calls
+	os.Unsetenv("GHUB_DESK_ORGANIZATION")
+	os.Unsetenv("GHUB_DESK_GITHUB_TOKEN")
+
 	tests := []struct {
 		name     string
 		args     []string

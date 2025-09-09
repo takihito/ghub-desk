@@ -19,30 +19,30 @@ const (
 )
 
 // HandlePullTarget processes different types of pull targets (users, teams, repos, team_users)
-func HandlePullTarget(ctx context.Context, client *github.Client, db *sql.DB, org, target, token string, storeData bool) error {
+func HandlePullTarget(ctx context.Context, client *github.Client, db *sql.DB, org, target, token string, storeData bool, intervalTime time.Duration) error {
 	switch {
 	case target == "users":
-		return PullUsers(ctx, client, db, org, storeData)
+		return PullUsers(ctx, client, db, org, storeData, intervalTime)
 	case target == "detail-users":
-		return PullDetailUsers(ctx, client, db, org, token, storeData)
+		return PullDetailUsers(ctx, client, db, org, token, storeData, intervalTime)
 	case target == "teams":
-		return PullTeams(ctx, client, db, org, storeData)
+		return PullTeams(ctx, client, db, org, storeData, intervalTime)
 	case target == "repos":
-		return PullRepositories(ctx, client, db, org, storeData)
+		return PullRepositories(ctx, client, db, org, storeData, intervalTime)
 	case target == "all-teams-users":
-		return PullAllTeamsUsers(ctx, client, db, org, storeData)
+		return PullAllTeamsUsers(ctx, client, db, org, storeData, intervalTime)
 	case target == "token-permission":
-		return PullTokenPermission(ctx, client, db, storeData)
+		return PullTokenPermission(ctx, client, db, storeData, intervalTime)
 	case strings.HasSuffix(target, "/users"):
 		teamSlug := strings.TrimSuffix(target, "/users")
-		return PullTeamUsers(ctx, client, db, org, teamSlug, storeData)
+		return PullTeamUsers(ctx, client, db, org, teamSlug, storeData, intervalTime)
 	default:
 		return fmt.Errorf("unknown target: %s", target)
 	}
 }
 
 // PullUsers fetches organization members and optionally stores them in database
-func PullUsers(ctx context.Context, client *github.Client, db *sql.DB, org string, storeData bool) error {
+func PullUsers(ctx context.Context, client *github.Client, db *sql.DB, org string, storeData bool, intervalTime time.Duration) error {
 	if storeData {
 		if _, err := db.Exec(`DELETE FROM users`); err != nil {
 			return fmt.Errorf("failed to clear users table: %w", err)
@@ -61,12 +61,12 @@ func PullUsers(ctx context.Context, client *github.Client, db *sql.DB, org strin
 			}
 			return store.StoreUsers(db, users)
 		},
-		db, org,
+		db, org, intervalTime,
 	)
 }
 
 // PullDetailUsers fetches organization members with detailed information and optionally stores them in database
-func PullDetailUsers(ctx context.Context, client *github.Client, db *sql.DB, org, token string, storeData bool) error {
+func PullDetailUsers(ctx context.Context, client *github.Client, db *sql.DB, org, token string, storeData bool, intervalTime time.Duration) error {
 	if storeData {
 		if _, err := db.Exec(`DELETE FROM users`); err != nil {
 			return fmt.Errorf("failed to clear users table: %w", err)
@@ -84,14 +84,29 @@ func PullDetailUsers(ctx context.Context, client *github.Client, db *sql.DB, org
 				return nil
 			}
 			// Fetch detailed user information for each user
-			return store.StoreUsersWithDetails(ctx, client, db, users, token, org)
+			var detailedUsers []*github.User
+			for i, u := range users {
+				fmt.Printf("Fetching details for user %d/%d: %s\n", i+1, len(users), u.GetLogin())
+
+				detailedUser, _, err := client.Users.Get(ctx, u.GetLogin())
+				if err != nil {
+					fmt.Printf("Warning: failed to fetch details for user %s: %v\n", u.GetLogin(), err)
+					// Use basic user info if detailed fetch fails
+					detailedUser = u
+				}
+				detailedUsers = append(detailedUsers, detailedUser)
+
+				// Rate limiting: sleep between requests to avoid hitting API limits
+				time.Sleep(intervalTime)
+			}
+			return store.StoreUsersWithDetails(db, detailedUsers)
 		},
-		db, org,
+		db, org, intervalTime,
 	)
 }
 
 // PullTeams fetches organization teams and optionally stores them in database
-func PullTeams(ctx context.Context, client *github.Client, db *sql.DB, org string, storeData bool) error {
+func PullTeams(ctx context.Context, client *github.Client, db *sql.DB, org string, storeData bool, intervalTime time.Duration) error {
 	if storeData {
 		if _, err := db.Exec(`DELETE FROM teams`); err != nil {
 			return fmt.Errorf("failed to clear teams table: %w", err)
@@ -109,12 +124,12 @@ func PullTeams(ctx context.Context, client *github.Client, db *sql.DB, org strin
 			}
 			return store.StoreTeams(db, teams)
 		},
-		db, org,
+		db, org, intervalTime,
 	)
 }
 
 // PullRepositories fetches organization repositories and optionally stores them in database
-func PullRepositories(ctx context.Context, client *github.Client, db *sql.DB, org string, storeData bool) error {
+func PullRepositories(ctx context.Context, client *github.Client, db *sql.DB, org string, storeData bool, intervalTime time.Duration) error {
 	if storeData {
 		if _, err := db.Exec(`DELETE FROM repositories`); err != nil {
 			return fmt.Errorf("failed to clear repositories table: %w", err)
@@ -133,12 +148,12 @@ func PullRepositories(ctx context.Context, client *github.Client, db *sql.DB, or
 			}
 			return store.StoreRepositories(db, repos)
 		},
-		db, org,
+		db, org, intervalTime,
 	)
 }
 
 // PullTeamUsers fetches team members and optionally stores them in database
-func PullTeamUsers(ctx context.Context, client *github.Client, db *sql.DB, org, teamSlug string, storeData bool) error {
+func PullTeamUsers(ctx context.Context, client *github.Client, db *sql.DB, org, teamSlug string, storeData bool, intervalTime time.Duration) error {
 	if storeData {
 		if _, err := db.Exec(`DELETE FROM team_users WHERE team_slug = ?`, teamSlug); err != nil {
 			return fmt.Errorf("failed to clear team_users table: %w", err)
@@ -157,12 +172,12 @@ func PullTeamUsers(ctx context.Context, client *github.Client, db *sql.DB, org, 
 			}
 			return store.StoreTeamUsers(db, users, teamSlug)
 		},
-		db, org,
+		db, org, intervalTime,
 	)
 }
 
 // PullAllTeamsUsers fetches users for all stored teams
-func PullAllTeamsUsers(ctx context.Context, client *github.Client, db *sql.DB, org string, storeData bool) error {
+func PullAllTeamsUsers(ctx context.Context, client *github.Client, db *sql.DB, org string, storeData bool, intervalTime time.Duration) error {
 	// Get all team slugs from the database
 	rows, err := db.Query(`SELECT slug FROM teams`)
 	if err != nil {
@@ -193,7 +208,7 @@ func PullAllTeamsUsers(ctx context.Context, client *github.Client, db *sql.DB, o
 	// Fetch users for each team
 	for i, teamSlug := range teamSlugs {
 		fmt.Printf("Processing team %d/%d: %s\n", i+1, len(teamSlugs), teamSlug)
-		if err := PullTeamUsers(ctx, client, db, org, teamSlug, storeData); err != nil {
+		if err := PullTeamUsers(ctx, client, db, org, teamSlug, storeData, intervalTime); err != nil {
 			fmt.Printf("Warning: failed to fetch users for team %s: %v\n", teamSlug, err)
 			continue
 		}
@@ -204,7 +219,7 @@ func PullAllTeamsUsers(ctx context.Context, client *github.Client, db *sql.DB, o
 }
 
 // PullTokenPermission fetches GitHub token permissions and optionally stores them in database
-func PullTokenPermission(ctx context.Context, client *github.Client, db *sql.DB, storeData bool) error {
+func PullTokenPermission(ctx context.Context, client *github.Client, db *sql.DB, storeData bool, intervalTime time.Duration) error {
 	// Make a simple API call to get token information from response headers
 	_, resp, err := client.Users.Get(ctx, "")
 	if err != nil {
@@ -273,6 +288,7 @@ func fetchAndStore[T any](
 	storeFunc func(db *sql.DB, items []*T) error,
 	db *sql.DB,
 	org string,
+	intervalTime time.Duration,
 ) error {
 	var allItems []*T
 	page := 1
@@ -284,7 +300,9 @@ func fetchAndStore[T any](
 		opts := &github.ListOptions{Page: page, PerPage: DefaultPerPage}
 		items, resp, err := listFunc(ctx, org, opts)
 		if err != nil {
-			return fmt.Errorf("failed to fetch page %d: %w", page, err)
+			scopePermission := fmt.Errorf("X-Accepted-OAuth-Scopes:%s, X-Accepted-GitHub-Permissions:%s",
+				resp.Header.Get("X-Accepted-OAuth-Scopes"), resp.Header.Get("X-Accepted-GitHub-Permissions"))
+			return fmt.Errorf("failed to fetch page %d: %w, Required permission scope: %w", page, err, scopePermission)
 		}
 
 		allItems = append(allItems, items...)
@@ -298,7 +316,7 @@ func fetchAndStore[T any](
 		page = resp.NextPage
 
 		// Rate limiting: sleep between requests to avoid hitting API limits
-		time.Sleep(DefaultSleep)
+		time.Sleep(intervalTime)
 	}
 
 	// Store all fetched data in the database

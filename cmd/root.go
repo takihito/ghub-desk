@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"ghub-desk/config"
 	"ghub-desk/github"
@@ -84,7 +86,8 @@ USAGE:
 COMMANDS:
     pull [--store] --<target>      Fetch data from GitHub API
                                    Targets: --users, --detail-users, --teams, --repos, --teams-users <team_name>, --all-teams-users, --token-permission
-                                   --store: Save to local SQLite database
+                                   Options: --store: Save to local SQLite database
+                                           --interval-time <seconds>: Sleep interval between API requests (default: 3 seconds)
     
     view --<target>                Display data from local database
                                    Targets: --users, --detail-users, --teams, --repos, --teams-users <team_name>, --token-permission
@@ -140,7 +143,8 @@ func PullCmd(args []string) error {
 	// Parse flags according to new specification
 	var target string
 	var storeData bool
-	var teamName string // For --teams-users
+	var teamName string                                  // For --teams-users
+	var intervalTime time.Duration = github.DefaultSleep // Default value
 
 	for i, arg := range args {
 		switch arg {
@@ -164,11 +168,18 @@ func PullCmd(args []string) error {
 			target = "all-teams-users"
 		case "--token-permission":
 			target = "token-permission"
+		case "--interval-time":
+			// Next argument should be interval time in seconds
+			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+				if seconds, err := strconv.Atoi(args[i+1]); err == nil {
+					intervalTime = time.Duration(seconds) * time.Second
+				}
+			}
 		}
 	}
 
 	if target == "" {
-		return fmt.Errorf("pull対象を指定してください\n利用可能な対象: --users, --detail-users, --teams, --repos, --teams-users <team_name>, --all-teams-users, --token-permission")
+		return fmt.Errorf("pull対象を指定してください\n利用可能な対象: --users, --detail-users, --teams, --repos, --teams-users <team_name>, --all-teams-users, --token-permission\nオプション: --store (データベースに保存), --interval-time <秒> (API リクエスト間隔, デフォルト: 3)")
 	}
 
 	if target == "teams-users" && teamName == "" {
@@ -181,6 +192,7 @@ func PullCmd(args []string) error {
 	} else {
 		fmt.Printf("DEBUG: --store flag not detected, will not save to database\n")
 	}
+	fmt.Printf("DEBUG: interval time set to %v\n", intervalTime)
 
 	// Load configuration from environment variables
 	cfg, err := config.GetConfig()
@@ -207,7 +219,7 @@ func PullCmd(args []string) error {
 		finalTarget = teamName + "/users" // Convert to legacy format for HandlePullTarget
 	}
 
-	err = github.HandlePullTarget(ctx, client, db, cfg.Organization, finalTarget, cfg.GitHubToken, storeData)
+	err = github.HandlePullTarget(ctx, client, db, cfg.Organization, finalTarget, cfg.GitHubToken, storeData, intervalTime)
 	if err != nil {
 		return fmt.Errorf("failed to pull %s: %w", target, err)
 	}
