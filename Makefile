@@ -15,7 +15,7 @@ COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 # Linker flags for version information
-LDFLAGS = -ldflags "-s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)"
+LDFLAGS = -ldflags "-s -w -X main.version=$(VERSION) -X main.Commit=$(COMMIT) -X main.Date=$(DATE)"
 
 # Default target
 all: build
@@ -24,7 +24,7 @@ all: build
 build:
 	@echo "🏗️  Building $(BINARY_NAME)..."
 	@mkdir -p $(BUILD_DIR)
-	@go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) main.go
+	@go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) .
 	@echo "✅ Build completed: $(BUILD_DIR)/$(BINARY_NAME)"
 
 # Install dependencies
