@@ -61,4 +61,3 @@ make build
 
 - Go 1.23+
 - macOS, Linux, Windows
-- GitHub Enterprise Server対応
