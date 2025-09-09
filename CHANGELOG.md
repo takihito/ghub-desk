@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.0.2](https://github.com/takihito/ghub-desk/compare/v0.0.1...v0.0.2) - 2025-09-09
+- 更新:github/workflows/tagpr.yml,.taggr by @takihito in https://github.com/takihito/ghub-desk/pull/11
+
 ## [v0.0.1](https://github.com/takihito/ghub-desk/commits/v0.0.1) - 2025-09-09
 - Splitting the code in package main plan 1 by @takihito in https://github.com/takihito/ghub-desk/pull/2
 - Added Test code by @takihito in https://github.com/takihito/ghub-desk/pull/3
