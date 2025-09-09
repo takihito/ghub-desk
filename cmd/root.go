@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	// Version information - set by main.go
+	// Version information - set by version.go
 	appVersion = "dev"
 	appCommit  = "none"
 	appDate    = "unknown"
