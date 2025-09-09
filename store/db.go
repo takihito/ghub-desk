@@ -1,7 +1,6 @@
 package store
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -115,30 +114,18 @@ func StoreUsers(db *sql.DB, users []*github.User) error {
 	return nil
 }
 
-// StoreUsersWithDetails stores GitHub users with detailed information fetched individually
-func StoreUsersWithDetails(ctx context.Context, client *github.Client, db *sql.DB, users []*github.User, token, orgName string) error {
+// StoreUsersWithDetails stores GitHub users with detailed information
+// This function expects that detailed user information has already been fetched by the caller
+func StoreUsersWithDetails(db *sql.DB, users []*github.User) error {
 	now := time.Now().Format("2006-01-02 15:04:05")
 
-	for i, u := range users {
-		// Fetch detailed user information
-		fmt.Printf("Fetching details for user %d/%d: %s\n", i+1, len(users), u.GetLogin())
-
-		detailedUser, _, err := client.Users.Get(ctx, u.GetLogin())
+	for _, u := range users {
+		_, err := db.Exec(`INSERT OR REPLACE INTO users(id, login, name, email, company, location, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			u.GetID(), u.GetLogin(), u.GetName(), u.GetEmail(),
+			u.GetCompany(), u.GetLocation(), now, now)
 		if err != nil {
-			fmt.Printf("Warning: failed to fetch details for user %s: %v\n", u.GetLogin(), err)
-			// Use basic user info if detailed fetch fails
-			detailedUser = u
+			return fmt.Errorf("failed to insert user %s: %w", u.GetLogin(), err)
 		}
-
-		_, err = db.Exec(`INSERT OR REPLACE INTO users(id, login, name, email, company, location, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			detailedUser.GetID(), detailedUser.GetLogin(), detailedUser.GetName(), detailedUser.GetEmail(),
-			detailedUser.GetCompany(), detailedUser.GetLocation(), now, now)
-		if err != nil {
-			return fmt.Errorf("failed to insert user %s: %w", detailedUser.GetLogin(), err)
-		}
-
-		// Rate limiting: sleep between requests to avoid hitting API limits
-		time.Sleep(100 * time.Millisecond)
 	}
 	return nil
 }

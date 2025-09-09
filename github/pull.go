@@ -84,7 +84,22 @@ func PullDetailUsers(ctx context.Context, client *github.Client, db *sql.DB, org
 				return nil
 			}
 			// Fetch detailed user information for each user
-			return store.StoreUsersWithDetails(ctx, client, db, users, token, org)
+			var detailedUsers []*github.User
+			for i, u := range users {
+				fmt.Printf("Fetching details for user %d/%d: %s\n", i+1, len(users), u.GetLogin())
+
+				detailedUser, _, err := client.Users.Get(ctx, u.GetLogin())
+				if err != nil {
+					fmt.Printf("Warning: failed to fetch details for user %s: %v\n", u.GetLogin(), err)
+					// Use basic user info if detailed fetch fails
+					detailedUser = u
+				}
+				detailedUsers = append(detailedUsers, detailedUser)
+
+				// Rate limiting: sleep between requests to avoid hitting API limits
+				time.Sleep(100 * time.Millisecond)
+			}
+			return store.StoreUsersWithDetails(db, detailedUsers)
 		},
 		db, org,
 	)
