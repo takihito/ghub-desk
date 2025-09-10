@@ -47,8 +47,8 @@ release:
   github:
     owner: takihito
     name: ghub-desk
-  draft: false
   prerelease: auto
+  use_existing_draft: true
 
 changelog:
   sort: asc
