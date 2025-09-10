@@ -15,7 +15,7 @@ COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 # Linker flags for version information
-LDFLAGS = -ldflags "-s -w -X main.version=$(VERSION) -X main.Commit=$(COMMIT) -X main.Date=$(DATE)"
+LDFLAGS = -ldflags "-s -w -X cmd.appVersion=$(VERSION) -X cmd.appCommit=$(COMMIT) -X cmd.appDate=$(DATE)"
 
 # Default target
 all: build
@@ -97,6 +97,12 @@ setup: deps build
 	@echo ""
 	@echo "Then run: make run-help"
 
-goreleaser_build:
+# Check GoReleaser
+goreleaser_check:
+	@echo "Checking release..."
+	@goreleaser check
+
+# Release using GoReleaser
+goreleaser:
 	@echo "🚀 Building release..."
 	@goreleaser release --clean
