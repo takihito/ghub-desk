@@ -97,6 +97,11 @@ setup: deps build
 	@echo ""
 	@echo "Then run: make run-help"
 
-goreleaser_build:
+goreleaser_check:
+	@echo "Checking release..."
+	@goreleaser check
+
+# Release using GoReleaser`
+goreleaser:
 	@echo "🚀 Building release..."
 	@goreleaser release --clean
