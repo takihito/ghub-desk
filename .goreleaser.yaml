@@ -22,9 +22,9 @@ builds:
       - arm64
     ldflags:
       - -s -w
-      - -X ghub-desk/cmd.appVersion={{.Version}}
-      - -X ghub-desk/cmd.appCommit={{.Commit}}
-      - -X ghub-desk/cmd.appDate={{.Date}}
+      - -X cmd.appVersion={{.Version}}
+      - -X cmd.appCommit={{.Commit}}
+      - -X cmd.appDate={{.Date}}
 
 archives:
   - id: default
