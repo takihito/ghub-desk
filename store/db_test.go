@@ -27,7 +27,7 @@ func TestInitDatabase(t *testing.T) {
 	}
 
 	// Verify tables were created
-	tables := []string{"users", "teams", "repositories", "team_users", "token_permissions", "outside_users"}
+	tables := []string{"ghub_users", "ghub_teams", "ghub_repositories", "ghub_team_users", "ghub_token_permissions", "ghub_outside_users"}
 	for _, table := range tables {
 		var tableName string
 		err := db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&tableName)
@@ -76,7 +76,7 @@ func TestStoreUsers(t *testing.T) {
 	}
 
 	// Verify users were stored
-	rows, err := db.Query("SELECT id, login, name, email, company, location FROM users ORDER BY id")
+	rows, err := db.Query("SELECT id, login, name, email, company, location FROM ghub_users ORDER BY id")
 	if err != nil {
 		t.Fatalf("Failed to query users: %v", err)
 	}
@@ -179,7 +179,7 @@ func TestStoreTeams(t *testing.T) {
 
 	// Verify teams were stored
 	var count int
-	err = db.QueryRow("SELECT COUNT(*) FROM teams").Scan(&count)
+	err = db.QueryRow("SELECT COUNT(*) FROM ghub_teams").Scan(&count)
 	if err != nil {
 		t.Fatalf("Failed to count teams: %v", err)
 	}
@@ -229,7 +229,7 @@ func TestStoreRepositories(t *testing.T) {
 
 	// Verify repository was stored
 	var count int
-	err = db.QueryRow("SELECT COUNT(*) FROM repositories").Scan(&count)
+	err = db.QueryRow("SELECT COUNT(*) FROM ghub_repositories").Scan(&count)
 	if err != nil {
 		t.Fatalf("Failed to count repositories: %v", err)
 	}
@@ -284,7 +284,7 @@ func TestStoreTeamUsers(t *testing.T) {
 
 	// Verify team users were stored
 	var count int
-	err = db.QueryRow("SELECT COUNT(*) FROM team_users WHERE team_slug = ?", "test-team").Scan(&count)
+	err = db.QueryRow("SELECT COUNT(*) FROM ghub_team_users WHERE team_slug = ?", "test-team").Scan(&count)
 	if err != nil {
 		t.Fatalf("Failed to count team users: %v", err)
 	}
@@ -358,7 +358,7 @@ func TestStoreOutsideUsers(t *testing.T) {
 	}
 
 	// Verify data was stored correctly
-	rows, err := db.Query(`SELECT id, login, name, email FROM outside_users ORDER BY id`)
+	rows, err := db.Query(`SELECT id, login, name, email FROM ghub_outside_users ORDER BY id`)
 	if err != nil {
 		t.Fatalf("Failed to query outside users: %v", err)
 	}

@@ -200,7 +200,7 @@ func TestViewTokenPermission(t *testing.T) {
 		t.Errorf("ViewTokenPermission() with no data error = %v", err)
 	}
 
-	_, err = db.Exec(`INSERT INTO token_permissions(
+	_, err = db.Exec(`INSERT INTO ghub_token_permissions(
 		scopes, x_oauth_scopes, x_accepted_oauth_scopes, x_accepted_github_permissions, 
 		x_github_media_type, x_ratelimit_limit, x_ratelimit_remaining, x_ratelimit_reset,
 		created_at, updated_at
@@ -230,7 +230,7 @@ func TestViewOutsideUsers(t *testing.T) {
 	}
 
 	// Insert test outside user data
-	_, err = db.Exec(`INSERT INTO outside_users(id, login, name, email, company, location, created_at, updated_at) 
+	_, err = db.Exec(`INSERT INTO ghub_outside_users(id, login, name, email, company, location, created_at, updated_at) 
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		1, "outsideuser1", "Outside User 1", "outside@example.com", "External Corp", "Tokyo",
 		"2023-01-01 12:00:00", "2023-01-01 12:00:00")
