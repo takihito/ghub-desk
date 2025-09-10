@@ -101,7 +101,7 @@ goreleaser_check:
 	@echo "Checking release..."
 	@goreleaser check
 
-# Release using GoReleaser`
+# Release using GoReleaser
 goreleaser:
 	@echo "🚀 Building release..."
 	@goreleaser release --clean
