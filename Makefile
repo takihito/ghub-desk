@@ -10,6 +10,7 @@ GO_FILES=$(shell find . -name "*.go")
 
 # Version information
 #  ref: git tag v0.0.1
+TAGS := $(shell git pull --tags 2>/dev/null )
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -99,8 +100,13 @@ setup: deps build
 
 # Check GoReleaser
 goreleaser_check:
-	@echo "Checking release..."
+	@echo "🔍 Checking GoReleaser configuration..."
 	@goreleaser check
+
+# Local test build using GoReleaser (no release)
+goreleaser_build:
+	@echo "🏗️  Building locally with GoReleaser..."
+	@goreleaser build --snapshot --clean
 
 # Release using GoReleaser
 goreleaser:
