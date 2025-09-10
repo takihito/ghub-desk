@@ -89,6 +89,16 @@ func createTables(db *sql.DB) error {
 			created_at TEXT,
 			updated_at TEXT
 		)`,
+		`CREATE TABLE IF NOT EXISTS outside_users (
+			id INTEGER PRIMARY KEY,
+			login TEXT UNIQUE,
+			name TEXT,
+			email TEXT,
+			company TEXT,
+			location TEXT,
+			created_at TEXT,
+			updated_at TEXT
+		)`,
 	}
 
 	for _, query := range tables {
@@ -172,6 +182,20 @@ func StoreTeamUsers(db *sql.DB, users []*github.User, teamSlug string) error {
 			teamID, u.GetID(), u.GetLogin(), teamSlug, "member", time.Now().Format("2006-01-02 15:04:05"))
 		if err != nil {
 			return fmt.Errorf("failed to insert team user %s for team %s: %w", u.GetLogin(), teamSlug, err)
+		}
+	}
+	return nil
+}
+
+// StoreOutsideUsers stores GitHub outside collaborators in the database
+func StoreOutsideUsers(db *sql.DB, users []*github.User) error {
+	now := time.Now().Format("2006-01-02 15:04:05")
+	for _, u := range users {
+		_, err := db.Exec(`INSERT OR REPLACE INTO outside_users(id, login, name, email, company, location, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			u.GetID(), u.GetLogin(), u.GetName(), u.GetEmail(), u.GetCompany(), u.GetLocation(),
+			now, now)
+		if err != nil {
+			return fmt.Errorf("failed to store outside user %s: %w", u.GetLogin(), err)
 		}
 	}
 	return nil

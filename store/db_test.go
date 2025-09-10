@@ -27,7 +27,7 @@ func TestInitDatabase(t *testing.T) {
 	}
 
 	// Verify tables were created
-	tables := []string{"users", "teams", "repositories", "team_users", "token_permissions"}
+	tables := []string{"users", "teams", "repositories", "team_users", "token_permissions", "outside_users"}
 	for _, table := range tables {
 		var tableName string
 		err := db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&tableName)
@@ -311,5 +311,81 @@ func TestFormatTime(t *testing.T) {
 
 	if formatted != "" {
 		t.Errorf("Expected empty string for zero timestamp, got '%s'", formatted)
+	}
+}
+
+func TestStoreOutsideUsers(t *testing.T) {
+	// Create test database
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open test database: %v", err)
+	}
+	defer db.Close()
+
+	err = createTables(db)
+	if err != nil {
+		t.Fatalf("Failed to create tables: %v", err)
+	}
+
+	// Create test outside users
+	id1 := int64(1)
+	id2 := int64(2)
+	login1 := "outsideuser1"
+	login2 := "outsideuser2"
+	name1 := "Outside User 1"
+	name2 := "Outside User 2"
+	email1 := "outside1@example.com"
+	email2 := "outside2@example.com"
+
+	users := []*github.User{
+		{
+			ID:    &id1,
+			Login: &login1,
+			Name:  &name1,
+			Email: &email1,
+		},
+		{
+			ID:    &id2,
+			Login: &login2,
+			Name:  &name2,
+			Email: &email2,
+		},
+	}
+
+	err = StoreOutsideUsers(db, users)
+	if err != nil {
+		t.Fatalf("Failed to store outside users: %v", err)
+	}
+
+	// Verify data was stored correctly
+	rows, err := db.Query(`SELECT id, login, name, email FROM outside_users ORDER BY id`)
+	if err != nil {
+		t.Fatalf("Failed to query outside users: %v", err)
+	}
+	defer rows.Close()
+
+	count := 0
+	for rows.Next() {
+		var id int64
+		var login, name, email sql.NullString
+
+		err := rows.Scan(&id, &login, &name, &email)
+		if err != nil {
+			t.Fatalf("Failed to scan outside user row: %v", err)
+		}
+
+		if count == 0 {
+			if id != 1 || login.String != "outsideuser1" {
+				t.Errorf("First outside user mismatch: id=%d, login=%s", id, login.String)
+			}
+			if name.String != "Outside User 1" || email.String != "outside1@example.com" {
+				t.Errorf("First outside user details mismatch: name=%s, email=%s", name.String, email.String)
+			}
+		}
+		count++
+	}
+
+	if count != 2 {
+		t.Errorf("Expected 2 outside users, got %d", count)
 	}
 }

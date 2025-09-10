@@ -17,6 +17,8 @@ func HandleViewTarget(db *sql.DB, target string) error {
 		return ViewRepositories(db)
 	case "token-permission":
 		return ViewTokenPermission(db)
+	case "outside-users":
+		return ViewOutsideUsers(db)
 	default:
 		if strings.HasSuffix(target, "/users") {
 			teamSlug := strings.TrimSuffix(target, "/users")
@@ -194,5 +196,37 @@ func ViewTokenPermission(db *sql.DB) error {
 	fmt.Printf("Created At: %s\n", createdAt.String)
 	fmt.Printf("Updated At: %s\n", updatedAt.String)
 
+	return nil
+}
+
+// ViewOutsideUsers displays outside users from the database
+func ViewOutsideUsers(db *sql.DB) error {
+	rows, err := db.Query(`SELECT id, login, name, email, company, location FROM outside_users ORDER BY login`)
+	if err != nil {
+		return fmt.Errorf("failed to query outside users: %w", err)
+	}
+	defer rows.Close()
+
+	fmt.Println("Outside Collaborators:")
+	fmt.Println("ID\tLogin\tName\tEmail\tCompany\tLocation")
+	fmt.Println("--\t-----\t----\t-----\t-------\t--------")
+
+	for rows.Next() {
+		var id int64
+		var login, name, email, company, location sql.NullString
+		err := rows.Scan(&id, &login, &name, &email, &company, &location)
+		if err != nil {
+			return fmt.Errorf("failed to scan outside user row: %w", err)
+		}
+
+		fmt.Printf("%d\t%s\t%s\t%s\t%s\t%s\n",
+			id,
+			login.String,
+			name.String,
+			email.String,
+			company.String,
+			location.String,
+		)
+	}
 	return nil
 }

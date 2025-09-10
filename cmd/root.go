@@ -85,12 +85,12 @@ USAGE:
 
 COMMANDS:
     pull [--store] --<target>      Fetch data from GitHub API
-                                   Targets: --users, --detail-users, --teams, --repos, --teams-users <team_name>, --all-teams-users, --token-permission
+                                   Targets: --users, --detail-users, --teams, --repos, --teams-users <team_name>, --all-teams-users, --token-permission, --outside-users
                                    Options: --store: Save to local SQLite database
                                            --interval-time <seconds>: Sleep interval between API requests (default: 3 seconds)
     
     view --<target>                Display data from local database
-                                   Targets: --users, --detail-users, --teams, --repos, --teams-users <team_name>, --token-permission
+                                   Targets: --users, --detail-users, --teams, --repos, --teams-users <team_name>, --token-permission, --outside-users
     
     push --remove --<target>       Remove resources from GitHub
                                    [--exec]: Execute (without this flag, runs in DRYRUN mode)
@@ -124,6 +124,12 @@ EXAMPLES:
     
     # Fetch all team users
     ghub-desk pull --all-teams-users
+    
+    # Fetch and store outside collaborators
+    ghub-desk pull --store --outside-users
+    
+    # View stored outside collaborators
+    ghub-desk view --outside-users
     
     # Remove team (DRYRUN)
     ghub-desk push --remove --team old-team
@@ -168,6 +174,8 @@ func PullCmd(args []string) error {
 			target = "all-teams-users"
 		case "--token-permission":
 			target = "token-permission"
+		case "--outside-users":
+			target = "outside-users"
 		case "--interval-time":
 			// Next argument should be interval time in seconds
 			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
@@ -179,7 +187,7 @@ func PullCmd(args []string) error {
 	}
 
 	if target == "" {
-		return fmt.Errorf("pull対象を指定してください\n利用可能な対象: --users, --detail-users, --teams, --repos, --teams-users <team_name>, --all-teams-users, --token-permission\nオプション: --store (データベースに保存), --interval-time <秒> (API リクエスト間隔, デフォルト: 3)")
+		return fmt.Errorf("pull対象を指定してください\n利用可能な対象: --users, --detail-users, --teams, --repos, --teams-users <team_name>, --all-teams-users, --token-permission, --outside-users\nオプション: --store (データベースに保存), --interval-time <秒> (API リクエスト間隔, デフォルト: 3)")
 	}
 
 	if target == "teams-users" && teamName == "" {
@@ -252,11 +260,13 @@ func ViewCmd(args []string) error {
 			}
 		case "--token-permission":
 			target = "token-permission"
+		case "--outside-users":
+			target = "outside-users"
 		}
 	}
 
 	if target == "" {
-		return fmt.Errorf("view対象を指定してください\n利用可能な対象: --users, --detail-users, --teams, --repos, --teams-users <team_name>, --token-permission")
+		return fmt.Errorf("view対象を指定してください\n利用可能な対象: --users, --detail-users, --teams, --repos, --teams-users <team_name>, --token-permission, --outside-users")
 	}
 
 	if target == "teams-users" && teamName == "" {
