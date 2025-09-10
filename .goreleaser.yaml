@@ -9,7 +9,7 @@ before:
 
 builds:
   - id: ghub-desk
-    main: ./main.go
+    main: ./
     binary: ghub-desk
     env:
       - CGO_ENABLED=0
@@ -22,9 +22,9 @@ builds:
       - arm64
     ldflags:
       - -s -w
-      - -X cmd.appVersion={{.Version}}
-      - -X cmd.appCommit={{.Commit}}
-      - -X cmd.appDate={{.Date}}
+      - -X main.Version={{.Version}}
+      - -X main.Commit={{.Commit}}
+      - -X main.Date={{.Date}}
 
 archives:
   - id: default
