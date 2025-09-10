@@ -1,5 +1,7 @@
 # Changelog
 
+## [v0.0.6](https://github.com/takihito/ghub-desk/compare/v0.0.5...v0.0.6) - 2025-09-10
+
 ## [v0.0.5](https://github.com/takihito/ghub-desk/compare/v0.0.4...v0.0.5) - 2025-09-10
 - Add goreleaser and License by @takihito in https://github.com/takihito/ghub-desk/pull/19
 
