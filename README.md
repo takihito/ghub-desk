@@ -59,5 +59,5 @@ make build
 
 ## 対応プラットフォーム
 
-- Go 1.23+
+- Go 1.24+
 - macOS, Linux, Windows
