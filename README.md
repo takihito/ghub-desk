@@ -67,3 +67,4 @@ make test
 
 - Go 1.24+
 - macOS, Linux, Windows
+
