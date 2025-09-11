@@ -1,4 +1,3 @@
-
 name: Gemini Code Review
 
 on:
@@ -25,7 +24,7 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Gemini Code Review
-        uses: google/gemini-cli-action@v1
+        uses: "google-github-actions/run-gemini-cli@v0" # ratchet:exclude
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
