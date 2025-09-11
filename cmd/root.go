@@ -36,30 +36,68 @@ type CLI struct {
 	Version VersionCmd `cmd:"" help:"Show version information"`
 }
 
+// CommonTargetOptions holds the shared target flags for pull and view commands
+type CommonTargetOptions struct {
+	Users           bool   `help:"Target: users"`
+	DetailUsers     bool   `name:"detail-users" help:"Target: detail-users"`
+	Teams           bool   `help:"Target: teams"`
+	Repos           bool   `help:"Target: repos"`
+	TeamsUsers      string `name:"teams-users" help:"Target: team-users (provide team slug)"`
+	TokenPermission bool   `name:"token-permission" help:"Target: token-permission"`
+	OutsideUsers    bool   `name:"outside-users" help:"Target: outside-users"`
+}
+
+// GetTarget determines the single selected target from the common options.
+// It takes an optional list of extra targets to consider.
+func (c *CommonTargetOptions) GetTarget(extraTargets ...struct {
+	flag bool
+	name string
+}) (string, error) {
+	targets := []struct {
+		flag bool
+		name string
+	}{
+		{c.Users, "users"},
+		{c.DetailUsers, "detail-users"},
+		{c.Teams, "teams"},
+		{c.Repos, "repos"},
+		{c.TeamsUsers != "", "teams-users"},
+		{c.TokenPermission, "token-permission"},
+		{c.OutsideUsers, "outside-users"},
+	}
+	targets = append(targets, extraTargets...)
+
+	var selectedTarget string
+	count := 0
+	for _, t := range targets {
+		if t.flag {
+			count++
+			selectedTarget = t.name
+		}
+	}
+
+	if count == 0 {
+		return "", fmt.Errorf("at least one target flag must be specified")
+	}
+	if count > 1 {
+		return "", fmt.Errorf("only one target can be specified at a time")
+	}
+	return selectedTarget, nil
+}
+
 // PullCmd represents the pull command structure
 type PullCmd struct {
+	CommonTargetOptions `embed:""`
+	AllTeamsUsers       bool `name:"all-teams-users" help:"Target: all-teams-users"`
+
+	// Options
 	Store        bool          `help:"Save to local SQLite database"`
 	IntervalTime time.Duration `help:"Sleep interval between API requests" default:"3s"`
-
-	Users           bool   `help:"Fetch organization members (basic info)"`
-	DetailUsers     bool   `name:"detail-users" help:"Fetch organization members with detailed information"`
-	Teams           bool   `help:"Fetch organization teams"`
-	Repos           bool   `help:"Fetch organization repositories"`
-	TeamsUsers      string `name:"teams-users" help:"Fetch team members for specific team"`
-	AllTeamsUsers   bool   `name:"all-teams-users" help:"Fetch all team users"`
-	TokenPermission bool   `name:"token-permission" help:"Fetch GitHub token permissions"`
-	OutsideUsers    bool   `name:"outside-users" help:"Fetch organization outside collaborators"`
 }
 
 // ViewCmd represents the view command structure
 type ViewCmd struct {
-	Users           bool   `help:"Display users from database"`
-	DetailUsers     bool   `name:"detail-users" help:"Display users with detailed info from database"`
-	Teams           bool   `help:"Display teams from database"`
-	Repos           bool   `help:"Display repositories from database"`
-	TeamsUsers      string `name:"teams-users" help:"Display team members for specific team"`
-	TokenPermission bool   `name:"token-permission" help:"Display token permissions from database"`
-	OutsideUsers    bool   `name:"outside-users" help:"Display outside collaborators from database"`
+	CommonTargetOptions `embed:""`
 }
 
 // PushCmd represents the push command structure
@@ -102,12 +140,13 @@ func Execute() error {
 // Run implements the pull command execution
 func (p *PullCmd) Run() error {
 	// Determine target from flags
-	target, err := p.getTarget()
+	target, err := p.CommonTargetOptions.GetTarget(struct {
+		flag bool
+		name string
+	}{p.AllTeamsUsers, "all-teams-users"})
 	if err != nil {
 		return err
 	}
-
-	fmt.Printf("DEBUG: target=%s, store=%v, interval=%v\n", target, p.Store, p.IntervalTime)
 
 	// Load configuration from environment variables
 	cfg, err := config.GetConfig()
@@ -137,52 +176,10 @@ func (p *PullCmd) Run() error {
 	return github.HandlePullTarget(ctx, client, db, cfg.Organization, finalTarget, cfg.GitHubToken, p.Store, p.IntervalTime)
 }
 
-// getTarget returns the target based on the flags set
-func (p *PullCmd) getTarget() (string, error) {
-	targets := []struct {
-		flag   bool
-		name   string
-		custom string
-	}{
-		{p.Users, "users", ""},
-		{p.DetailUsers, "detail-users", ""},
-		{p.Teams, "teams", ""},
-		{p.Repos, "repos", ""},
-		{p.TeamsUsers != "", "teams-users", p.TeamsUsers},
-		{p.AllTeamsUsers, "all-teams-users", ""},
-		{p.TokenPermission, "token-permission", ""},
-		{p.OutsideUsers, "outside-users", ""},
-	}
-
-	var selectedTarget string
-	var count int
-
-	for _, t := range targets {
-		if t.flag {
-			count++
-			if t.custom != "" {
-				selectedTarget = t.name
-			} else {
-				selectedTarget = t.name
-			}
-		}
-	}
-
-	if count == 0 {
-		return "", fmt.Errorf("target required: specify one of --users, --detail-users, --teams, --repos, --teams-users, --all-teams-users, --token-permission, --outside-users")
-	}
-
-	if count > 1 {
-		return "", fmt.Errorf("only one target can be specified at a time")
-	}
-
-	return selectedTarget, nil
-}
-
 // Run implements the view command execution
 func (v *ViewCmd) Run() error {
 	// Determine target from flags
-	target, err := v.getTarget()
+	target, err := v.CommonTargetOptions.GetTarget()
 	if err != nil {
 		return err
 	}
@@ -203,47 +200,6 @@ func (v *ViewCmd) Run() error {
 	return store.HandleViewTarget(db, finalTarget)
 }
 
-// getTarget returns the target based on the flags set for view command
-func (v *ViewCmd) getTarget() (string, error) {
-	targets := []struct {
-		flag   bool
-		name   string
-		custom string
-	}{
-		{v.Users, "users", ""},
-		{v.DetailUsers, "detail-users", ""},
-		{v.Teams, "teams", ""},
-		{v.Repos, "repos", ""},
-		{v.TeamsUsers != "", "teams-users", v.TeamsUsers},
-		{v.TokenPermission, "token-permission", ""},
-		{v.OutsideUsers, "outside-users", ""},
-	}
-
-	var selectedTarget string
-	var count int
-
-	for _, t := range targets {
-		if t.flag {
-			count++
-			if t.custom != "" {
-				selectedTarget = t.name
-			} else {
-				selectedTarget = t.name
-			}
-		}
-	}
-
-	if count == 0 {
-		return "", fmt.Errorf("target required: specify one of --users, --detail-users, --teams, --repos, --teams-users, --token-permission, --outside-users")
-	}
-
-	if count > 1 {
-		return "", fmt.Errorf("only one target can be specified at a time")
-	}
-
-	return selectedTarget, nil
-}
-
 // Run implements the remove subcommand execution
 func (r *RemoveCmd) Run() error {
 	// Determine target from flags
@@ -251,8 +207,6 @@ func (r *RemoveCmd) Run() error {
 	if err != nil {
 		return err
 	}
-
-	fmt.Printf("DEBUG: target=%s, value=%s, exec=%v\n", target, targetValue, r.Exec)
 
 	// Load configuration
 	cfg, err := config.GetConfig()

@@ -33,13 +33,13 @@ func TestPullCmdGetTarget(t *testing.T) {
 	}{
 		{
 			name:        "users target",
-			cmd:         PullCmd{Users: true},
+			cmd:         PullCmd{CommonTargetOptions: CommonTargetOptions{Users: true}},
 			expected:    "users",
 			expectError: false,
 		},
 		{
 			name:        "teams-users target",
-			cmd:         PullCmd{TeamsUsers: "engineering"},
+			cmd:         PullCmd{CommonTargetOptions: CommonTargetOptions{TeamsUsers: "engineering"}},
 			expected:    "teams-users",
 			expectError: false,
 		},
@@ -50,16 +50,31 @@ func TestPullCmdGetTarget(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name:        "multiple targets",
-			cmd:         PullCmd{Users: true, Teams: true},
+			name: "multiple targets",
+			cmd: PullCmd{
+				CommonTargetOptions: CommonTargetOptions{Users: true, Teams: true},
+			},
 			expected:    "",
 			expectError: true,
+		},
+		{
+			name: "all-teams-users target",
+			cmd: PullCmd{
+				AllTeamsUsers: true,
+			},
+			expected:    "all-teams-users",
+			expectError: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := tt.cmd.getTarget()
+			// The GetTarget method now needs the extra flags passed in
+			result, err := tt.cmd.CommonTargetOptions.GetTarget(struct {
+				flag bool
+				name string
+			}{tt.cmd.AllTeamsUsers, "all-teams-users"})
+
 			if tt.expectError {
 				if err == nil {
 					t.Error("Expected error, but got none")
