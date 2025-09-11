@@ -57,6 +57,12 @@ export GHUB_DESK_GITHUB_TOKEN="your-token"         # GitHub Access Token
 make build
 ```
 
+##  テスト
+
+```bash
+make test
+```
+
 ## 対応プラットフォーム
 
 - Go 1.24+
