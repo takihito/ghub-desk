@@ -29,6 +29,8 @@ func SetVersionInfo(version, commit, date string) {
 
 // CLI represents the command line interface structure using Kong
 type CLI struct {
+	Debug bool `help:"Enable debug mode."`
+
 	Pull    PullCmd    `cmd:"" help:"Fetch data from GitHub API"`
 	View    ViewCmd    `cmd:"" help:"Display data from local database"`
 	Push    PushCmd    `cmd:"" help:"Remove resources from GitHub"`
@@ -121,9 +123,8 @@ type VersionCmd struct{}
 
 // Execute is the main entry point for all commands
 func Execute() error {
-	cli := &CLI{}
-
-	ctx := kong.Parse(cli,
+	var cli CLI
+	ctx := kong.Parse(&cli,
 		kong.Name("ghub-desk"),
 		kong.Description("GitHub Organization Management CLI Tool"),
 		kong.Vars{
@@ -134,11 +135,11 @@ func Execute() error {
 		}),
 	)
 
-	return ctx.Run()
+	return ctx.Run(&cli)
 }
 
 // Run implements the pull command execution
-func (p *PullCmd) Run() error {
+func (p *PullCmd) Run(cli *CLI) error {
 	// Determine target from flags
 	target, err := p.CommonTargetOptions.GetTarget(struct {
 		flag bool
@@ -146,6 +147,10 @@ func (p *PullCmd) Run() error {
 	}{p.AllTeamsUsers, "all-teams-users"})
 	if err != nil {
 		return err
+	}
+
+	if cli.Debug {
+		fmt.Printf("DEBUG: Pulling target='%s', store=%v, interval=%v\n", target, p.Store, p.IntervalTime)
 	}
 
 	// Load configuration from environment variables
@@ -177,11 +182,15 @@ func (p *PullCmd) Run() error {
 }
 
 // Run implements the view command execution
-func (v *ViewCmd) Run() error {
+func (v *ViewCmd) Run(cli *CLI) error {
 	// Determine target from flags
 	target, err := v.CommonTargetOptions.GetTarget()
 	if err != nil {
 		return err
+	}
+
+	if cli.Debug {
+		fmt.Printf("DEBUG: Viewing target='%s'\n", target)
 	}
 
 	// Initialize database
@@ -201,11 +210,15 @@ func (v *ViewCmd) Run() error {
 }
 
 // Run implements the remove subcommand execution
-func (r *RemoveCmd) Run() error {
+func (r *RemoveCmd) Run(cli *CLI) error {
 	// Determine target from flags
 	target, targetValue, err := r.getTarget()
 	if err != nil {
 		return err
+	}
+
+	if cli.Debug {
+		fmt.Printf("DEBUG: Push/Remove target='%s', value='%s', exec=%v\n", target, targetValue, r.Exec)
 	}
 
 	// Load configuration
@@ -267,7 +280,7 @@ func (r *RemoveCmd) getTarget() (string, string, error) {
 }
 
 // Run implements the init command execution
-func (i *InitCmd) Run() error {
+func (i *InitCmd) Run(cli *CLI) error {
 	db, err := store.InitDatabase()
 	if err != nil {
 		return fmt.Errorf("failed to initialize database: %w", err)
@@ -279,7 +292,7 @@ func (i *InitCmd) Run() error {
 }
 
 // Run implements the version command execution
-func (v *VersionCmd) Run() error {
+func (v *VersionCmd) Run(cli *CLI) error {
 	fmt.Printf("ghub-desk version %s\n", appVersion)
 	fmt.Printf("commit: %s\n", appCommit)
 	fmt.Printf("built at: %s\n", appDate)
