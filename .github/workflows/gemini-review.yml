@@ -14,6 +14,24 @@ jobs:
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     steps:
+      - name: Debugging Info
+        run: |
+          echo "Repository: ${{ github.repository }}"
+          echo "PR Head Repo: ${{ github.event.pull_request.head.repo.full_name }}"
+          if [[ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]]; then
+            echo "::error::This pull request is from a fork. Secrets are not available in this context for security reasons."
+            exit 1
+          else
+            echo "This pull request is not from a fork."
+          fi
+
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::GEMINI_API_KEY environment variable is not set or is empty."
+            exit 1
+          else
+            # Do not print the key itself, just its presence and length
+            echo "GEMINI_API_KEY is set (length: ${#GEMINI_API_KEY})."
+          fi
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
