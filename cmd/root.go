@@ -260,14 +260,23 @@ func (r *RemoveCmd) Run() error {
 		return fmt.Errorf("configuration error: %w", err)
 	}
 
-	// For now, just implement dry-run output
-	if !r.Exec {
+	// Initialize GitHub client
+	client := github.InitClient(cfg.GitHubToken)
+	ctx := context.Background()
+
+	if r.Exec {
+		fmt.Printf("Executing: Remove %s '%s' from organization %s\n", target, targetValue, cfg.Organization)
+		err := github.ExecutePushRemove(ctx, client, cfg.Organization, target, targetValue)
+		if err != nil {
+			return fmt.Errorf("failed to execute remove: %w", err)
+		}
+		fmt.Println("Successfully removed.")
+	} else {
 		fmt.Printf("DRYRUN: Would remove %s '%s' from organization %s\n", target, targetValue, cfg.Organization)
-		return nil
+		fmt.Println("To execute, add the --exec flag.")
 	}
 
-	// TODO: Implement actual removal operations when needed
-	return fmt.Errorf("remove operations not yet implemented")
+	return nil
 }
 
 // getTarget returns the target and value based on the flags set for remove command
