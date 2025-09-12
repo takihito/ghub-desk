@@ -13,17 +13,19 @@ func ExecutePushRemove(ctx context.Context, client *github.Client, org, target, 
 	switch target {
 	case "team":
 		// Remove team from organization
-		_, err := client.Teams.DeleteTeamBySlug(ctx, org, resourceName)
+		resp, err := client.Teams.DeleteTeamBySlug(ctx, org, resourceName)
+		scopePermission := FormatScopePermission(resp)
 		if err != nil {
-			return fmt.Errorf("チーム削除エラー: %v", err)
+			return fmt.Errorf("チーム削除エラー: %v, Required permission scope: %s", err, scopePermission)
 		}
 		return nil
 
 	case "user":
 		// Remove user from organization
-		_, err := client.Organizations.RemoveMember(ctx, org, resourceName)
+		resp, err := client.Organizations.RemoveMember(ctx, org, resourceName)
+		scopePermission := FormatScopePermission(resp)
 		if err != nil {
-			return fmt.Errorf("ユーザー削除エラー: %v", err)
+			return fmt.Errorf("ユーザー削除エラー: %v, Required permission scope: %s", err, scopePermission)
 		}
 		return nil
 
@@ -80,7 +82,7 @@ func ExecutePushAdd(ctx context.Context, client *github.Client, org, target, res
 
 func FormatScopePermission(resp *github.Response) string {
 	scopePermission := "ResponseHeaderScopePermission:undef"
-	if resp.Header != nil {
+	if resp != nil && resp.Header != nil {
 		scopePermission = fmt.Sprintf("X-Accepted-OAuth-Scopes:%s, X-Accepted-GitHub-Permissions:%s",
 			resp.Header.Get("X-Accepted-OAuth-Scopes"), resp.Header.Get("X-Accepted-GitHub-Permissions"))
 	}
