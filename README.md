@@ -16,8 +16,9 @@ GitHub Organization Management CLI Tool
 ### データ表示 (view)
 - 取得したユーザー、チーム、リポジトリ情報の閲覧
 
-### データ削除 (push)
-- TODO: GitHub上のユーザー・チーム・リポジトリの削除
+### データ操作 (push)
+- **削除操作**: GitHub上のユーザー・チーム・リポジトリの削除
+- **追加操作**: チームへのユーザー追加
 
 ## 技術
 
@@ -49,6 +50,18 @@ export GHUB_DESK_GITHUB_TOKEN="your-token"         # GitHub Access Token
 
 # データベース初期化
 ./ghub-desk init
+
+# チームにユーザーを追加（DRYRUN）
+./ghub-desk push add --team-user team-name/username
+
+# チームにユーザーを追加（実行）
+./ghub-desk push add --team-user team-name/username --exec
+
+# チームからユーザーを削除（DRYRUN）
+./ghub-desk push remove --team-user team-name/username
+
+# チームからユーザーを削除（実行）
+./ghub-desk push remove --team-user team-name/username --exec
 ```
 
 ## ビルド
