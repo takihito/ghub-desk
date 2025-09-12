@@ -44,7 +44,7 @@ func ExecutePushRemove(ctx context.Context, client *github.Client, org, target, 
 				resp.Header.Get("X-Accepted-OAuth-Scopes"), resp.Header.Get("X-Accepted-GitHub-Permissions"))
 		}
 		if err != nil {
-			return fmt.Errorf("チームからのユーザー削除エラー: %v, Required permission scope: %w", err, scopePermission)
+			return fmt.Errorf("チームからのユーザー削除エラー: %v, Required permission scope: %s", err, scopePermission)
 		}
 		return nil
 
