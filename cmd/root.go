@@ -33,7 +33,7 @@ type CLI struct {
 
 	Pull    PullCmd    `cmd:"" help:"Fetch data from GitHub API"`
 	View    ViewCmd    `cmd:"" help:"Display data from local database"`
-	Push    PushCmd    `cmd:"" help:"Remove resources from GitHub"`
+	Push    PushCmd    `cmd:"" help:"Manipulate resources on GitHub"`
 	Init    InitCmd    `cmd:"" help:"Initialize local database tables"`
 	Version VersionCmd `cmd:"" help:"Show version information"`
 }
@@ -50,7 +50,6 @@ type CommonTargetOptions struct {
 }
 
 // GetTarget determines the single selected target from the common options.
-// It takes an optional list of extra targets to consider.
 func (c *CommonTargetOptions) GetTarget(extraTargets ...struct {
 	flag bool
 	name string
@@ -160,15 +159,18 @@ func (p *PullCmd) Run(cli *CLI) error {
 		fmt.Printf("DEBUG: Pulling target='%s', store=%v, interval=%v\n", target, p.Store, p.IntervalTime)
 	}
 
-	// Load configuration from environment variables
+	// Load configuration
 	cfg, err := config.GetConfig()
 	if err != nil {
 		return fmt.Errorf("configuration error: %w", err)
 	}
 
 	// Initialize GitHub client
+	client, err := github.InitClient(cfg)
+	if err != nil {
+		return fmt.Errorf("github client initialization error: %w", err)
+	}
 	ctx := context.Background()
-	client := github.InitClient(cfg.GitHubToken)
 
 	var db *sql.DB
 	if p.Store || target == "all-teams-users" {
@@ -235,7 +237,10 @@ func (r *RemoveCmd) Run(cli *CLI) error {
 	}
 
 	// Initialize GitHub client
-	client := github.InitClient(cfg.GitHubToken)
+	client, err := github.InitClient(cfg)
+	if err != nil {
+		return fmt.Errorf("github client initialization error: %w", err)
+	}
 	ctx := context.Background()
 
 	if r.Exec {
@@ -305,7 +310,10 @@ func (a *AddCmd) Run(cli *CLI) error {
 	}
 
 	// Initialize GitHub client
-	client := github.InitClient(cfg.GitHubToken)
+	client, err := github.InitClient(cfg)
+	if err != nil {
+		return fmt.Errorf("github client initialization error: %w", err)
+	}
 	ctx := context.Background()
 
 	if a.Exec {

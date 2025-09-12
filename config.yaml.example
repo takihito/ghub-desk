@@ -1,0 +1,33 @@
+# ghub-desk CLI Configuration File
+#
+# デフォルトの配置場所: ~/.config/ghub-desk/config.yaml
+#
+# YAMLファイル内では `${VAR_NAME}` または `$VAR_NAME` の形式で環境変数を参照できます。
+# ここで設定した値よりも、直接指定された環境変数の方が常に優先されます。
+
+# 管理対象のGitHub Organization名
+organization: "my-awesome-org"
+
+# --- 認証方法 ---
+# 以下のいずれかの認証方法を選択してください: Personal Access Token (PAT) または GitHub App
+
+# 方法1: Personal Access Token (PAT) での認証
+# 必要な権限（例: admin:org）を持つPATを設定します。
+# セキュリティのため、環境変数経由で読み込むことを強く推奨します。
+github_token: "${GHUB_DESK_GITHUB_TOKEN}"
+
+# 方法2: GitHub App での認証
+# こちらを利用する場合は、上記の `github_token` は削除またはコメントアウトしてください。
+# GitHub App認証には、以下の3つの値が必須です。
+github_app:
+  # GitHub AppのApp ID
+  app_id: ${GHUB_DESK_APP_ID} # 例: 123456
+
+  # AppをインストールしたOrganizationのInstallation ID
+  installation_id: ${GHUB_DESK_INSTALLATION_ID} # 例: 7890123
+
+  # GitHub Appの秘密鍵
+  # .pemファイルの内容全体を貼り付けるか、環境変数経由で読み込むことを強く推奨します。
+  # -----BEGIN... から -----END... の行まで含める必要があります。
+  private_key: |
+    ${GHUB_DESK_PRIVATE_KEY}
