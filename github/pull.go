@@ -33,6 +33,8 @@ func HandlePullTarget(ctx context.Context, client *github.Client, db *sql.DB, or
 		return PullAllTeamsUsers(ctx, client, db, org, storeData, intervalTime)
 	case target == "token-permission":
 		return PullTokenPermission(ctx, client, db, storeData, intervalTime)
+	case target == "outside-users":
+		return PullOutsideUsers(ctx, client, db, org, storeData, intervalTime)
 	case strings.HasSuffix(target, "/users"):
 		teamSlug := strings.TrimSuffix(target, "/users")
 		return PullTeamUsers(ctx, client, db, org, teamSlug, storeData, intervalTime)
@@ -44,7 +46,7 @@ func HandlePullTarget(ctx context.Context, client *github.Client, db *sql.DB, or
 // PullUsers fetches organization members and optionally stores them in database
 func PullUsers(ctx context.Context, client *github.Client, db *sql.DB, org string, storeData bool, intervalTime time.Duration) error {
 	if storeData {
-		if _, err := db.Exec(`DELETE FROM users`); err != nil {
+		if _, err := db.Exec(`DELETE FROM ghub_users`); err != nil {
 			return fmt.Errorf("failed to clear users table: %w", err)
 		}
 	}
@@ -68,7 +70,7 @@ func PullUsers(ctx context.Context, client *github.Client, db *sql.DB, org strin
 // PullDetailUsers fetches organization members with detailed information and optionally stores them in database
 func PullDetailUsers(ctx context.Context, client *github.Client, db *sql.DB, org, token string, storeData bool, intervalTime time.Duration) error {
 	if storeData {
-		if _, err := db.Exec(`DELETE FROM users`); err != nil {
+		if _, err := db.Exec(`DELETE FROM ghub_users`); err != nil {
 			return fmt.Errorf("failed to clear users table: %w", err)
 		}
 	}
@@ -108,7 +110,7 @@ func PullDetailUsers(ctx context.Context, client *github.Client, db *sql.DB, org
 // PullTeams fetches organization teams and optionally stores them in database
 func PullTeams(ctx context.Context, client *github.Client, db *sql.DB, org string, storeData bool, intervalTime time.Duration) error {
 	if storeData {
-		if _, err := db.Exec(`DELETE FROM teams`); err != nil {
+		if _, err := db.Exec(`DELETE FROM ghub_teams`); err != nil {
 			return fmt.Errorf("failed to clear teams table: %w", err)
 		}
 	}
@@ -131,7 +133,7 @@ func PullTeams(ctx context.Context, client *github.Client, db *sql.DB, org strin
 // PullRepositories fetches organization repositories and optionally stores them in database
 func PullRepositories(ctx context.Context, client *github.Client, db *sql.DB, org string, storeData bool, intervalTime time.Duration) error {
 	if storeData {
-		if _, err := db.Exec(`DELETE FROM repositories`); err != nil {
+		if _, err := db.Exec(`DELETE FROM ghub_repositories`); err != nil {
 			return fmt.Errorf("failed to clear repositories table: %w", err)
 		}
 	}
@@ -155,7 +157,7 @@ func PullRepositories(ctx context.Context, client *github.Client, db *sql.DB, or
 // PullTeamUsers fetches team members and optionally stores them in database
 func PullTeamUsers(ctx context.Context, client *github.Client, db *sql.DB, org, teamSlug string, storeData bool, intervalTime time.Duration) error {
 	if storeData {
-		if _, err := db.Exec(`DELETE FROM team_users WHERE team_slug = ?`, teamSlug); err != nil {
+		if _, err := db.Exec(`DELETE FROM ghub_team_users WHERE team_slug = ?`, teamSlug); err != nil {
 			return fmt.Errorf("failed to clear team_users table: %w", err)
 		}
 	}
@@ -246,14 +248,14 @@ func PullTokenPermission(ctx context.Context, client *github.Client, db *sql.DB,
 
 	if storeData && db != nil {
 		// Clear existing token permission data
-		if _, err := db.Exec(`DELETE FROM token_permissions`); err != nil {
+		if _, err := db.Exec(`DELETE FROM ghub_token_permissions`); err != nil {
 			return fmt.Errorf("failed to clear token_permissions table: %w", err)
 		}
 
 		// Store new token permission data
 		now := time.Now().Format(time.RFC3339)
 		_, err = db.Exec(`
-			INSERT INTO token_permissions (
+			INSERT INTO ghub_token_permissions (
 				scopes, x_oauth_scopes, x_accepted_oauth_scopes, x_accepted_github_permissions, x_github_media_type,
 				x_ratelimit_limit, x_ratelimit_remaining, x_ratelimit_reset,
 				created_at, updated_at
@@ -324,8 +326,36 @@ func fetchAndStore[T any](
 		if err := storeFunc(db, allItems); err != nil {
 			return fmt.Errorf("failed to store data: %w", err)
 		}
-		fmt.Printf("Successfully stored %d items in database\n", len(allItems))
 	}
 
 	return nil
+}
+
+// PullOutsideUsers fetches organization outside collaborators and optionally stores them in database
+func PullOutsideUsers(ctx context.Context, client *github.Client, db *sql.DB, org string, storeData bool, intervalTime time.Duration) error {
+	if storeData {
+		if _, err := db.Exec(`DELETE FROM ghub_outside_users`); err != nil {
+			return fmt.Errorf("failed to clear outside_users table: %w", err)
+		}
+		fmt.Printf("Fetching outside collaborators from GitHub API and storing in database...\n")
+	} else {
+		fmt.Printf("Fetching outside collaborators from GitHub API...\n")
+	}
+
+	return fetchAndStore(
+		ctx, client,
+		func(ctx context.Context, org string, opts *github.ListOptions) ([]*github.User, *github.Response, error) {
+			users, resp, err := client.Organizations.ListOutsideCollaborators(ctx, org, &github.ListOutsideCollaboratorsOptions{
+				ListOptions: *opts,
+			})
+			return users, resp, err
+		},
+		func(db *sql.DB, users []*github.User) error {
+			if !storeData || db == nil {
+				return nil
+			}
+			return store.StoreOutsideUsers(db, users)
+		},
+		db, org, intervalTime,
+	)
 }

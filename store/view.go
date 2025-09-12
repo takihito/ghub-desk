@@ -17,6 +17,8 @@ func HandleViewTarget(db *sql.DB, target string) error {
 		return ViewRepositories(db)
 	case "token-permission":
 		return ViewTokenPermission(db)
+	case "outside-users":
+		return ViewOutsideUsers(db)
 	default:
 		if strings.HasSuffix(target, "/users") {
 			teamSlug := strings.TrimSuffix(target, "/users")
@@ -28,7 +30,7 @@ func HandleViewTarget(db *sql.DB, target string) error {
 
 // ViewUsers displays users from the database
 func ViewUsers(db *sql.DB) error {
-	rows, err := db.Query(`SELECT id, login, name, email, company, location FROM users ORDER BY login`)
+	rows, err := db.Query(`SELECT id, login, name, email, company, location FROM ghub_users ORDER BY login`)
 	if err != nil {
 		return fmt.Errorf("failed to query users: %w", err)
 	}
@@ -59,7 +61,7 @@ func ViewUsers(db *sql.DB) error {
 
 // ViewTeams displays teams from the database
 func ViewTeams(db *sql.DB) error {
-	rows, err := db.Query(`SELECT id, slug, name, description, privacy FROM teams ORDER BY slug`)
+	rows, err := db.Query(`SELECT id, slug, name, description, privacy FROM ghub_teams ORDER BY slug`)
 	if err != nil {
 		return fmt.Errorf("failed to query teams: %w", err)
 	}
@@ -91,7 +93,7 @@ func ViewTeams(db *sql.DB) error {
 func ViewRepositories(db *sql.DB) error {
 	rows, err := db.Query(`
 		SELECT id, name, full_name, description, private, language, stargazers_count 
-		FROM repositories ORDER BY name`)
+		FROM ghub_repositories ORDER BY name`)
 	if err != nil {
 		return fmt.Errorf("failed to query repositories: %w", err)
 	}
@@ -127,7 +129,7 @@ func ViewRepositories(db *sql.DB) error {
 func ViewTeamUsers(db *sql.DB, teamSlug string) error {
 	rows, err := db.Query(`
 		SELECT user_id, user_login, role 
-		FROM team_users 
+		FROM ghub_team_users 
 		WHERE team_slug = ? 
 		ORDER BY user_login`, teamSlug)
 	if err != nil {
@@ -158,7 +160,7 @@ func ViewTokenPermission(db *sql.DB) error {
 		SELECT scopes, x_oauth_scopes, x_accepted_oauth_scopes, x_accepted_github_permissions, x_github_media_type,
 		       x_ratelimit_limit, x_ratelimit_remaining, x_ratelimit_reset,
 		       created_at, updated_at
-		FROM token_permissions 
+		FROM ghub_token_permissions 
 		ORDER BY created_at DESC 
 		LIMIT 1`)
 	if err != nil {
@@ -194,5 +196,37 @@ func ViewTokenPermission(db *sql.DB) error {
 	fmt.Printf("Created At: %s\n", createdAt.String)
 	fmt.Printf("Updated At: %s\n", updatedAt.String)
 
+	return nil
+}
+
+// ViewOutsideUsers displays outside users from the database
+func ViewOutsideUsers(db *sql.DB) error {
+	rows, err := db.Query(`SELECT id, login, name, email, company, location FROM ghub_outside_users ORDER BY login`)
+	if err != nil {
+		return fmt.Errorf("failed to query outside users: %w", err)
+	}
+	defer rows.Close()
+
+	fmt.Println("Outside Collaborators:")
+	fmt.Println("ID\tLogin\tName\tEmail\tCompany\tLocation")
+	fmt.Println("--\t-----\t----\t-----\t-------\t--------")
+
+	for rows.Next() {
+		var id int64
+		var login, name, email, company, location sql.NullString
+		err := rows.Scan(&id, &login, &name, &email, &company, &location)
+		if err != nil {
+			return fmt.Errorf("failed to scan outside user row: %w", err)
+		}
+
+		fmt.Printf("%d\t%s\t%s\t%s\t%s\t%s\n",
+			id,
+			login.String,
+			name.String,
+			email.String,
+			company.String,
+			location.String,
+		)
+	}
 	return nil
 }

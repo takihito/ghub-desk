@@ -4,14 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
-	"strconv"
-	"strings"
 	"time"
 
 	"ghub-desk/config"
 	"ghub-desk/github"
 	"ghub-desk/store"
+
+	"github.com/alecthomas/kong"
 )
 
 var (
@@ -28,171 +27,131 @@ func SetVersionInfo(version, commit, date string) {
 	appDate = date
 }
 
-// Execute is the main entry point for all commands
-func Execute() error {
-	if len(os.Args) < 2 {
-		Usage()
-		return fmt.Errorf("command required")
+// CLI represents the command line interface structure using Kong
+type CLI struct {
+	Debug bool `help:"Enable debug mode."`
+
+	Pull    PullCmd    `cmd:"" help:"Fetch data from GitHub API"`
+	View    ViewCmd    `cmd:"" help:"Display data from local database"`
+	Push    PushCmd    `cmd:"" help:"Remove resources from GitHub"`
+	Init    InitCmd    `cmd:"" help:"Initialize local database tables"`
+	Version VersionCmd `cmd:"" help:"Show version information"`
+}
+
+// CommonTargetOptions holds the shared target flags for pull and view commands
+type CommonTargetOptions struct {
+	Users           bool   `help:"Target: users"`
+	DetailUsers     bool   `name:"detail-users" help:"Target: detail-users"`
+	Teams           bool   `help:"Target: teams"`
+	Repos           bool   `help:"Target: repos"`
+	TeamsUsers      string `name:"teams-users" help:"Target: team-users (provide team slug)"`
+	TokenPermission bool   `name:"token-permission" help:"Target: token-permission"`
+	OutsideUsers    bool   `name:"outside-users" help:"Target: outside-users"`
+}
+
+// GetTarget determines the single selected target from the common options.
+// It takes an optional list of extra targets to consider.
+func (c *CommonTargetOptions) GetTarget(extraTargets ...struct {
+	flag bool
+	name string
+}) (string, error) {
+	targets := []struct {
+		flag bool
+		name string
+	}{
+		{c.Users, "users"},
+		{c.DetailUsers, "detail-users"},
+		{c.Teams, "teams"},
+		{c.Repos, "repos"},
+		{c.TeamsUsers != "", "teams-users"},
+		{c.TokenPermission, "token-permission"},
+		{c.OutsideUsers, "outside-users"},
 	}
+	targets = append(targets, extraTargets...)
 
-	cmd := os.Args[1]
-	switch cmd {
-	case "pull":
-		return PullCmd(os.Args[2:])
-	case "view":
-		return ViewCmd(os.Args[2:])
-	case "push":
-		return PushCmd(os.Args[2:])
-	case "init":
-		return InitCmd()
-	case "version", "-v", "--version":
-		VersionCmd()
-		return nil
-	case "help", "-h", "--help":
-		Usage()
-		return nil
-	default:
-		Usage()
-		return fmt.Errorf("unknown command: %s", cmd)
-	}
-}
-
-// InitCmd initializes the database with required tables
-func InitCmd() error {
-	db, err := store.InitDatabase()
-	if err != nil {
-		return fmt.Errorf("failed to initialize database: %w", err)
-	}
-	defer db.Close()
-
-	fmt.Println("Database initialization completed")
-	return nil
-}
-
-// VersionCmd displays version information
-func VersionCmd() {
-	fmt.Printf("ghub-desk version %s\n", appVersion)
-	fmt.Printf("commit: %s\n", appCommit)
-	fmt.Printf("built at: %s\n", appDate)
-}
-
-// Usage displays help information for the CLI tool
-func Usage() {
-	fmt.Print(`ghub-desk - GitHub Organization Management CLI Tool
-
-USAGE:
-    ghub-desk <command> [options] [arguments]
-
-COMMANDS:
-    pull [--store] --<target>      Fetch data from GitHub API
-                                   Targets: --users, --detail-users, --teams, --repos, --teams-users <team_name>, --all-teams-users, --token-permission
-                                   Options: --store: Save to local SQLite database
-                                           --interval-time <seconds>: Sleep interval between API requests (default: 3 seconds)
-    
-    view --<target>                Display data from local database
-                                   Targets: --users, --detail-users, --teams, --repos, --teams-users <team_name>, --token-permission
-    
-    push --remove --<target>       Remove resources from GitHub
-                                   [--exec]: Execute (without this flag, runs in DRYRUN mode)
-                                   Targets: --team <name>, --user <name>, --team-user <team>/<user>
-    
-    init                           Initialize local database tables
-    
-    version                        Show version information
-    
-    help                           Show this help message
-
-ENVIRONMENT VARIABLES:
-    GHUB_DESK_ORGANIZATION     GitHub organization name (required)
-    GHUB_DESK_GITHUB_TOKEN     GitHub personal access token (required)
-
-EXAMPLES:
-    # Fetch and store organization members (basic info)
-    ghub-desk pull --store --users
-    
-    # Fetch and store organization members with detailed information
-    ghub-desk pull --store --detail-users
-    
-    # View stored teams
-    ghub-desk view --teams
-    
-    # View stored users (including detailed info if fetched)
-    ghub-desk view --detail-users
-    
-    # Fetch team members (without storing)
-    ghub-desk pull --teams-users engineering
-    
-    # Fetch all team users
-    ghub-desk pull --all-teams-users
-    
-    # Remove team (DRYRUN)
-    ghub-desk push --remove --team old-team
-    
-    # Remove user (Execute)
-    ghub-desk push --remove --user old-user --exec
-    
-    # Initialize database
-    ghub-desk init
-
-For more information, visit: https://github.com/your-org/ghub-desk
-`)
-}
-
-// PullCmd handles the 'pull' command to fetch data from GitHub API
-func PullCmd(args []string) error {
-	// Parse flags according to new specification
-	var target string
-	var storeData bool
-	var teamName string                                  // For --teams-users
-	var intervalTime time.Duration = github.DefaultSleep // Default value
-
-	for i, arg := range args {
-		switch arg {
-		case "--store":
-			storeData = true
-		case "--users":
-			target = "users"
-		case "--detail-users":
-			target = "detail-users"
-		case "--teams":
-			target = "teams"
-		case "--repos":
-			target = "repos"
-		case "--teams-users":
-			target = "teams-users"
-			// Next argument should be team name
-			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
-				teamName = args[i+1]
-			}
-		case "--all-teams-users":
-			target = "all-teams-users"
-		case "--token-permission":
-			target = "token-permission"
-		case "--interval-time":
-			// Next argument should be interval time in seconds
-			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
-				if seconds, err := strconv.Atoi(args[i+1]); err == nil {
-					intervalTime = time.Duration(seconds) * time.Second
-				}
-			}
+	var selectedTarget string
+	count := 0
+	for _, t := range targets {
+		if t.flag {
+			count++
+			selectedTarget = t.name
 		}
 	}
 
-	if target == "" {
-		return fmt.Errorf("pull対象を指定してください\n利用可能な対象: --users, --detail-users, --teams, --repos, --teams-users <team_name>, --all-teams-users, --token-permission\nオプション: --store (データベースに保存), --interval-time <秒> (API リクエスト間隔, デフォルト: 3)")
+	if count == 0 {
+		return "", fmt.Errorf("at least one target flag must be specified")
+	}
+	if count > 1 {
+		return "", fmt.Errorf("only one target can be specified at a time")
+	}
+	return selectedTarget, nil
+}
+
+// PullCmd represents the pull command structure
+type PullCmd struct {
+	CommonTargetOptions `embed:""`
+	AllTeamsUsers       bool `name:"all-teams-users" help:"Target: all-teams-users"`
+
+	// Options
+	Store        bool          `help:"Save to local SQLite database"`
+	IntervalTime time.Duration `help:"Sleep interval between API requests" default:"3s"`
+}
+
+// ViewCmd represents the view command structure
+type ViewCmd struct {
+	CommonTargetOptions `embed:""`
+}
+
+// PushCmd represents the push command structure
+type PushCmd struct {
+	Remove RemoveCmd `cmd:"" help:"Remove resources from GitHub"`
+}
+
+// RemoveCmd represents the remove subcommand structure
+type RemoveCmd struct {
+	Exec     bool   `help:"Execute the operation (without this flag, runs in DRYRUN mode)"`
+	Team     string `help:"Remove team from organization"`
+	User     string `help:"Remove user from organization"`
+	TeamUser string `name:"team-user" help:"Remove user from team (format: team/user)"`
+}
+
+// InitCmd represents the init command structure
+type InitCmd struct{}
+
+// VersionCmd represents the version command structure
+type VersionCmd struct{}
+
+// Execute is the main entry point for all commands
+func Execute() error {
+	var cli CLI
+	ctx := kong.Parse(&cli,
+		kong.Name("ghub-desk"),
+		kong.Description("GitHub Organization Management CLI Tool"),
+		kong.Vars{
+			"version": fmt.Sprintf("%s (%s, built %s)", appVersion, appCommit, appDate),
+		},
+		kong.ConfigureHelp(kong.HelpOptions{
+			Compact: true,
+		}),
+	)
+
+	return ctx.Run(&cli)
+}
+
+// Run implements the pull command execution
+func (p *PullCmd) Run(cli *CLI) error {
+	// Determine target from flags
+	target, err := p.CommonTargetOptions.GetTarget(struct {
+		flag bool
+		name string
+	}{p.AllTeamsUsers, "all-teams-users"})
+	if err != nil {
+		return err
 	}
 
-	if target == "teams-users" && teamName == "" {
-		return fmt.Errorf("--teams-users にはチーム名を指定してください")
+	if cli.Debug {
+		fmt.Printf("DEBUG: Pulling target='%s', store=%v, interval=%v\n", target, p.Store, p.IntervalTime)
 	}
-
-	// Debug message to verify flag parsing
-	if storeData {
-		fmt.Printf("DEBUG: --store flag detected, will save to database\n")
-	} else {
-		fmt.Printf("DEBUG: --store flag not detected, will not save to database\n")
-	}
-	fmt.Printf("DEBUG: interval time set to %v\n", intervalTime)
 
 	// Load configuration from environment variables
 	cfg, err := config.GetConfig()
@@ -205,10 +164,10 @@ func PullCmd(args []string) error {
 	client := github.InitClient(cfg.GitHubToken)
 
 	var db *sql.DB
-	if storeData || target == "all-teams-users" {
+	if p.Store || target == "all-teams-users" {
 		db, err = store.InitDatabase()
 		if err != nil {
-			return fmt.Errorf("database initialization error: %w", err)
+			return fmt.Errorf("failed to initialize database: %w", err)
 		}
 		defer db.Close()
 	}
@@ -216,138 +175,126 @@ func PullCmd(args []string) error {
 	// Handle different target types with appropriate data fetching
 	finalTarget := target
 	if target == "teams-users" {
-		finalTarget = teamName + "/users" // Convert to legacy format for HandlePullTarget
+		finalTarget = p.TeamsUsers + "/users"
 	}
 
-	err = github.HandlePullTarget(ctx, client, db, cfg.Organization, finalTarget, cfg.GitHubToken, storeData, intervalTime)
-	if err != nil {
-		return fmt.Errorf("failed to pull %s: %w", target, err)
-	}
-
-	fmt.Printf("Successfully completed pulling %s for organization %s\n", target, cfg.Organization)
-	return nil
+	return github.HandlePullTarget(ctx, client, db, cfg.Organization, finalTarget, cfg.GitHubToken, p.Store, p.IntervalTime)
 }
 
-// ViewCmd handles the 'view' command to display data from local database
-func ViewCmd(args []string) error {
-	// Parse flags according to new specification
-	var target string
-	var teamName string // For --teams-users
-
-	for i, arg := range args {
-		switch arg {
-		case "--users":
-			target = "users"
-		case "--detail-users":
-			target = "detail-users"
-		case "--teams":
-			target = "teams"
-		case "--repos":
-			target = "repos"
-		case "--teams-users":
-			target = "teams-users"
-			// Next argument should be team name
-			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
-				teamName = args[i+1]
-			}
-		case "--token-permission":
-			target = "token-permission"
-		}
+// Run implements the view command execution
+func (v *ViewCmd) Run(cli *CLI) error {
+	// Determine target from flags
+	target, err := v.CommonTargetOptions.GetTarget()
+	if err != nil {
+		return err
 	}
 
-	if target == "" {
-		return fmt.Errorf("view対象を指定してください\n利用可能な対象: --users, --detail-users, --teams, --repos, --teams-users <team_name>, --token-permission")
+	if cli.Debug {
+		fmt.Printf("DEBUG: Viewing target='%s'\n", target)
 	}
 
-	if target == "teams-users" && teamName == "" {
-		return fmt.Errorf("--teams-users にはチーム名を指定してください")
-	}
-
+	// Initialize database
 	db, err := store.InitDatabase()
 	if err != nil {
-		return fmt.Errorf("database initialization error: %w", err)
+		return fmt.Errorf("failed to initialize database: %w", err)
 	}
 	defer db.Close()
 
 	// Handle different target types
 	finalTarget := target
 	if target == "teams-users" {
-		finalTarget = teamName + "/users" // Convert to legacy format for HandleViewTarget
+		finalTarget = v.TeamsUsers + "/users"
 	}
 
-	err = store.HandleViewTarget(db, finalTarget)
-	if err != nil {
-		return fmt.Errorf("failed to view %s: %w", target, err)
-	}
-
-	return nil
+	return store.HandleViewTarget(db, finalTarget)
 }
 
-// PushCmd handles the 'push' command and its subcommands
-func PushCmd(args []string) error {
-	// Parse flags according to new specification
-	var remove bool
-	var exec bool
-	var target string
-	var resourceName string
-
-	for i, arg := range args {
-		switch arg {
-		case "--remove":
-			remove = true
-		case "--exec":
-			exec = true
-		case "--team":
-			target = "team"
-			// Next argument should be team name
-			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
-				resourceName = args[i+1]
-			}
-		case "--user":
-			target = "user"
-			// Next argument should be user name
-			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
-				resourceName = args[i+1]
-			}
-		case "--team-user":
-			target = "team-user"
-			// Next argument should be team/user name
-			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
-				resourceName = args[i+1]
-			}
-		}
+// Run implements the remove subcommand execution
+func (r *RemoveCmd) Run(cli *CLI) error {
+	// Determine target from flags
+	target, targetValue, err := r.getTarget()
+	if err != nil {
+		return err
 	}
 
-	if !remove {
-		return fmt.Errorf("pushサブコマンドを指定してください (現在は --remove のみサポート)")
-	}
-
-	if target == "" || resourceName == "" {
-		return fmt.Errorf("削除対象を指定してください\n利用可能な対象: --team <name>, --user <name>, --team-user <team>/<user>")
+	if cli.Debug {
+		fmt.Printf("DEBUG: Push/Remove target='%s', value='%s', exec=%v\n", target, targetValue, r.Exec)
 	}
 
 	// Load configuration
 	cfg, err := config.GetConfig()
 	if err != nil {
-		return fmt.Errorf("設定の読み込みに失敗しました: %w", err)
+		return fmt.Errorf("configuration error: %w", err)
 	}
 
 	// Initialize GitHub client
 	client := github.InitClient(cfg.GitHubToken)
 	ctx := context.Background()
 
-	if exec {
-		fmt.Printf("%s %s を削除します (実行)\n", target, resourceName)
-		// Execute the actual removal
-		err := github.ExecutePushRemove(ctx, client, cfg.Organization, target, resourceName)
+	if r.Exec {
+		fmt.Printf("Executing: Remove %s '%s' from organization %s\n", target, targetValue, cfg.Organization)
+		err := github.ExecutePushRemove(ctx, client, cfg.Organization, target, targetValue)
 		if err != nil {
-			return fmt.Errorf("削除に失敗しました: %w", err)
+			return fmt.Errorf("failed to execute remove: %w", err)
 		}
-		fmt.Printf("削除が完了しました\n")
+		fmt.Println("Successfully removed.")
 	} else {
-		fmt.Printf("%s %s を削除します (DRYRUN)\n", target, resourceName)
-		fmt.Println("実際に削除するには --exec フラグを追加してください")
+		fmt.Printf("DRYRUN: Would remove %s '%s' from organization %s\n", target, targetValue, cfg.Organization)
+		fmt.Println("To execute, add the --exec flag.")
 	}
 
+	return nil
+}
+
+// getTarget returns the target and value based on the flags set for remove command
+func (r *RemoveCmd) getTarget() (string, string, error) {
+	targets := []struct {
+		value string
+		name  string
+	}{
+		{r.Team, "team"},
+		{r.User, "user"},
+		{r.TeamUser, "team-user"},
+	}
+
+	var selectedTarget, selectedValue string
+	var count int
+
+	for _, t := range targets {
+		if t.value != "" {
+			count++
+			selectedTarget = t.name
+			selectedValue = t.value
+		}
+	}
+
+	if count == 0 {
+		return "", "", fmt.Errorf("target required: specify one of --team, --user, --team-user")
+	}
+
+	if count > 1 {
+		return "", "", fmt.Errorf("only one target can be specified at a time")
+	}
+
+	return selectedTarget, selectedValue, nil
+}
+
+// Run implements the init command execution
+func (i *InitCmd) Run(cli *CLI) error {
+	db, err := store.InitDatabase()
+	if err != nil {
+		return fmt.Errorf("failed to initialize database: %w", err)
+	}
+	defer db.Close()
+
+	fmt.Println("Database initialization completed")
+	return nil
+}
+
+// Run implements the version command execution
+func (v *VersionCmd) Run(cli *CLI) error {
+	fmt.Printf("ghub-desk version %s\n", appVersion)
+	fmt.Printf("commit: %s\n", appCommit)
+	fmt.Printf("built at: %s\n", appDate)
 	return nil
 }

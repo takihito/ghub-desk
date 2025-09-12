@@ -47,6 +47,7 @@ func TestHandleViewTarget(t *testing.T) {
 		{"repos target", "repos", false},
 		{"repositories target", "repositories", false},
 		{"token-permission target", "token-permission", false},
+		{"outside-users target", "outside-users", false},
 		{"team users target", "test-team/users", false},
 		{"unknown target", "unknown", true},
 	}
@@ -199,7 +200,7 @@ func TestViewTokenPermission(t *testing.T) {
 		t.Errorf("ViewTokenPermission() with no data error = %v", err)
 	}
 
-	_, err = db.Exec(`INSERT INTO token_permissions(
+	_, err = db.Exec(`INSERT INTO ghub_token_permissions(
 		scopes, x_oauth_scopes, x_accepted_oauth_scopes, x_accepted_github_permissions, 
 		x_github_media_type, x_ratelimit_limit, x_ratelimit_remaining, x_ratelimit_reset,
 		created_at, updated_at
@@ -215,5 +216,31 @@ func TestViewTokenPermission(t *testing.T) {
 	err = ViewTokenPermission(db)
 	if err != nil {
 		t.Errorf("ViewTokenPermission() with data error = %v", err)
+	}
+}
+
+func TestViewOutsideUsers(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Test with empty table
+	err := ViewOutsideUsers(db)
+	if err != nil {
+		t.Errorf("ViewOutsideUsers() with empty table error = %v", err)
+	}
+
+	// Insert test outside user data
+	_, err = db.Exec(`INSERT INTO ghub_outside_users(id, login, name, email, company, location, created_at, updated_at) 
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		1, "outsideuser1", "Outside User 1", "outside@example.com", "External Corp", "Tokyo",
+		"2023-01-01 12:00:00", "2023-01-01 12:00:00")
+	if err != nil {
+		t.Fatalf("Failed to insert test outside user: %v", err)
+	}
+
+	// Test ViewOutsideUsers with data
+	err = ViewOutsideUsers(db)
+	if err != nil {
+		t.Errorf("ViewOutsideUsers() with data error = %v", err)
 	}
 }

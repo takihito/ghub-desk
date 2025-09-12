@@ -32,7 +32,7 @@ func InitDatabase() (*sql.DB, error) {
 // createTables creates all required database tables if they don't exist
 func createTables(db *sql.DB) error {
 	tables := []string{
-		`CREATE TABLE IF NOT EXISTS users (
+		`CREATE TABLE IF NOT EXISTS ghub_users (
 			id INTEGER PRIMARY KEY,
 			login TEXT UNIQUE,
 			name TEXT,
@@ -42,7 +42,7 @@ func createTables(db *sql.DB) error {
 			created_at TEXT,
 			updated_at TEXT
 		)`,
-		`CREATE TABLE IF NOT EXISTS teams (
+		`CREATE TABLE IF NOT EXISTS ghub_teams (
 			id INTEGER PRIMARY KEY,
 			name TEXT,
 			slug TEXT UNIQUE,
@@ -52,7 +52,7 @@ func createTables(db *sql.DB) error {
 			created_at TEXT,
 			updated_at TEXT
 		)`,
-		`CREATE TABLE IF NOT EXISTS repositories (
+		`CREATE TABLE IF NOT EXISTS ghub_repositories (
 			id INTEGER PRIMARY KEY,
 			name TEXT UNIQUE,
 			full_name TEXT,
@@ -67,7 +67,7 @@ func createTables(db *sql.DB) error {
 			updated_at TEXT,
 			pushed_at TEXT
 		)`,
-		`CREATE TABLE IF NOT EXISTS team_users (
+		`CREATE TABLE IF NOT EXISTS ghub_team_users (
 			team_id INTEGER,
 			user_id INTEGER,
 			user_login TEXT,
@@ -76,7 +76,7 @@ func createTables(db *sql.DB) error {
 			created_at TEXT,
 			PRIMARY KEY (team_id, user_id)
 		)`,
-		`CREATE TABLE IF NOT EXISTS token_permissions (
+		`CREATE TABLE IF NOT EXISTS ghub_token_permissions (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			scopes TEXT,
 			x_oauth_scopes TEXT,
@@ -86,6 +86,16 @@ func createTables(db *sql.DB) error {
 			x_ratelimit_limit INTEGER,
 			x_ratelimit_remaining INTEGER,
 			x_ratelimit_reset INTEGER,
+			created_at TEXT,
+			updated_at TEXT
+		)`,
+		`CREATE TABLE IF NOT EXISTS ghub_outside_users (
+			id INTEGER PRIMARY KEY,
+			login TEXT UNIQUE,
+			name TEXT,
+			email TEXT,
+			company TEXT,
+			location TEXT,
 			created_at TEXT,
 			updated_at TEXT
 		)`,
@@ -104,7 +114,7 @@ func createTables(db *sql.DB) error {
 func StoreUsers(db *sql.DB, users []*github.User) error {
 	now := time.Now().Format("2006-01-02 15:04:05")
 	for _, u := range users {
-		_, err := db.Exec(`INSERT OR REPLACE INTO users(id, login, name, email, company, location, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		_, err := db.Exec(`INSERT OR REPLACE INTO ghub_users(id, login, name, email, company, location, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 			u.GetID(), u.GetLogin(), u.GetName(), u.GetEmail(), u.GetCompany(), u.GetLocation(),
 			now, now)
 		if err != nil {
@@ -120,7 +130,7 @@ func StoreUsersWithDetails(db *sql.DB, users []*github.User) error {
 	now := time.Now().Format("2006-01-02 15:04:05")
 
 	for _, u := range users {
-		_, err := db.Exec(`INSERT OR REPLACE INTO users(id, login, name, email, company, location, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		_, err := db.Exec(`INSERT OR REPLACE INTO ghub_users(id, login, name, email, company, location, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 			u.GetID(), u.GetLogin(), u.GetName(), u.GetEmail(),
 			u.GetCompany(), u.GetLocation(), now, now)
 		if err != nil {
@@ -134,7 +144,7 @@ func StoreUsersWithDetails(db *sql.DB, users []*github.User) error {
 func StoreTeams(db *sql.DB, teams []*github.Team) error {
 	now := time.Now().Format("2006-01-02 15:04:05")
 	for _, t := range teams {
-		_, err := db.Exec(`INSERT OR REPLACE INTO teams(id, name, slug, description, privacy, permission, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		_, err := db.Exec(`INSERT OR REPLACE INTO ghub_teams(id, name, slug, description, privacy, permission, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 			t.GetID(), t.GetName(), t.GetSlug(), t.GetDescription(), t.GetPrivacy(), t.GetPermission(),
 			now, now)
 		if err != nil {
@@ -147,7 +157,7 @@ func StoreTeams(db *sql.DB, teams []*github.Team) error {
 // StoreRepositories stores GitHub repositories in the database
 func StoreRepositories(db *sql.DB, repos []*github.Repository) error {
 	for _, r := range repos {
-		_, err := db.Exec(`INSERT OR REPLACE INTO repositories(id, name, full_name, description, private, language, size, stargazers_count, watchers_count, forks_count, created_at, updated_at, pushed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		_, err := db.Exec(`INSERT OR REPLACE INTO ghub_repositories(id, name, full_name, description, private, language, size, stargazers_count, watchers_count, forks_count, created_at, updated_at, pushed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			r.GetID(), r.GetName(), r.GetFullName(), r.GetDescription(), r.GetPrivate(), r.GetLanguage(),
 			r.GetSize(), r.GetStargazersCount(), r.GetWatchersCount(), r.GetForksCount(),
 			formatTime(r.GetCreatedAt()), formatTime(r.GetUpdatedAt()), formatTime(r.GetPushedAt()))
@@ -162,16 +172,30 @@ func StoreRepositories(db *sql.DB, repos []*github.Repository) error {
 func StoreTeamUsers(db *sql.DB, users []*github.User, teamSlug string) error {
 	// First get team ID from slug
 	var teamID int64
-	err := db.QueryRow(`SELECT id FROM teams WHERE slug = ?`, teamSlug).Scan(&teamID)
+	err := db.QueryRow(`SELECT id FROM ghub_teams WHERE slug = ?`, teamSlug).Scan(&teamID)
 	if err != nil {
 		return fmt.Errorf("failed to get team ID for slug %s: %w", teamSlug, err)
 	}
 
 	for _, u := range users {
-		_, err := db.Exec(`INSERT OR REPLACE INTO team_users(team_id, user_id, user_login, team_slug, role, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		_, err := db.Exec(`INSERT OR REPLACE INTO ghub_team_users(team_id, user_id, user_login, team_slug, role, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
 			teamID, u.GetID(), u.GetLogin(), teamSlug, "member", time.Now().Format("2006-01-02 15:04:05"))
 		if err != nil {
 			return fmt.Errorf("failed to insert team user %s for team %s: %w", u.GetLogin(), teamSlug, err)
+		}
+	}
+	return nil
+}
+
+// StoreOutsideUsers stores GitHub outside collaborators in the database
+func StoreOutsideUsers(db *sql.DB, users []*github.User) error {
+	now := time.Now().Format("2006-01-02 15:04:05")
+	for _, u := range users {
+		_, err := db.Exec(`INSERT OR REPLACE INTO ghub_outside_users(id, login, name, email, company, location, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			u.GetID(), u.GetLogin(), u.GetName(), u.GetEmail(), u.GetCompany(), u.GetLocation(),
+			now, now)
+		if err != nil {
+			return fmt.Errorf("failed to store outside user %s: %w", u.GetLogin(), err)
 		}
 	}
 	return nil

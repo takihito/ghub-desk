@@ -49,6 +49,7 @@ func TestHandlePullTarget_ValidTargets(t *testing.T) {
 		"repos",
 		"all-teams-users",
 		"token-permission",
+		"outside-users",
 		"test-team/users",
 	}
 

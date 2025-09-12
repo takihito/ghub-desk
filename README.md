@@ -22,7 +22,7 @@ GitHub Organization Management CLI Tool
 ## 技術
 
 - **REST API**: GitHub APIの利用対応
-- **ローカルデータベース**: SQLitewを使用したオフライン状況でのデータ管理
+- **ローカルデータベース**: SQLiteを使用したオフライン状況でのデータ管理
 
 ## 環境変数
 
@@ -55,6 +55,12 @@ export GHUB_DESK_GITHUB_TOKEN="your-token"         # GitHub Access Token
 
 ```bash
 make build
+```
+
+##  テスト
+
+```bash
+make test
 ```
 
 ## 対応プラットフォーム
