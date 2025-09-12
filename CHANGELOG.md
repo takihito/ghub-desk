@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.1.0](https://github.com/takihito/ghub-desk/compare/v0.0.6...v0.1.0) - 2025-09-12
+- Version 0.1.0  Draft  by @takihito in https://github.com/takihito/ghub-desk/pull/21
+
 ## [v0.0.6](https://github.com/takihito/ghub-desk/compare/v0.0.5...v0.0.6) - 2025-09-10
 
 ## [v0.0.5](https://github.com/takihito/ghub-desk/compare/v0.0.4...v0.0.5) - 2025-09-10
