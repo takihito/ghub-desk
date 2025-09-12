@@ -38,7 +38,7 @@ func ExecutePushRemove(ctx context.Context, client *github.Client, org, target, 
 
 		// Remove user from team
 		resp, err := client.Teams.RemoveTeamMembershipBySlug(ctx, org, teamSlug, username)
-		scopePermission := "ResponseHeaerScopePersmission:undef"
+		scopePermission := "ResponseHeaderScopePersmission:undef"
 		if resp.Header != nil {
 			scopePermission = fmt.Sprintf("X-Accepted-OAuth-Scopes:%s, X-Accepted-GitHub-Permissions:%s",
 				resp.Header.Get("X-Accepted-OAuth-Scopes"), resp.Header.Get("X-Accepted-GitHub-Permissions"))
