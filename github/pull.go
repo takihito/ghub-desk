@@ -326,10 +326,6 @@ func fetchAndStore[T any](
 		if err := storeFunc(db, allItems); err != nil {
 			return fmt.Errorf("failed to store data: %w", err)
 		}
-		// Only show success message if we actually have a database connection
-		if db != nil {
-			fmt.Printf("Successfully stored %d items in database\n", len(allItems))
-		}
 	}
 
 	return nil
