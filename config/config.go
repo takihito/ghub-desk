@@ -1,11 +1,12 @@
 package config
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
+    "fmt"
+    "os"
+    "path/filepath"
+    "strconv"
 
-	"gopkg.in/yaml.v3"
+    "gopkg.in/yaml.v3"
 )
 
 const (
@@ -74,18 +75,20 @@ func GetConfig(customPath string) (*Config, error) {
 	if token := os.Getenv("GHUB_DESK_GITHUB_TOKEN"); token != "" {
 		cfg.GitHubToken = token
 	}
-	if appID := os.Getenv("GHUB_DESK_APP_ID"); appID != "" {
-		_, err := fmt.Sscanf(appID, "%d", &cfg.GitHubApp.AppID)
-		if err != nil {
-			return nil, fmt.Errorf("invalid GHUB_DESK_APP_ID: %w", err)
-		}
-	}
-	if instID := os.Getenv("GHUB_DESK_INSTALLATION_ID"); instID != "" {
-		_, err := fmt.Sscanf(instID, "%d", &cfg.GitHubApp.InstallationID)
-		if err != nil {
-			return nil, fmt.Errorf("invalid GHUB_DESK_INSTALLATION_ID: %w", err)
-		}
-	}
+    if appID := os.Getenv("GHUB_DESK_APP_ID"); appID != "" {
+        v, err := strconv.ParseInt(appID, 10, 64)
+        if err != nil {
+            return nil, fmt.Errorf("invalid GHUB_DESK_APP_ID: %w", err)
+        }
+        cfg.GitHubApp.AppID = v
+    }
+    if instID := os.Getenv("GHUB_DESK_INSTALLATION_ID"); instID != "" {
+        v, err := strconv.ParseInt(instID, 10, 64)
+        if err != nil {
+            return nil, fmt.Errorf("invalid GHUB_DESK_INSTALLATION_ID: %w", err)
+        }
+        cfg.GitHubApp.InstallationID = v
+    }
 	if key := os.Getenv("GHUB_DESK_PRIVATE_KEY"); key != "" {
 		cfg.GitHubApp.PrivateKey = key
 	}
