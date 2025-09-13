@@ -15,8 +15,8 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-# Linker flags for version information
-LDFLAGS = -ldflags "-s -w -X cmd.appVersion=$(VERSION) -X cmd.appCommit=$(COMMIT) -X cmd.appDate=$(DATE)"
+# Linker flags for version information (inject into main)
+LDFLAGS = -ldflags "-s -w -X main.Version=$(VERSION) -X main.Commit=$(COMMIT) -X main.Date=$(DATE)"
 
 # Default target
 all: build
