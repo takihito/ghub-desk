@@ -160,9 +160,9 @@ func (p *PullCmd) Run(cli *CLI) error {
 		fmt.Printf("DEBUG: Pulling target='%s', store=%v, interval=%v\n", target, p.Store, p.IntervalTime)
 	}
 
-    // Load configuration
-    config.Debug = cli.Debug
-    cfg, err := config.GetConfig(cli.ConfigPath)
+	// Load configuration
+	config.Debug = cli.Debug
+	cfg, err := config.GetConfig(cli.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("configuration error: %w", err)
 	}
@@ -232,9 +232,9 @@ func (r *RemoveCmd) Run(cli *CLI) error {
 		fmt.Printf("DEBUG: Push/Remove target='%s', value='%s', exec=%v\n", target, targetValue, r.Exec)
 	}
 
-    // Load configuration
-    config.Debug = cli.Debug
-    cfg, err := config.GetConfig(cli.ConfigPath)
+	// Load configuration
+	config.Debug = cli.Debug
+	cfg, err := config.GetConfig(cli.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("configuration error: %w", err)
 	}
@@ -306,9 +306,9 @@ func (a *AddCmd) Run(cli *CLI) error {
 		fmt.Printf("DEBUG: Push/Add target='%s', value='%s', exec=%v\n", target, targetValue, a.Exec)
 	}
 
-    // Load configuration
-    config.Debug = cli.Debug
-    cfg, err := config.GetConfig(cli.ConfigPath)
+	// Load configuration
+	config.Debug = cli.Debug
+	cfg, err := config.GetConfig(cli.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("configuration error: %w", err)
 	}
