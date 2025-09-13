@@ -29,24 +29,25 @@ func SetVersionInfo(version, commit, date string) {
 
 // CLI represents the command line interface structure using Kong
 type CLI struct {
-	Debug bool `help:"Enable debug mode."`
+	Debug      bool   `help="Enable debug mode."`
+	ConfigPath string `name="config" short="c" help="Path to config file." type="path"`
 
-	Pull    PullCmd    `cmd:"" help:"Fetch data from GitHub API"`
-	View    ViewCmd    `cmd:"" help:"Display data from local database"`
-	Push    PushCmd    `cmd:"" help:"Manipulate resources on GitHub"`
-	Init    InitCmd    `cmd:"" help:"Initialize local database tables"`
-	Version VersionCmd `cmd:"" help:"Show version information"`
+	Pull    PullCmd    `cmd:"" help="Fetch data from GitHub API"`
+	View    ViewCmd    `cmd:"" help="Display data from local database"`
+	Push    PushCmd    `cmd:"" help="Manipulate resources on GitHub"`
+	Init    InitCmd    `cmd:"" help="Initialize local database tables"`
+	Version VersionCmd `cmd:"" help="Show version information"`
 }
 
 // CommonTargetOptions holds the shared target flags for pull and view commands
 type CommonTargetOptions struct {
-	Users           bool   `help:"Target: users"`
-	DetailUsers     bool   `name:"detail-users" help:"Target: detail-users"`
-	Teams           bool   `help:"Target: teams"`
-	Repos           bool   `help:"Target: repos"`
-	TeamsUsers      string `name:"teams-users" help:"Target: team-users (provide team slug)"`
-	TokenPermission bool   `name:"token-permission" help:"Target: token-permission"`
-	OutsideUsers    bool   `name:"outside-users" help:"Target: outside-users"`
+	Users           bool   `help="Target: users"`
+	DetailUsers     bool   `name="detail-users" help="Target: detail-users"`
+	Teams           bool   `help="Target: teams"`
+	Repos           bool   `help="Target: repos"`
+	TeamsUsers      string `name="teams-users" help="Target: team-users (provide team slug)"`
+	TokenPermission bool   `name="token-permission" help="Target: token-permission"`
+	OutsideUsers    bool   `name="outside-users" help="Target: outside-users"`
 }
 
 // GetTarget determines the single selected target from the common options.
@@ -88,37 +89,37 @@ func (c *CommonTargetOptions) GetTarget(extraTargets ...struct {
 
 // PullCmd represents the pull command structure
 type PullCmd struct {
-	CommonTargetOptions `embed:""`
-	AllTeamsUsers       bool `name:"all-teams-users" help:"Target: all-teams-users"`
+	CommonTargetOptions `embed:"`
+	AllTeamsUsers       bool `name="all-teams-users" help="Target: all-teams-users"`
 
 	// Options
-	Store        bool          `help:"Save to local SQLite database"`
-	IntervalTime time.Duration `help:"Sleep interval between API requests" default:"3s"`
+	Store        bool          `help="Save to local SQLite database"`
+	IntervalTime time.Duration `help="Sleep interval between API requests" default:"3s"`
 }
 
 // ViewCmd represents the view command structure
 type ViewCmd struct {
-	CommonTargetOptions `embed:""`
+	CommonTargetOptions `embed:"`
 }
 
 // PushCmd represents the push command structure
 type PushCmd struct {
-	Remove RemoveCmd `cmd:"" help:"Remove resources from GitHub"`
-	Add    AddCmd    `cmd:"" help:"Add resources to GitHub"`
+	Remove RemoveCmd `cmd:"" help="Remove resources from GitHub"`
+	Add    AddCmd    `cmd:"" help="Add resources to GitHub"`
 }
 
 // RemoveCmd represents the remove subcommand structure
 type RemoveCmd struct {
-	Exec     bool   `help:"Execute the operation (without this flag, runs in DRYRUN mode)"`
-	Team     string `help:"Remove team from organization"`
-	User     string `help:"Remove user from organization"`
-	TeamUser string `name:"team-user" help:"Remove user from team (format: team/user)"`
+	Exec     bool   `help="Execute the operation (without this flag, runs in DRYRUN mode)"`
+	Team     string `help="Remove team from organization"`
+	User     string `help="Remove user from organization"`
+	TeamUser string `name="team-user" help="Remove user from team (format: team/user)"`
 }
 
 // AddCmd represents the add subcommand structure
 type AddCmd struct {
-	Exec     bool   `help:"Execute the operation (without this flag, runs in DRYRUN mode)"`
-	TeamUser string `name:"team-user" help:"Add user to team (format: team/user)"`
+	Exec     bool   `help="Execute the operation (without this flag, runs in DRYRUN mode)"`
+	TeamUser string `name="team-user" help="Add user to team (format: team/user)"`
 }
 
 // InitCmd represents the init command structure
@@ -160,7 +161,7 @@ func (p *PullCmd) Run(cli *CLI) error {
 	}
 
 	// Load configuration
-	cfg, err := config.GetConfig()
+	cfg, err := config.GetConfig(cli.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("configuration error: %w", err)
 	}
@@ -231,7 +232,7 @@ func (r *RemoveCmd) Run(cli *CLI) error {
 	}
 
 	// Load configuration
-	cfg, err := config.GetConfig()
+	cfg, err := config.GetConfig(cli.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("configuration error: %w", err)
 	}
@@ -304,7 +305,7 @@ func (a *AddCmd) Run(cli *CLI) error {
 	}
 
 	// Load configuration
-	cfg, err := config.GetConfig()
+	cfg, err := config.GetConfig(cli.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("configuration error: %w", err)
 	}

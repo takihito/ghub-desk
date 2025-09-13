@@ -13,7 +13,6 @@ const (
 )
 
 // Config holds the application configuration
-// YAML tags are used for file-based config, env tags for environment variables
 type Config struct {
 	Organization string    `yaml:"organization"`
 	GitHubToken  string    `yaml:"github_token"`
@@ -28,13 +27,13 @@ type GitHubApp struct {
 }
 
 // GetConfig loads configuration from file and environment variables
-func GetConfig() (*Config, error) {
+func GetConfig(customPath string) (*Config, error) {
 	cfg := &Config{}
 
 	// 1. Load from YAML file
-	configPath, err := getConfigPath()
+	configPath, err := resolveConfigPath(customPath)
 	if err != nil {
-		// Not an error if file doesn't exist, but log it if it's not the default path
+		return nil, err
 	}
 
 	if configPath != "" {
@@ -45,6 +44,9 @@ func GetConfig() (*Config, error) {
 			if err := yaml.Unmarshal([]byte(expandedFile), cfg); err != nil {
 				return nil, fmt.Errorf("failed to parse config file %s: %w", configPath, err)
 			}
+		} else if !os.IsNotExist(err) {
+			// File exists but is not readable for some reason
+			return nil, fmt.Errorf("failed to read config file %s: %w", configPath, err)
 		}
 	}
 
@@ -98,7 +100,11 @@ func validateConfig(cfg *Config) error {
 	return nil
 }
 
-func getConfigPath() (string, error) {
+func resolveConfigPath(customPath string) (string, error) {
+	if customPath != "" {
+		return customPath, nil
+	}
+
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("could not get user home directory: %w", err)
