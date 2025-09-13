@@ -29,14 +29,14 @@ func SetVersionInfo(version, commit, date string) {
 
 // CLI represents the command line interface structure using Kong
 type CLI struct {
-    Debug      bool   `help:"Enable debug mode."`
-    ConfigPath string `name:"config" short:"c" help:"Path to config file." type:"path"`
+	Debug      bool   `help:"Enable debug mode."`
+	ConfigPath string `name:"config" short:"c" help:"Path to config file." type:"path"`
 
-    Pull    PullCmd    `cmd:"" help:"Fetch data from GitHub API"`
-    View    ViewCmd    `cmd:"" help:"Display data from local database"`
-    Push    PushCmd    `cmd:"" help:"Manipulate resources on GitHub"`
-    Init    InitCmd    `cmd:"" help:"Initialize local database tables"`
-    Version VersionCmd `cmd:"" help:"Show version information"`
+	Pull    PullCmd    `cmd:"" help:"Fetch data from GitHub API"`
+	View    ViewCmd    `cmd:"" help:"Display data from local database"`
+	Push    PushCmd    `cmd:"" help:"Manipulate resources on GitHub"`
+	Init    InitCmd    `cmd:"" help:"Initialize local database tables"`
+	Version VersionCmd `cmd:"" help:"Show version information"`
 }
 
 // CommonTargetOptions holds the shared target flags for pull and view commands
@@ -89,8 +89,8 @@ func (c *CommonTargetOptions) GetTarget(extraTargets ...struct {
 
 // PullCmd represents the pull command structure
 type PullCmd struct {
-    CommonTargetOptions `embed:""`
-    AllTeamsUsers       bool `name="all-teams-users" help="Target: all-teams-users"`
+	CommonTargetOptions `embed:""`
+	AllTeamsUsers       bool `name="all-teams-users" help="Target: all-teams-users"`
 
 	// Options
 	Store        bool          `help="Save to local SQLite database"`
@@ -99,7 +99,7 @@ type PullCmd struct {
 
 // ViewCmd represents the view command structure
 type ViewCmd struct {
-    CommonTargetOptions `embed:""`
+	CommonTargetOptions `embed:""`
 }
 
 // PushCmd represents the push command structure
@@ -160,8 +160,9 @@ func (p *PullCmd) Run(cli *CLI) error {
 		fmt.Printf("DEBUG: Pulling target='%s', store=%v, interval=%v\n", target, p.Store, p.IntervalTime)
 	}
 
-	// Load configuration
-	cfg, err := config.GetConfig(cli.ConfigPath)
+    // Load configuration
+    config.Debug = cli.Debug
+    cfg, err := config.GetConfig(cli.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("configuration error: %w", err)
 	}
@@ -231,8 +232,9 @@ func (r *RemoveCmd) Run(cli *CLI) error {
 		fmt.Printf("DEBUG: Push/Remove target='%s', value='%s', exec=%v\n", target, targetValue, r.Exec)
 	}
 
-	// Load configuration
-	cfg, err := config.GetConfig(cli.ConfigPath)
+    // Load configuration
+    config.Debug = cli.Debug
+    cfg, err := config.GetConfig(cli.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("configuration error: %w", err)
 	}
@@ -304,8 +306,9 @@ func (a *AddCmd) Run(cli *CLI) error {
 		fmt.Printf("DEBUG: Push/Add target='%s', value='%s', exec=%v\n", target, targetValue, a.Exec)
 	}
 
-	// Load configuration
-	cfg, err := config.GetConfig(cli.ConfigPath)
+    // Load configuration
+    config.Debug = cli.Debug
+    cfg, err := config.GetConfig(cli.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("configuration error: %w", err)
 	}

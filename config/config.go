@@ -12,6 +12,9 @@ const (
 	AppName = "ghub-desk"
 )
 
+// Debug enables verbose logs within the config package.
+var Debug bool
+
 // Config holds the application configuration
 type Config struct {
 	Organization string    `yaml:"organization"`
@@ -31,6 +34,8 @@ func GetConfig(customPath string) (*Config, error) {
 	cfg := &Config{}
 
 	// 1. Load from YAML file
+	// Track if the caller explicitly provided a custom path
+	isCustom := customPath != ""
 	configPath, err := resolveConfigPath(customPath)
 	if err != nil {
 		return nil, err
@@ -38,16 +43,28 @@ func GetConfig(customPath string) (*Config, error) {
 
 	if configPath != "" {
 		file, err := os.ReadFile(configPath)
-		if err == nil { // File exists and is readable
+		switch {
+		case err == nil:
 			// Expand env vars before unmarshalling
 			expandedFile := os.ExpandEnv(string(file))
 			if err := yaml.Unmarshal([]byte(expandedFile), cfg); err != nil {
 				return nil, fmt.Errorf("failed to parse config file %s: %w", configPath, err)
 			}
-		} else if !os.IsNotExist(err) {
+		case os.IsNotExist(err):
+			// If caller specified a custom path, treat missing file as an error
+			if isCustom {
+				return nil, fmt.Errorf("--config file not found: %s", configPath)
+			}
+			if Debug {
+				fmt.Printf("DEBUG: config file not found. path=%s\n", configPath)
+			}
+			// Continue; env vars may supply configuration
+		default:
 			// File exists but is not readable for some reason
 			return nil, fmt.Errorf("failed to read config file %s: %w", configPath, err)
 		}
+	} else if Debug {
+		fmt.Printf("DEBUG: GetConfig. configPath=%s\n", configPath)
 	}
 
 	// 2. Override with environment variables
