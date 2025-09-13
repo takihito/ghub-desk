@@ -41,13 +41,13 @@ type CLI struct {
 
 // CommonTargetOptions holds the shared target flags for pull and view commands
 type CommonTargetOptions struct {
-	Users           bool   `help="Target: users"`
-	DetailUsers     bool   `name="detail-users" help="Target: detail-users"`
-	Teams           bool   `help="Target: teams"`
-	Repos           bool   `help="Target: repos"`
-	TeamsUsers      string `name="teams-users" help="Target: team-users (provide team slug)"`
-	TokenPermission bool   `name="token-permission" help="Target: token-permission"`
-	OutsideUsers    bool   `name="outside-users" help="Target: outside-users"`
+	Users           bool   `help:"Target: users"`
+	DetailUsers     bool   `name:"detail-users" help:"Target: detail-users"`
+	Teams           bool   `help:"Target: teams"`
+	Repos           bool   `help:"Target: repos"`
+	TeamsUsers      string `name:"teams-users" help:"Target: team-users (provide team slug)"`
+	TokenPermission bool   `name:"token-permission" help:"Target: token-permission"`
+	OutsideUsers    bool   `name:"outside-users" help:"Target: outside-users"`
 }
 
 // GetTarget determines the single selected target from the common options.
@@ -90,11 +90,11 @@ func (c *CommonTargetOptions) GetTarget(extraTargets ...struct {
 // PullCmd represents the pull command structure
 type PullCmd struct {
 	CommonTargetOptions `embed:""`
-	AllTeamsUsers       bool `name="all-teams-users" help="Target: all-teams-users"`
+	AllTeamsUsers       bool `name:"all-teams-users" help:"Target: all-teams-users"`
 
 	// Options
-	Store        bool          `help="Save to local SQLite database"`
-	IntervalTime time.Duration `help="Sleep interval between API requests" default:"3s"`
+	Store        bool          `help:"Save to local SQLite database"`
+	IntervalTime time.Duration `help:"Sleep interval between API requests" default:"3s"`
 }
 
 // ViewCmd represents the view command structure
@@ -104,22 +104,22 @@ type ViewCmd struct {
 
 // PushCmd represents the push command structure
 type PushCmd struct {
-	Remove RemoveCmd `cmd:"" help="Remove resources from GitHub"`
-	Add    AddCmd    `cmd:"" help="Add resources to GitHub"`
+	Remove RemoveCmd `cmd:"" help:"Remove resources from GitHub"`
+	Add    AddCmd    `cmd:"" help:"Add resources to GitHub"`
 }
 
 // RemoveCmd represents the remove subcommand structure
 type RemoveCmd struct {
-	Exec     bool   `help="Execute the operation (without this flag, runs in DRYRUN mode)"`
-	Team     string `help="Remove team from organization"`
-	User     string `help="Remove user from organization"`
-	TeamUser string `name="team-user" help="Remove user from team (format: team/user)"`
+	Exec     bool   `help:"Execute the operation (without this flag, runs in DRYRUN mode)"`
+	Team     string `help:"Remove team from organization"`
+	User     string `help:"Remove user from organization"`
+	TeamUser string `name:"team-user" help:"Remove user from team (format: team/user)"`
 }
 
 // AddCmd represents the add subcommand structure
 type AddCmd struct {
-	Exec     bool   `help="Execute the operation (without this flag, runs in DRYRUN mode)"`
-	TeamUser string `name="team-user" help="Add user to team (format: team/user)"`
+	Exec     bool   `help:"Execute the operation (without this flag, runs in DRYRUN mode)"`
+	TeamUser string `name:"team-user" help:"Add user to team (format: team/user)"`
 }
 
 // InitCmd represents the init command structure
