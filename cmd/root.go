@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
+	"sync"
 	"time"
 
 	"ghub-desk/config"
@@ -11,8 +13,6 @@ import (
 	"ghub-desk/store"
 
 	"github.com/alecthomas/kong"
-	"strings"
-	"sync"
 )
 
 var (
