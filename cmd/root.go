@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sync"
 	"time"
 
 	"ghub-desk/config"
@@ -37,6 +38,21 @@ type CLI struct {
 	Push    PushCmd    `cmd:"" help:"Manipulate resources on GitHub"`
 	Init    InitCmd    `cmd:"" help:"Initialize local database tables"`
 	Version VersionCmd `cmd:"" help:"Show version information"`
+
+	// internal cached config
+	cfgOnce sync.Once
+	cfg     *config.Config
+	cfgErr  error
+}
+
+// Config returns the app configuration, loading it once per process.
+func (cli *CLI) Config() (*config.Config, error) {
+	cli.cfgOnce.Do(func() {
+		// propagate debug flag to config package and load
+		config.Debug = cli.Debug
+		cli.cfg, cli.cfgErr = config.GetConfig(cli.ConfigPath)
+	})
+	return cli.cfg, cli.cfgErr
 }
 
 // CommonTargetOptions holds the shared target flags for pull and view commands
@@ -141,6 +157,14 @@ func Execute() error {
 			Compact: true,
 		}),
 	)
+	// Preload config once for commands that require GitHub access.
+	// Keep view/init/version free from config requirement.
+	cmdPath := ctx.Command()
+	if cmdPath == "pull" || cmdPath == "push" {
+		if _, err := cli.Config(); err != nil {
+			return fmt.Errorf("configuration error: %w", err)
+		}
+	}
 
 	return ctx.Run(&cli)
 }
@@ -160,9 +184,8 @@ func (p *PullCmd) Run(cli *CLI) error {
 		fmt.Printf("DEBUG: Pulling target='%s', store=%v, interval=%v\n", target, p.Store, p.IntervalTime)
 	}
 
-	// Load configuration
-	config.Debug = cli.Debug
-	cfg, err := config.GetConfig(cli.ConfigPath)
+	// Load configuration once via CLI helper
+	cfg, err := cli.Config()
 	if err != nil {
 		return fmt.Errorf("configuration error: %w", err)
 	}
@@ -232,9 +255,8 @@ func (r *RemoveCmd) Run(cli *CLI) error {
 		fmt.Printf("DEBUG: Push/Remove target='%s', value='%s', exec=%v\n", target, targetValue, r.Exec)
 	}
 
-	// Load configuration
-	config.Debug = cli.Debug
-	cfg, err := config.GetConfig(cli.ConfigPath)
+	// Load configuration once via CLI helper
+	cfg, err := cli.Config()
 	if err != nil {
 		return fmt.Errorf("configuration error: %w", err)
 	}
@@ -306,9 +328,8 @@ func (a *AddCmd) Run(cli *CLI) error {
 		fmt.Printf("DEBUG: Push/Add target='%s', value='%s', exec=%v\n", target, targetValue, a.Exec)
 	}
 
-	// Load configuration
-	config.Debug = cli.Debug
-	cfg, err := config.GetConfig(cli.ConfigPath)
+	// Load configuration once via CLI helper
+	cfg, err := cli.Config()
 	if err != nil {
 		return fmt.Errorf("configuration error: %w", err)
 	}

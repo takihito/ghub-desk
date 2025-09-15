@@ -56,7 +56,7 @@ version: build
 # Run tests
 test:
 	@echo "🧪 Running tests..."
-	@go test -v ./...
+	@GHUB_DESK_GITHUB_TOKEN="" GHUB_DESK_ORGANIZATION="" go test -v ./...
 	@echo "✅ Tests completed"
 
 # Run with help
