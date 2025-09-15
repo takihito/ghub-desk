@@ -3,15 +3,17 @@ package github
 import (
 	"context"
 	"testing"
+
+	"ghub-desk/config"
 )
 
 func TestExecutePushRemove_InvalidTarget(t *testing.T) {
-	ctx := context.Background()
-	client := InitClient("test-token")
+	cfg := &config.Config{GitHubToken: "test-token"}
+	client, _ := InitClient(cfg)
 	org := "test-org"
 
 	// Test with invalid target
-	err := ExecutePushRemove(ctx, client, org, "invalid-target", "resource-name")
+	err := ExecutePushRemove(context.Background(), client, org, "invalid-target", "resource-name")
 	if err == nil {
 		t.Error("Expected error for invalid target, got nil")
 	}
@@ -23,12 +25,12 @@ func TestExecutePushRemove_InvalidTarget(t *testing.T) {
 }
 
 func TestExecutePushRemove_InvalidTeamUserFormat(t *testing.T) {
-	ctx := context.Background()
-	client := InitClient("test-token")
+	cfg := &config.Config{GitHubToken: "test-token"}
+	client, _ := InitClient(cfg)
 	org := "test-org"
 
 	// Test with invalid team-user format (no slash)
-	err := ExecutePushRemove(ctx, client, org, "team-user", "invalid-format")
+	err := ExecutePushRemove(context.Background(), client, org, "team-user", "invalid-format")
 	if err == nil {
 		t.Error("Expected error for invalid team-user format, got nil")
 	}
@@ -39,7 +41,7 @@ func TestExecutePushRemove_InvalidTeamUserFormat(t *testing.T) {
 	}
 
 	// Test with invalid team-user format (too many parts)
-	err = ExecutePushRemove(ctx, client, org, "team-user", "team/user/extra")
+	err = ExecutePushRemove(context.Background(), client, org, "team-user", "team/user/extra")
 	if err == nil {
 		t.Error("Expected error for invalid team-user format with extra parts, got nil")
 	}
@@ -50,12 +52,12 @@ func TestExecutePushRemove_InvalidTeamUserFormat(t *testing.T) {
 }
 
 func TestExecutePushAdd_InvalidTarget(t *testing.T) {
-	ctx := context.Background()
-	client := InitClient("test-token")
+	cfg := &config.Config{GitHubToken: "test-token"}
+	client, _ := InitClient(cfg)
 	org := "test-org"
 
 	// Test with invalid target
-	err := ExecutePushAdd(ctx, client, org, "invalid-target", "resource-name")
+	err := ExecutePushAdd(context.Background(), client, org, "invalid-target", "resource-name")
 	if err == nil {
 		t.Error("Expected error for invalid target, got nil")
 	}
@@ -67,12 +69,12 @@ func TestExecutePushAdd_InvalidTarget(t *testing.T) {
 }
 
 func TestExecutePushAdd_InvalidTeamUserFormat(t *testing.T) {
-	ctx := context.Background()
-	client := InitClient("test-token")
+	cfg := &config.Config{GitHubToken: "test-token"}
+	client, _ := InitClient(cfg)
 	org := "test-org"
 
 	// Test with invalid team-user format (no slash)
-	err := ExecutePushAdd(ctx, client, org, "team-user", "invalid-format")
+	err := ExecutePushAdd(context.Background(), client, org, "team-user", "invalid-format")
 	if err == nil {
 		t.Error("Expected error for invalid team-user format, got nil")
 	}
@@ -83,7 +85,7 @@ func TestExecutePushAdd_InvalidTeamUserFormat(t *testing.T) {
 	}
 
 	// Test with invalid team-user format (too many parts)
-	err = ExecutePushAdd(ctx, client, org, "team-user", "team/user/extra")
+	err = ExecutePushAdd(context.Background(), client, org, "team-user", "team/user/extra")
 	if err == nil {
 		t.Error("Expected error for invalid team-user format with extra parts, got nil")
 	}

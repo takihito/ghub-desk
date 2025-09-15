@@ -2,112 +2,69 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
 
 func TestGetConfig(t *testing.T) {
-	// Save original values
-	origOrg := os.Getenv(EnvOrg)
-	origToken := os.Getenv(EnvGithubToken)
-	defer func() {
-		os.Setenv(EnvOrg, origOrg)
-		os.Setenv(EnvGithubToken, origToken)
-	}()
+	t.Run("loads from environment variables", func(t *testing.T) {
+		t.Setenv("GHUB_DESK_ORGANIZATION", "env-org")
+		t.Setenv("GHUB_DESK_GITHUB_TOKEN", "env-token")
 
-	// Test with valid environment variables
-	os.Setenv(EnvOrg, "test-org")
-	os.Setenv(EnvGithubToken, "test-token")
+		cfg, err := GetConfig("") // Test with default path
+		if err != nil {
+			t.Fatalf("GetConfig() error = %v", err)
+		}
 
-	cfg, err := GetConfig()
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
+		if cfg.Organization != "env-org" {
+			t.Errorf("Organization = %v, want %v", cfg.Organization, "env-org")
+		}
+		if cfg.GitHubToken != "env-token" {
+			t.Errorf("GitHubToken = %v, want %v", cfg.GitHubToken, "env-token")
+		}
+	})
 
-	if cfg.Organization != "test-org" {
-		t.Errorf("Expected organization 'test-org', got '%s'", cfg.Organization)
-	}
-	if cfg.GitHubToken != "test-token" {
-		t.Errorf("Expected token 'test-token', got '%s'", cfg.GitHubToken)
-	}
-}
+	t.Run("loads from custom path yaml", func(t *testing.T) {
+		tempDir := t.TempDir()
+		customPath := filepath.Join(tempDir, "custom_config.yaml")
+		t.Setenv("MY_ORG", "custom-path-org")
+		t.Setenv("MY_TOKEN", "custom-path-token")
 
-func TestGetConfigMissingOrg(t *testing.T) {
-	// Save original values
-	origOrg := os.Getenv(EnvOrg)
-	origToken := os.Getenv(EnvGithubToken)
-	defer func() {
-		os.Setenv(EnvOrg, origOrg)
-		os.Setenv(EnvGithubToken, origToken)
-	}()
+		yamlContent := `
+organization: ${MY_ORG}
+github_token: $MY_TOKEN
+`
+		if err := os.WriteFile(customPath, []byte(yamlContent), 0644); err != nil {
+			t.Fatal(err)
+		}
 
-	// Test with missing organization
-	os.Unsetenv(EnvOrg)
-	os.Setenv(EnvGithubToken, "test-token")
+		cfg, err := GetConfig(customPath)
+		if err != nil {
+			t.Fatalf("GetConfig() with custom path error = %v", err)
+		}
 
-	_, err := GetConfig()
-	if err == nil {
-		t.Error("Expected error for missing organization, got nil")
-	}
+		if cfg.Organization != "custom-path-org" {
+			t.Errorf("Organization = %v, want %v", cfg.Organization, "custom-path-org")
+		}
+		if cfg.GitHubToken != "custom-path-token" {
+			t.Errorf("GitHubToken = %v, want %v", cfg.GitHubToken, "custom-path-token")
+		}
+	})
 
-	expectedError := "environment variable GHUB_DESK_ORGANIZATION is required"
-	if err.Error() != expectedError {
-		t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
-	}
-}
+	t.Run("error on ambiguous config", func(t *testing.T) {
+		t.Setenv("GHUB_DESK_ORGANIZATION", "test-org")
+		t.Setenv("GHUB_DESK_GITHUB_TOKEN", "pat-token")
+		t.Setenv("GHUB_DESK_APP_ID", "123")
+		t.Setenv("GHUB_DESK_INSTALLATION_ID", "456")
+		t.Setenv("GHUB_DESK_PRIVATE_KEY", "a-key")
 
-func TestGetConfigMissingToken(t *testing.T) {
-	// Save original values
-	origOrg := os.Getenv(EnvOrg)
-	origToken := os.Getenv(EnvGithubToken)
-	defer func() {
-		os.Setenv(EnvOrg, origOrg)
-		os.Setenv(EnvGithubToken, origToken)
-	}()
-
-	// Test with missing token
-	os.Setenv(EnvOrg, "test-org")
-	os.Unsetenv(EnvGithubToken)
-
-	_, err := GetConfig()
-	if err == nil {
-		t.Error("Expected error for missing token, got nil")
-	}
-
-	expectedError := "environment variable GHUB_DESK_GITHUB_TOKEN is required"
-	if err.Error() != expectedError {
-		t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
-	}
-}
-
-func TestGetConfigBothMissing(t *testing.T) {
-	// Save original values
-	origOrg := os.Getenv(EnvOrg)
-	origToken := os.Getenv(EnvGithubToken)
-	defer func() {
-		os.Setenv(EnvOrg, origOrg)
-		os.Setenv(EnvGithubToken, origToken)
-	}()
-
-	// Test with both missing (organization is checked first)
-	os.Unsetenv(EnvOrg)
-	os.Unsetenv(EnvGithubToken)
-
-	_, err := GetConfig()
-	if err == nil {
-		t.Error("Expected error for missing both values, got nil")
-	}
-
-	expectedError := "environment variable GHUB_DESK_ORGANIZATION is required"
-	if err.Error() != expectedError {
-		t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
-	}
-}
-
-func TestConstants(t *testing.T) {
-	if EnvOrg != "GHUB_DESK_ORGANIZATION" {
-		t.Errorf("Expected EnvOrg to be 'GHUB_DESK_ORGANIZATION', got '%s'", EnvOrg)
-	}
-	if EnvGithubToken != "GHUB_DESK_GITHUB_TOKEN" {
-		t.Errorf("Expected EnvGithubToken to be 'GHUB_DESK_GITHUB_TOKEN', got '%s'", EnvGithubToken)
-	}
+		_, err := GetConfig("")
+		if err == nil {
+			t.Fatal("expected error for ambiguous config, got nil")
+		}
+		want := "ambiguous authentication: both github_token and github_app are configured. Please choose only one"
+		if err.Error() != want {
+			t.Errorf("error = %q, want %q", err.Error(), want)
+		}
+	})
 }

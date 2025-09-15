@@ -29,11 +29,12 @@ func SetVersionInfo(version, commit, date string) {
 
 // CLI represents the command line interface structure using Kong
 type CLI struct {
-	Debug bool `help:"Enable debug mode."`
+	Debug      bool   `help:"Enable debug mode."`
+	ConfigPath string `name:"config" short:"c" help:"Path to config file." type:"path"`
 
 	Pull    PullCmd    `cmd:"" help:"Fetch data from GitHub API"`
 	View    ViewCmd    `cmd:"" help:"Display data from local database"`
-	Push    PushCmd    `cmd:"" help:"Remove resources from GitHub"`
+	Push    PushCmd    `cmd:"" help:"Manipulate resources on GitHub"`
 	Init    InitCmd    `cmd:"" help:"Initialize local database tables"`
 	Version VersionCmd `cmd:"" help:"Show version information"`
 }
@@ -50,7 +51,6 @@ type CommonTargetOptions struct {
 }
 
 // GetTarget determines the single selected target from the common options.
-// It takes an optional list of extra targets to consider.
 func (c *CommonTargetOptions) GetTarget(extraTargets ...struct {
 	flag bool
 	name string
@@ -160,15 +160,19 @@ func (p *PullCmd) Run(cli *CLI) error {
 		fmt.Printf("DEBUG: Pulling target='%s', store=%v, interval=%v\n", target, p.Store, p.IntervalTime)
 	}
 
-	// Load configuration from environment variables
-	cfg, err := config.GetConfig()
+	// Load configuration
+	config.Debug = cli.Debug
+	cfg, err := config.GetConfig(cli.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("configuration error: %w", err)
 	}
 
 	// Initialize GitHub client
+	client, err := github.InitClient(cfg)
+	if err != nil {
+		return fmt.Errorf("github client initialization error: %w", err)
+	}
 	ctx := context.Background()
-	client := github.InitClient(cfg.GitHubToken)
 
 	var db *sql.DB
 	if p.Store || target == "all-teams-users" {
@@ -229,13 +233,17 @@ func (r *RemoveCmd) Run(cli *CLI) error {
 	}
 
 	// Load configuration
-	cfg, err := config.GetConfig()
+	config.Debug = cli.Debug
+	cfg, err := config.GetConfig(cli.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("configuration error: %w", err)
 	}
 
 	// Initialize GitHub client
-	client := github.InitClient(cfg.GitHubToken)
+	client, err := github.InitClient(cfg)
+	if err != nil {
+		return fmt.Errorf("github client initialization error: %w", err)
+	}
 	ctx := context.Background()
 
 	if r.Exec {
@@ -299,13 +307,17 @@ func (a *AddCmd) Run(cli *CLI) error {
 	}
 
 	// Load configuration
-	cfg, err := config.GetConfig()
+	config.Debug = cli.Debug
+	cfg, err := config.GetConfig(cli.ConfigPath)
 	if err != nil {
 		return fmt.Errorf("configuration error: %w", err)
 	}
 
 	// Initialize GitHub client
-	client := github.InitClient(cfg.GitHubToken)
+	client, err := github.InitClient(cfg)
+	if err != nil {
+		return fmt.Errorf("github client initialization error: %w", err)
+	}
 	ctx := context.Background()
 
 	if a.Exec {

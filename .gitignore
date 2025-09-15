@@ -50,3 +50,6 @@ dist/
 
 # Ignore  Markdown
 .*.md
+
+# AGENTS.md
+AGENTS.md
