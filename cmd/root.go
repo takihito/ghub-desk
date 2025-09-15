@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -161,7 +160,7 @@ func Execute() error {
 	// Preload config once for commands that require GitHub access.
 	// Keep view/init/version free from config requirement.
 	cmdPath := ctx.Command()
-	if strings.HasPrefix(cmdPath, "pull") || strings.HasPrefix(cmdPath, "push") {
+	if cmdPath == "pull" || cmdPath == "push" {
 		if _, err := cli.Config(); err != nil {
 			return fmt.Errorf("configuration error: %w", err)
 		}
