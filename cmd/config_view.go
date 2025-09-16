@@ -1,20 +1,20 @@
 package cmd
 
 import (
-    "fmt"
+	"fmt"
 
-    "ghub-desk/config"
+	"ghub-desk/config"
 
-    "gopkg.in/yaml.v3"
+	"gopkg.in/yaml.v3"
 )
 
 // ShowSettings loads application settings and prints a masked YAML to stdout.
 func ShowSettings(cli *CLI) error {
-    // Use shared loader without validation. It errors only when a custom --config is invalid.
-    cfg, err := config.LoadConfigNoValidate(cli.ConfigPath)
-    if err != nil {
-        return fmt.Errorf("failed to load settings: %w", err)
-    }
+	// Use shared loader without validation. It errors only when a custom --config is invalid.
+	cfg, err := config.LoadConfigNoValidate(cli.ConfigPath)
+	if err != nil {
+		return fmt.Errorf("failed to load settings: %w", err)
+	}
 
 	out, err := renderMaskedConfigYAML(cfg)
 	if err != nil {
@@ -61,5 +61,3 @@ func maskSecret(s string) string {
 	}
 	return "[masked]"
 }
-
-// loadConfigForView removed in favor of config.LoadConfigNoValidate to avoid duplication.
