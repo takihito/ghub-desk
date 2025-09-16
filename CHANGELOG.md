@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.1.1](https://github.com/takihito/ghub-desk/compare/v0.1.0...v0.1.1) - 2025-09-15
+- function:Add Team/User by @takihito in https://github.com/takihito/ghub-desk/pull/24
+- GitHub App認証とYAML設定をサポート by @takihito in https://github.com/takihito/ghub-desk/pull/26
+- 読み込み設定のキャッシュを追加 by @takihito in https://github.com/takihito/ghub-desk/pull/27
+
 ## [v0.1.0](https://github.com/takihito/ghub-desk/compare/v0.0.6...v0.1.0) - 2025-09-12
 - Version 0.1.0  Draft  by @takihito in https://github.com/takihito/ghub-desk/pull/21
 
