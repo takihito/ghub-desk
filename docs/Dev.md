@@ -167,6 +167,18 @@ $ ghub-desk pull --token-permission --store
 $ ghub-desk view --token-permission
 ````
 
+* 設定の表示
+
+設定ファイル(config.yaml)の内容を表示します
+YAML形式で表示します。秘匿情報はマスクされます
+
+
+````
+$ ghub-desk view --app-config
+````
+
+
+
 
 ## 入力制約（正確仕様）
 
