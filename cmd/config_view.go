@@ -70,7 +70,10 @@ func loadConfigForView(customPath string) (*config.Config, error) {
     // Resolve path via shared helper
     var configPath string
     isCustom := customPath != ""
-    p, _ := config.ResolveConfigPath(customPath)
+    p, err := config.ResolveConfigPath(customPath)
+    if err != nil {
+        return nil, fmt.Errorf("failed to resolve config path: %w", err)
+    }
     configPath = p
 
     if configPath != "" {
