@@ -1,6 +1,7 @@
 package cmd
 
 import (
+    "strings"
     "testing"
 
     "ghub-desk/config"
@@ -24,29 +25,14 @@ func TestRenderMaskedConfigYAML(t *testing.T) {
     if out == "" {
         t.Fatalf("empty yaml output")
     }
-    if contains := "ghp_1234567890abcdef"; contains != "" && contains != out {
-        // ok
+    // Ensure raw token is not present (must be masked)
+    if strings.Contains(out, "ghp_1234567890abcdef") {
+        t.Errorf("raw github_token should be masked, but found in output:\n%s", out)
     }
-    if wantSub := "github_token: '[masked]…cdef'"; !containsLine(out, wantSub) {
+    if wantSub := "github_token: '[masked]…cdef'"; !strings.Contains(out, wantSub) {
         t.Errorf("masked token not found. want substring: %q\n%s", wantSub, out)
     }
-    if wantSub := "private_key: '[masked PEM]'"; !containsLine(out, wantSub) {
+    if wantSub := "private_key: '[masked PEM]'"; !strings.Contains(out, wantSub) {
         t.Errorf("masked PEM not found. want substring: %q\n%s", wantSub, out)
     }
-}
-
-func containsLine(s, sub string) bool {
-    return len(s) >= len(sub) && (stringContains(s, sub))
-}
-
-func stringContains(s, sub string) bool { return (len(sub) == 0) || (len(s) >= len(sub) && (indexOf(s, sub) >= 0)) }
-
-// Simple substring search to avoid importing strings for tiny helper
-func indexOf(s, sub string) int {
-    for i := 0; i+len(sub) <= len(s); i++ {
-        if s[i:i+len(sub)] == sub {
-            return i
-        }
-    }
-    return -1
 }
