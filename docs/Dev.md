@@ -174,7 +174,7 @@ YAML形式で表示します。秘匿情報はマスクされます
 
 
 ````
-$ ghub-desk view --app-config
+$ ghub-desk view --settings
 ````
 
 
