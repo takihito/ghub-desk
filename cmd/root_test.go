@@ -69,11 +69,8 @@ func TestPullCmdGetTarget(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// The GetTarget method now needs the extra flags passed in
-			result, err := tt.cmd.CommonTargetOptions.GetTarget(struct {
-				flag bool
-				name string
-			}{tt.cmd.AllTeamsUsers, "all-teams-users"})
+            // Pass extra target via named TargetFlag for clarity
+            result, err := tt.cmd.CommonTargetOptions.GetTarget(TargetFlag{Enabled: tt.cmd.AllTeamsUsers, Name: "all-teams-users"})
 
 			if tt.expectError {
 				if err == nil {
