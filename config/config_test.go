@@ -1,17 +1,26 @@
 package config
 
 import (
-	"os"
-	"path/filepath"
-	"testing"
+    "os"
+    "path/filepath"
+    "testing"
 )
 
 func TestGetConfig(t *testing.T) {
-	t.Run("loads from environment variables", func(t *testing.T) {
-		t.Setenv("GHUB_DESK_ORGANIZATION", "env-org")
-		t.Setenv("GHUB_DESK_GITHUB_TOKEN", "env-token")
+    t.Run("loads from environment variables", func(t *testing.T) {
+        // Ensure no GitHub App envs interfere
+        t.Setenv("GHUB_DESK_APP_ID", "")
+        t.Setenv("GHUB_DESK_INSTALLATION_ID", "")
+        t.Setenv("GHUB_DESK_PRIVATE_KEY", "")
+        t.Setenv("GHUB_DESK_ORGANIZATION", "env-org")
+        t.Setenv("GHUB_DESK_GITHUB_TOKEN", "env-token")
 
-		cfg, err := GetConfig("") // Test with default path
+        // Use a temp file to avoid reading user's real config
+        tempFile := filepath.Join(t.TempDir(), "cfg.yaml")
+        if err := os.WriteFile(tempFile, []byte(""), 0644); err != nil {
+            t.Fatal(err)
+        }
+        cfg, err := GetConfig(tempFile)
 		if err != nil {
 			t.Fatalf("GetConfig() error = %v", err)
 		}
@@ -24,8 +33,12 @@ func TestGetConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("loads from custom path yaml", func(t *testing.T) {
-		tempDir := t.TempDir()
+    t.Run("loads from custom path yaml", func(t *testing.T) {
+        // Ensure no GitHub App envs interfere
+        t.Setenv("GHUB_DESK_APP_ID", "")
+        t.Setenv("GHUB_DESK_INSTALLATION_ID", "")
+        t.Setenv("GHUB_DESK_PRIVATE_KEY", "")
+        tempDir := t.TempDir()
 		customPath := filepath.Join(tempDir, "custom_config.yaml")
 		t.Setenv("MY_ORG", "custom-path-org")
 		t.Setenv("MY_TOKEN", "custom-path-token")
