@@ -37,7 +37,7 @@ func GetConfig(customPath string) (*Config, error) {
 	// 1. Load from YAML file
 	// Track if the caller explicitly provided a custom path
 	isCustom := customPath != ""
-	configPath, err := resolveConfigPath(customPath)
+    configPath, err := ResolveConfigPath(customPath)
 	if err != nil {
 		return nil, err
 	}
@@ -120,14 +120,15 @@ func validateConfig(cfg *Config) error {
 	return nil
 }
 
-func resolveConfigPath(customPath string) (string, error) {
-	if customPath != "" {
-		return customPath, nil
-	}
+// ResolveConfigPath returns the config file path given a custom path or the default location.
+func ResolveConfigPath(customPath string) (string, error) {
+    if customPath != "" {
+        return customPath, nil
+    }
 
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("could not get user home directory: %w", err)
-	}
-	return filepath.Join(home, ".config", AppName, "config.yaml"), nil
+    home, err := os.UserHomeDir()
+    if err != nil {
+        return "", fmt.Errorf("could not get user home directory: %w", err)
+    }
+    return filepath.Join(home, ".config", AppName, "config.yaml"), nil
 }
