@@ -115,8 +115,8 @@ type PullCmd struct {
 
 // ViewCmd represents the view command structure
 type ViewCmd struct {
-    CommonTargetOptions `embed:""`
-    Settings            bool `name:"settings" help:"Show application settings (masked)"`
+	CommonTargetOptions `embed:""`
+	Settings            bool `name:"settings" help:"Show application settings (masked)"`
 }
 
 // PushCmd represents the push command structure
@@ -270,26 +270,29 @@ func (p *PullCmd) Run(cli *CLI) error {
 
 // Run implements the view command execution
 func (v *ViewCmd) Run(cli *CLI) error {
-    // Determine target from flags
-    target, err := v.CommonTargetOptions.GetTarget(struct{ flag bool; name string }{v.Settings, "settings"})
-    if err != nil {
-        return err
-    }
+	// Determine target from flags
+	target, err := v.CommonTargetOptions.GetTarget(struct {
+		flag bool
+		name string
+	}{v.Settings, "settings"})
+	if err != nil {
+		return err
+	}
 
 	if cli.Debug {
 		fmt.Printf("DEBUG: Viewing target='%s'\n", target)
 	}
 
-    if target == "settings" {
-        return ShowSettings(cli)
-    }
+	if target == "settings" {
+		return ShowSettings(cli)
+	}
 
-    // Initialize database for non-config views
-    db, err := store.InitDatabase()
-    if err != nil {
-        return fmt.Errorf("failed to initialize database: %w", err)
-    }
-    defer db.Close()
+	// Initialize database for non-config views
+	db, err := store.InitDatabase()
+	if err != nil {
+		return fmt.Errorf("failed to initialize database: %w", err)
+	}
+	defer db.Close()
 
 	// Handle different target types
 	finalTarget := target

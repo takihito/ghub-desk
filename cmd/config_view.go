@@ -1,13 +1,13 @@
 package cmd
 
 import (
-    "fmt"
-    "os"
-    "strconv"
+	"fmt"
+	"os"
+	"strconv"
 
-    "ghub-desk/config"
+	"ghub-desk/config"
 
-    "gopkg.in/yaml.v3"
+	"gopkg.in/yaml.v3"
 )
 
 // ShowSettings loads application settings and prints a masked YAML to stdout.
@@ -65,30 +65,30 @@ func maskSecret(s string) string {
 
 // loadConfigForView loads config from file and environment WITHOUT validation.
 func loadConfigForView(customPath string) (*config.Config, error) {
-    cfg := &config.Config{}
+	cfg := &config.Config{}
 
-    // Resolve path via shared helper
-    var configPath string
-    isCustom := customPath != ""
-    p, err := config.ResolveConfigPath(customPath)
-    if err != nil {
-        return nil, fmt.Errorf("failed to resolve config path: %w", err)
-    }
-    configPath = p
+	// Resolve path via shared helper
+	var configPath string
+	isCustom := customPath != ""
+	p, err := config.ResolveConfigPath(customPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve config path: %w", err)
+	}
+	configPath = p
 
-    if configPath != "" {
-        data, err := os.ReadFile(configPath)
-        if err != nil {
-            if isCustom {
-                return nil, fmt.Errorf("config file not found: %s", configPath)
-            }
-        } else {
-            expanded := os.ExpandEnv(string(data))
-            if err := yaml.Unmarshal([]byte(expanded), cfg); err != nil && isCustom {
-                return nil, fmt.Errorf("failed to parse config file %s: %w", configPath, err)
-            }
-        }
-    }
+	if configPath != "" {
+		data, err := os.ReadFile(configPath)
+		if err != nil {
+			if isCustom {
+				return nil, fmt.Errorf("config file not found: %s", configPath)
+			}
+		} else {
+			expanded := os.ExpandEnv(string(data))
+			if err := yaml.Unmarshal([]byte(expanded), cfg); err != nil && isCustom {
+				return nil, fmt.Errorf("failed to parse config file %s: %w", configPath, err)
+			}
+		}
+	}
 
 	// Overlay env vars (best-effort; ignore parse errors)
 	if v := os.Getenv("GHUB_DESK_ORGANIZATION"); v != "" {
