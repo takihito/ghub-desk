@@ -2,9 +2,11 @@ package github
 
 import (
 	"context"
+	"net/http"
 	"testing"
 
 	"ghub-desk/config"
+	apigithub "github.com/google/go-github/v55/github"
 )
 
 func TestExecutePushRemove_InvalidTarget(t *testing.T) {
@@ -98,3 +100,26 @@ func TestExecutePushAdd_InvalidTeamUserFormat(t *testing.T) {
 // Note: We cannot easily test the actual API calls without mocking the GitHub client
 // or using integration tests with a real GitHub API (which would require valid tokens
 // and could have side effects). The tests above focus on input validation and error handling.
+
+func TestFormatScopePermission_Undef(t *testing.T) {
+	got := FormatScopePermission(nil)
+	want := "ResponseHeaderScopePermission:undef"
+	if got != want {
+		t.Errorf("FormatScopePermission(nil) = %q, want %q", got, want)
+	}
+}
+
+func TestFormatScopePermission_WithHeaders(t *testing.T) {
+	// Build a minimal github.Response with desired headers
+	httpResp := &http.Response{Header: http.Header{}}
+	httpResp.Header.Set("X-Accepted-OAuth-Scopes", "repo,user")
+	httpResp.Header.Set("X-Accepted-GitHub-Permissions", "admin:org,write:org")
+
+	resp := &apigithub.Response{Response: httpResp}
+
+	got := FormatScopePermission(resp)
+	want := "X-Accepted-OAuth-Scopes:repo,user, X-Accepted-GitHub-Permissions:admin:org,write:org"
+	if got != want {
+		t.Errorf("FormatScopePermission(headers) = %q, want %q", got, want)
+	}
+}

@@ -122,6 +122,11 @@ type ViewCmd struct {
 type PushCmd struct {
 	Remove RemoveCmd `cmd:"" help:"Remove resources from GitHub"`
 	Add    AddCmd    `cmd:"" help:"Add resources to GitHub"`
+
+	// Direct mode (legacy) flags to support `ghub-desk push --remove --user ...`
+	RemoveFlag bool   `name:"remove" help:"Direct mode: remove resources (use with --user)"`
+	Exec       bool   `help:"Execute the operation (without this flag, runs in DRYRUN mode)"`
+	User       string `help:"Username to remove from organization (direct mode)"`
 }
 
 // RemoveCmd represents the remove subcommand structure
@@ -167,6 +172,53 @@ func Execute() error {
 	}
 
 	return ctx.Run(&cli)
+}
+
+// Run implements the push command execution for direct flags mode
+// Supports: `ghub-desk push --remove --user <username> [--exec]`
+func (p *PushCmd) Run(cli *CLI) error {
+	if !p.RemoveFlag {
+		// No direct mode; let subcommands handle execution
+		return nil
+	}
+
+	// Validate input for direct remove --user
+	if p.User == "" {
+		return fmt.Errorf("target required: specify --user with --remove")
+	}
+	if err := validateUserName(p.User); err != nil {
+		return err
+	}
+
+	if cli.Debug {
+		fmt.Printf("DEBUG: Push (direct) Remove user='%s', exec=%v\n", p.User, p.Exec)
+	}
+
+	// Load configuration once via CLI helper
+	cfg, err := cli.Config()
+	if err != nil {
+		return fmt.Errorf("configuration error: %w", err)
+	}
+
+	// Initialize GitHub client
+	client, err := github.InitClient(cfg)
+	if err != nil {
+		return fmt.Errorf("github client initialization error: %w", err)
+	}
+	ctx := context.Background()
+
+	if p.Exec {
+		fmt.Printf("Executing: Remove user '%s' from organization %s\n", p.User, cfg.Organization)
+		if err := github.ExecutePushRemove(ctx, client, cfg.Organization, "user", p.User); err != nil {
+			return fmt.Errorf("failed to execute remove: %w", err)
+		}
+		fmt.Println("Successfully removed.")
+	} else {
+		fmt.Printf("DRYRUN: Would remove user '%s' from organization %s\n", p.User, cfg.Organization)
+		fmt.Println("To execute, add the --exec flag.")
+	}
+
+	return nil
 }
 
 // Run implements the pull command execution
