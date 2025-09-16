@@ -35,7 +35,7 @@ func TestExecutePushRemove_InvalidTeamUserFormat(t *testing.T) {
 		t.Error("Expected error for invalid team-user format, got nil")
 	}
 
-	expectedError := "チーム/ユーザー形式が正しくありません。{team_name}/{user_name} の形式で指定してください"
+    expectedError := "チーム/ユーザー形式が正しくありません。{team_slug}/{user_name} の形式で指定してください"
 	if err.Error() != expectedError {
 		t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
 	}
@@ -79,7 +79,7 @@ func TestExecutePushAdd_InvalidTeamUserFormat(t *testing.T) {
 		t.Error("Expected error for invalid team-user format, got nil")
 	}
 
-	expectedError := "チーム/ユーザー形式が正しくありません。{team_name}/{user_name} の形式で指定してください"
+    expectedError := "チーム/ユーザー形式が正しくありません。{team_slug}/{user_name} の形式で指定してください"
 	if err.Error() != expectedError {
 		t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
 	}

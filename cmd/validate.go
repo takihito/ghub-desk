@@ -32,7 +32,7 @@ func validateTeamName(s string) error {
 func validateTeamUserPair(s string) (team string, user string, err error) {
     parts := strings.Split(s, "/")
     if len(parts) != 2 {
-        return "", "", fmt.Errorf("チーム/ユーザー形式が正しくありません。{team_name}/{user_name} の形式で指定してください")
+        return "", "", fmt.Errorf("チーム/ユーザー形式が正しくありません。{team_slug}/{user_name} の形式で指定してください")
     }
     team = strings.TrimSpace(parts[0])
     user = strings.TrimSpace(parts[1])
