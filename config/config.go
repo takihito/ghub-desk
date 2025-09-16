@@ -57,24 +57,22 @@ func LoadConfigNoValidate(customPath string) (*Config, error) {
         return nil, err
     }
 
-    if configPath != "" {
-        file, err := os.ReadFile(configPath)
-        switch {
-        case err == nil:
-            expandedFile := os.ExpandEnv(string(file))
-            if err := yaml.Unmarshal([]byte(expandedFile), cfg); err != nil {
-                if isCustom {
-                    return nil, fmt.Errorf("failed to parse config file %s: %w", configPath, err)
-                }
-            }
-        case os.IsNotExist(err):
+    file, rerr := os.ReadFile(configPath)
+    switch {
+    case rerr == nil:
+        expandedFile := os.ExpandEnv(string(file))
+        if err := yaml.Unmarshal([]byte(expandedFile), cfg); err != nil {
             if isCustom {
-                return nil, fmt.Errorf("--config file not found: %s", configPath)
+                return nil, fmt.Errorf("failed to parse config file %s: %w", configPath, err)
             }
-        default:
-            if isCustom {
-                return nil, fmt.Errorf("failed to read config file %s: %w", configPath, err)
-            }
+        }
+    case os.IsNotExist(rerr):
+        if isCustom {
+            return nil, fmt.Errorf("--config file not found: %s", configPath)
+        }
+    default:
+        if isCustom {
+            return nil, fmt.Errorf("failed to read config file %s: %w", configPath, rerr)
         }
     }
 
