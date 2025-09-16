@@ -2,6 +2,9 @@ package cmd
 
 import (
     "fmt"
+    "os"
+    "path/filepath"
+    "strconv"
 
     "ghub-desk/config"
     "gopkg.in/yaml.v3"
@@ -9,9 +12,9 @@ import (
 
 // ShowAppConfig loads application config and prints a masked YAML to stdout.
 func ShowAppConfig(cli *CLI) error {
-    cfg, err := cli.Config()
+    cfg, err := loadConfigForView(cli.ConfigPath)
     if err != nil {
-        return fmt.Errorf("configuration error: %w", err)
+        return fmt.Errorf("failed to load settings: %w", err)
     }
 
     out, err := renderMaskedConfigYAML(cfg)
@@ -60,3 +63,48 @@ func maskSecret(s string) string {
     return "[masked]"
 }
 
+// loadConfigForView loads config from file and environment WITHOUT validation.
+func loadConfigForView(customPath string) (*config.Config, error) {
+    cfg := &config.Config{}
+
+    // Resolve path (same rule as config.resolveConfigPath)
+    var configPath string
+    if customPath != "" {
+        configPath = customPath
+    } else {
+        home, err := os.UserHomeDir()
+        if err == nil {
+            configPath = filepath.Join(home, ".config", config.AppName, "config.yaml")
+        }
+    }
+
+    if configPath != "" {
+        if data, err := os.ReadFile(configPath); err == nil {
+            expanded := os.ExpandEnv(string(data))
+            _ = yaml.Unmarshal([]byte(expanded), cfg)
+        }
+    }
+
+    // Overlay env vars (best-effort; ignore parse errors)
+    if v := os.Getenv("GHUB_DESK_ORGANIZATION"); v != "" {
+        cfg.Organization = v
+    }
+    if v := os.Getenv("GHUB_DESK_GITHUB_TOKEN"); v != "" {
+        cfg.GitHubToken = v
+    }
+    if v := os.Getenv("GHUB_DESK_APP_ID"); v != "" {
+        if n, err := strconv.ParseInt(v, 10, 64); err == nil {
+            cfg.GitHubApp.AppID = n
+        }
+    }
+    if v := os.Getenv("GHUB_DESK_INSTALLATION_ID"); v != "" {
+        if n, err := strconv.ParseInt(v, 10, 64); err == nil {
+            cfg.GitHubApp.InstallationID = n
+        }
+    }
+    if v := os.Getenv("GHUB_DESK_PRIVATE_KEY"); v != "" {
+        cfg.GitHubApp.PrivateKey = v
+    }
+
+    return cfg, nil
+}
