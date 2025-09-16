@@ -66,24 +66,29 @@ type CommonTargetOptions struct {
 	OutsideUsers    bool   `name:"outside-users" help:"Target: outside-users"`
 }
 
+// TargetFlag represents an additional target option to evaluate.
+type TargetFlag struct {
+    Enabled bool
+    Name    string
+}
+
 // GetTarget determines the single selected target from the common options.
-func (c *CommonTargetOptions) GetTarget(extraTargets ...struct {
-	flag bool
-	name string
-}) (string, error) {
-	targets := []struct {
-		flag bool
-		name string
-	}{
-		{c.Users, "users"},
-		{c.DetailUsers, "detail-users"},
-		{c.Teams, "teams"},
-		{c.Repos, "repos"},
-		{c.TeamsUsers != "", "teams-users"},
-		{c.TokenPermission, "token-permission"},
-		{c.OutsideUsers, "outside-users"},
-	}
-	targets = append(targets, extraTargets...)
+func (c *CommonTargetOptions) GetTarget(extraTargets ...TargetFlag) (string, error) {
+    targets := []struct {
+        flag bool
+        name string
+    }{
+        {c.Users, "users"},
+        {c.DetailUsers, "detail-users"},
+        {c.Teams, "teams"},
+        {c.Repos, "repos"},
+        {c.TeamsUsers != "", "teams-users"},
+        {c.TokenPermission, "token-permission"},
+        {c.OutsideUsers, "outside-users"},
+    }
+    for _, et := range extraTargets {
+        targets = append(targets, struct{ flag bool; name string }{et.Enabled, et.Name})
+    }
 
 	var selectedTarget string
 	count := 0
@@ -224,11 +229,8 @@ func (p *PushCmd) Run(cli *CLI) error {
 
 // Run implements the pull command execution
 func (p *PullCmd) Run(cli *CLI) error {
-	// Determine target from flags
-	target, err := p.CommonTargetOptions.GetTarget(struct {
-		flag bool
-		name string
-	}{p.AllTeamsUsers, "all-teams-users"})
+    // Determine target from flags
+    target, err := p.CommonTargetOptions.GetTarget(TargetFlag{Enabled: p.AllTeamsUsers, Name: "all-teams-users"})
 	if err != nil {
 		return err
 	}
@@ -270,11 +272,8 @@ func (p *PullCmd) Run(cli *CLI) error {
 
 // Run implements the view command execution
 func (v *ViewCmd) Run(cli *CLI) error {
-	// Determine target from flags
-	target, err := v.CommonTargetOptions.GetTarget(struct {
-		flag bool
-		name string
-	}{v.Settings, "settings"})
+    // Determine target from flags
+    target, err := v.CommonTargetOptions.GetTarget(TargetFlag{Enabled: v.Settings, Name: "settings"})
 	if err != nil {
 		return err
 	}
