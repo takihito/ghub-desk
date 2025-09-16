@@ -281,7 +281,7 @@ func (v *ViewCmd) Run(cli *CLI) error {
 	}
 
     if target == "settings" {
-        return ShowAppConfig(cli)
+        return ShowSettings(cli)
     }
 
     // Initialize database for non-config views

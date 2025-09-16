@@ -10,8 +10,8 @@ import (
     "gopkg.in/yaml.v3"
 )
 
-// ShowAppConfig loads application config and prints a masked YAML to stdout.
-func ShowAppConfig(cli *CLI) error {
+// ShowSettings loads application settings and prints a masked YAML to stdout.
+func ShowSettings(cli *CLI) error {
     cfg, err := loadConfigForView(cli.ConfigPath)
     if err != nil {
         return fmt.Errorf("failed to load settings: %w", err)
