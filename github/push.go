@@ -33,7 +33,7 @@ func ExecutePushRemove(ctx context.Context, client *github.Client, org, target, 
 		// Parse team/user format
 		parts := strings.Split(resourceName, "/")
 		if len(parts) != 2 {
-			return fmt.Errorf("チーム/ユーザー形式が正しくありません。{team_name}/{user_name} の形式で指定してください")
+			return fmt.Errorf("チーム/ユーザー形式が正しくありません。{team_slug}/{user_name} の形式で指定してください")
 		}
 		teamSlug := parts[0]
 		username := parts[1]
@@ -58,7 +58,7 @@ func ExecutePushAdd(ctx context.Context, client *github.Client, org, target, res
 		// Parse team/user format
 		parts := strings.Split(resourceName, "/")
 		if len(parts) != 2 {
-			return fmt.Errorf("チーム/ユーザー形式が正しくありません。{team_name}/{user_name} の形式で指定してください")
+			return fmt.Errorf("チーム/ユーザー形式が正しくありません。{team_slug}/{user_name} の形式で指定してください")
 		}
 		teamSlug := parts[0]
 		username := parts[1]

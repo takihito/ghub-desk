@@ -52,16 +52,30 @@ export GHUB_DESK_GITHUB_TOKEN="your-token"         # GitHub Access Token
 ./ghub-desk init
 
 # チームにユーザーを追加（DRYRUN）
-./ghub-desk push add --team-user team-name/username
+# team-name はチームの slug（小文字英数字とハイフン）を指定
+./ghub-desk push add --team-user team-slug/username
 
 # チームにユーザーを追加（実行）
-./ghub-desk push add --team-user team-name/username --exec
+./ghub-desk push add --team-user team-slug/username --exec
 
 # チームからユーザーを削除（DRYRUN）
-./ghub-desk push remove --team-user team-name/username
+./ghub-desk push remove --team-user team-slug/username
 
 # チームからユーザーを削除（実行）
-./ghub-desk push remove --team-user team-name/username --exec
+./ghub-desk push remove --team-user team-slug/username --exec
+
+## 入力制約（ユーザー名・チーム）
+
+- ユーザー名
+  - 許可: 英数字・ハイフンのみ
+  - 先頭/末尾にハイフンは不可
+  - 長さ: 1〜39 文字
+- チーム名（slug）
+  - API 指定は slug を使用します（表示名ではありません）
+  - 許可: 小文字英数字・ハイフンのみ
+  - 先頭/末尾にハイフンは不可
+  - 長さ: 1〜100 文字
+  - 形式: `{team-slug}/{username}` を `--team-user` に渡してください
 ```
 
 ## ビルド
