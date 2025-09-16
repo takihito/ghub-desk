@@ -57,13 +57,13 @@ func (cli *CLI) Config() (*config.Config, error) {
 
 // CommonTargetOptions holds the shared target flags for pull and view commands
 type CommonTargetOptions struct {
-	Users           bool   `help:"Target: users"`
-	DetailUsers     bool   `name:"detail-users" help:"Target: detail-users"`
-	Teams           bool   `help:"Target: teams"`
-	Repos           bool   `help:"Target: repos"`
-	TeamsUsers      string `name:"teams-users" help:"Target: team-users (provide team slug)"`
-	TokenPermission bool   `name:"token-permission" help:"Target: token-permission"`
-	OutsideUsers    bool   `name:"outside-users" help:"Target: outside-users"`
+    Users           bool   `help:"Target: users"`
+    DetailUsers     bool   `name:"detail-users" help:"Target: detail-users"`
+    Teams           bool   `help:"Target: teams"`
+    Repos           bool   `help:"Target: repos"`
+    TeamsUsers      string `name:"teams-users" help:"Target: team-users (provide team slug: 1–100 chars, lowercase alnum + hyphen)"`
+    TokenPermission bool   `name:"token-permission" help:"Target: token-permission"`
+    OutsideUsers    bool   `name:"outside-users" help:"Target: outside-users"`
 }
 
 // GetTarget determines the single selected target from the common options.
@@ -126,16 +126,16 @@ type PushCmd struct {
 
 // RemoveCmd represents the remove subcommand structure
 type RemoveCmd struct {
-	Exec     bool   `help:"Execute the operation (without this flag, runs in DRYRUN mode)"`
-	Team     string `help:"Remove team from organization"`
-	User     string `help:"Remove user from organization"`
-	TeamUser string `name:"team-user" help:"Remove user from team (format: team/user)"`
+    Exec     bool   `help:"Execute the operation (without this flag, runs in DRYRUN mode)"`
+    Team     string `help:"Remove team from organization (team slug: 1–100 chars, lowercase alnum + hyphen)"`
+    User     string `help:"Remove user from organization (username: 1–39 chars, alnum + hyphen, no leading/trailing hyphen)"`
+    TeamUser string `name:"team-user" help:"Remove user from team (format: team-slug/username)"`
 }
 
 // AddCmd represents the add subcommand structure
 type AddCmd struct {
-	Exec     bool   `help:"Execute the operation (without this flag, runs in DRYRUN mode)"`
-	TeamUser string `name:"team-user" help:"Add user to team (format: team/user)"`
+    Exec     bool   `help:"Execute the operation (without this flag, runs in DRYRUN mode)"`
+    TeamUser string `name:"team-user" help:"Add user to team (format: team-slug/username)"`
 }
 
 // InitCmd represents the init command structure
@@ -305,15 +305,31 @@ func (r *RemoveCmd) getTarget() (string, string, error) {
 		}
 	}
 
-	if count == 0 {
-		return "", "", fmt.Errorf("target required: specify one of --team, --user, --team-user")
-	}
+    if count == 0 {
+        return "", "", fmt.Errorf("target required: specify one of --team, --user, --team-user")
+    }
 
-	if count > 1 {
-		return "", "", fmt.Errorf("only one target can be specified at a time")
-	}
+    if count > 1 {
+        return "", "", fmt.Errorf("only one target can be specified at a time")
+    }
 
-	return selectedTarget, selectedValue, nil
+    // Validate argument formats
+    switch selectedTarget {
+    case "team":
+        if err := validateTeamName(selectedValue); err != nil {
+            return "", "", err
+        }
+    case "user":
+        if err := validateUserName(selectedValue); err != nil {
+            return "", "", err
+        }
+    case "team-user":
+        if _, _, err := validateTeamUserPair(selectedValue); err != nil {
+            return "", "", err
+        }
+    }
+
+    return selectedTarget, selectedValue, nil
 }
 
 // Run implements the add subcommand execution
@@ -376,15 +392,20 @@ func (a *AddCmd) getTarget() (string, string, error) {
 		}
 	}
 
-	if count == 0 {
-		return "", "", fmt.Errorf("target required: specify --team-user")
-	}
+    if count == 0 {
+        return "", "", fmt.Errorf("target required: specify --team-user")
+    }
 
-	if count > 1 {
-		return "", "", fmt.Errorf("only one target can be specified at a time")
-	}
+    if count > 1 {
+        return "", "", fmt.Errorf("only one target can be specified at a time")
+    }
 
-	return selectedTarget, selectedValue, nil
+    // Only team-user is supported for add; validate it
+    if _, _, err := validateTeamUserPair(selectedValue); err != nil {
+        return "", "", err
+    }
+
+    return selectedTarget, selectedValue, nil
 }
 
 // Run implements the init command execution

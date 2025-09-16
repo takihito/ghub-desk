@@ -294,21 +294,24 @@ func fetchAndStore[T any](
 ) error {
 	var allItems []*T
 	page := 1
+	count := 0
 
 	for {
-		fmt.Printf("Fetching page %d...\n", page)
-
 		// Make API call with pagination options
 		opts := &github.ListOptions{Page: page, PerPage: DefaultPerPage}
 		items, resp, err := listFunc(ctx, org, opts)
 		if err != nil {
-			scopePermission := fmt.Errorf("X-Accepted-OAuth-Scopes:%s, X-Accepted-GitHub-Permissions:%s",
-				resp.Header.Get("X-Accepted-OAuth-Scopes"), resp.Header.Get("X-Accepted-GitHub-Permissions"))
-			return fmt.Errorf("failed to fetch page %d: %w, Required permission scope: %w", page, err, scopePermission)
+			if resp != nil {
+				scopePermission := fmt.Errorf("X-Accepted-OAuth-Scopes:%s, X-Accepted-GitHub-Permissions:%s",
+					resp.Header.Get("X-Accepted-OAuth-Scopes"), resp.Header.Get("X-Accepted-GitHub-Permissions"))
+				return fmt.Errorf("failed to fetch page %d: %w, Required permission scope: %w", page, err, scopePermission)
+			}
+			return fmt.Errorf("failed to fetch page %d: %w", page, err)
 		}
 
 		allItems = append(allItems, items...)
-		fmt.Printf("Retrieved %d items from page %d\n", len(items), page)
+		count += len(items)
+		fmt.Printf("- %d件取得しました\n", count)
 
 		// Check if we've reached the last page
 		if resp.NextPage == 0 {

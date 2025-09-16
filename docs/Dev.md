@@ -27,7 +27,7 @@ GitHubオーガニゼーション上でメンバーやチームを操作する�
 
 * ユーザー一覧の取得
 * チーム一覧の取得
-* チームに所属するユーザーの一覧の取得
+* チームに所属するユーザーの一覧の取得（{team_slug} はチームの slug を指定）
 * リポジトリ一覧の取得
 
 ### 組織の変更
@@ -90,13 +90,13 @@ $ ghub-desk view --teams
 
 ````
 # SQLiteには保存する
-$ ghub-desk pull --store --teams-users {team_name}
+$ ghub-desk pull --store --teams-users {team_slug}
 
 # SQLiteには保存せず
-$ ghub-desk pull --teams-users {team_name}
+$ ghub-desk pull --teams-users {team_slug}
 
 # SQLiteをソースとして表示する 
-$ ghub-desk view --teams-users {team_name}
+$ ghub-desk view --teams-users {team_slug}
 ````
 
 ````
@@ -107,8 +107,8 @@ $ ghub-desk pull --store --all-teams-users
 # SQLiteには保存せず
 $ ghub-desk pull --all-teams-users 
 
-# SQLiteに保存されるとviewで確認することができます
-$ ghub-desk view {team_name}/users
+# SQLiteに保存されるとviewで確認することができます（{team_slug} は slug を指定）
+$ ghub-desk view {team_slug}/users
 ````
 
 
@@ -127,13 +127,13 @@ $ ghub-desk view --repos
 
 
 
-* チームを組織から削除
+* チームを組織から削除（{team_slug} はチームの slug を指定）
 
 ````
-$ ghub-desk push --remove --team {team_name} --exec
+$ ghub-desk push --remove --team {team_slug} --exec
 
 # DRYRUN
-$ ghub-desk push --remove --team {team_name}
+$ ghub-desk push --remove --team {team_slug}
 ````
 
 * ユーザーを組織から削除
@@ -145,13 +145,13 @@ $ ghub-desk push --remove --user {user_name} --exec
 $ ghub-desk push --remove --user {user_name}
 ````
 
-* ユーザーをチームから削除
+* ユーザーをチームから削除（{team_slug} はチームの slug を指定）
 
 ````
-$ ghub-desk push --remove --team-user {team_name}/{user_name} --exec
+$ ghub-desk push --remove --team-user {team_slug}/{user_name} --exec
 
 # DRYRUN
-$ ghub-desk push --remove --team-user  {team_name}/{user_name}
+$ ghub-desk push --remove --team-user  {team_slug}/{user_name}
 ````
 
 * TOKENの権限チェック
@@ -167,6 +167,20 @@ $ ghub-desk pull --token-permission --store
 $ ghub-desk view --token-permission
 ````
 
+
+## 入力制約（正確仕様）
+
+- ユーザー名（username）
+  - 許可: 英数字・ハイフンのみ
+  - 先頭/末尾のハイフン不可
+  - 長さ: 1〜39 文字
+- チーム（slug）
+  - API 指定は slug を使用（表示名ではありません）
+  - 許可: 小文字英数字・ハイフンのみ
+  - 先頭/末尾のハイフン不可
+  - 長さ: 1〜100 文字
+- 組み合わせ指定
+  - `--team-user {team-slug}/{username}` の形式で渡してください
 
 
 ## 修正指示
