@@ -1,5 +1,7 @@
 # Changelog
 
+## [v0.1.2](https://github.com/takihito/ghub-desk/compare/v0.1.1...v0.1.2) - 2025-09-16
+
 ## [v0.1.1](https://github.com/takihito/ghub-desk/compare/v0.1.0...v0.1.1) - 2025-09-15
 - function:Add Team/User by @takihito in https://github.com/takihito/ghub-desk/pull/24
 - GitHub App認証とYAML設定をサポート by @takihito in https://github.com/takihito/ghub-desk/pull/26
