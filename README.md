@@ -78,6 +78,16 @@ export GHUB_DESK_GITHUB_TOKEN="your-token"         # GitHub Access Token
   - 形式: `{team-slug}/{username}` を `--team-user` に渡してください
 ```
 
+### 設定の表示（マスク出力）
+
+```bash
+# 現在の設定をYAMLで表示（秘匿情報はマスクされます）
+./ghub-desk view --settings
+
+# 任意の設定ファイルを使う場合はグローバルの --config でパス指定
+./ghub-desk --config ~/.config/ghub-desk/config.yaml view --settings
+```
+
 ## ビルド
 
 ```bash
