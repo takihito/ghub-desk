@@ -1,21 +1,20 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
-	"strconv"
+    "fmt"
 
-	"ghub-desk/config"
+    "ghub-desk/config"
 
-	"gopkg.in/yaml.v3"
+    "gopkg.in/yaml.v3"
 )
 
 // ShowSettings loads application settings and prints a masked YAML to stdout.
 func ShowSettings(cli *CLI) error {
-	cfg, err := loadConfigForView(cli.ConfigPath)
-	if err != nil {
-		return fmt.Errorf("failed to load settings: %w", err)
-	}
+    // Use shared loader without validation. It errors only when a custom --config is invalid.
+    cfg, err := config.LoadConfigNoValidate(cli.ConfigPath)
+    if err != nil {
+        return fmt.Errorf("failed to load settings: %w", err)
+    }
 
 	out, err := renderMaskedConfigYAML(cfg)
 	if err != nil {
@@ -63,53 +62,4 @@ func maskSecret(s string) string {
 	return "[masked]"
 }
 
-// loadConfigForView loads config from file and environment WITHOUT validation.
-func loadConfigForView(customPath string) (*config.Config, error) {
-	cfg := &config.Config{}
-
-	// Resolve path via shared helper
-	var configPath string
-	isCustom := customPath != ""
-	p, err := config.ResolveConfigPath(customPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve config path: %w", err)
-	}
-	configPath = p
-
-	if configPath != "" {
-		data, err := os.ReadFile(configPath)
-		if err != nil {
-			if isCustom {
-				return nil, fmt.Errorf("config file not found: %s", configPath)
-			}
-		} else {
-			expanded := os.ExpandEnv(string(data))
-			if err := yaml.Unmarshal([]byte(expanded), cfg); err != nil && isCustom {
-				return nil, fmt.Errorf("failed to parse config file %s: %w", configPath, err)
-			}
-		}
-	}
-
-	// Overlay env vars (best-effort; ignore parse errors)
-	if v := os.Getenv("GHUB_DESK_ORGANIZATION"); v != "" {
-		cfg.Organization = v
-	}
-	if v := os.Getenv("GHUB_DESK_GITHUB_TOKEN"); v != "" {
-		cfg.GitHubToken = v
-	}
-	if v := os.Getenv("GHUB_DESK_APP_ID"); v != "" {
-		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
-			cfg.GitHubApp.AppID = n
-		}
-	}
-	if v := os.Getenv("GHUB_DESK_INSTALLATION_ID"); v != "" {
-		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
-			cfg.GitHubApp.InstallationID = n
-		}
-	}
-	if v := os.Getenv("GHUB_DESK_PRIVATE_KEY"); v != "" {
-		cfg.GitHubApp.PrivateKey = v
-	}
-
-	return cfg, nil
-}
+// loadConfigForView removed in favor of config.LoadConfigNoValidate to avoid duplication.
