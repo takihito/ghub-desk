@@ -1,18 +1,29 @@
 package mcp
 
 import (
-	"context"
-	"fmt"
+    "context"
+    "fmt"
+    "os"
+    "os/signal"
+    "syscall"
 
-	"ghub-desk/config"
+    "ghub-desk/config"
 )
 
-// Serve starts a minimal stub MCP server.
-// This stub is used in default builds to keep tests green.
-// A full implementation using the go-sdk is provided behind a build tag.
+// Serve starts a minimal stub MCP server for default builds.
+// It prints the allowed tool list and waits for Ctrl+C.
+// The full MCP server using go-sdk is provided behind the build tag: mcp_sdk.
 func Serve(ctx context.Context, cfg *config.Config) error {
-	_ = ctx
-	fmt.Println("MCP server stub: start (use -tags mcp_sdk for full server)")
-	// No-op stub. Full server lives in serve_mcp.go (build tag: mcp_sdk).
-	return nil
+    tools := AllowedTools(cfg)
+    fmt.Println("[MCP] stub server starting...")
+    fmt.Printf("[MCP] allowed tools: %v\n", tools)
+    fmt.Println("[MCP] build with '-tags mcp_sdk' for full go-sdk server")
+    fmt.Println("[MCP] press Ctrl+C to exit")
+
+    // Wait for interrupt
+    ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+    defer stop()
+    <-ctx.Done()
+    fmt.Println("[MCP] shutting down")
+    return nil
 }

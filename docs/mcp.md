@@ -102,9 +102,18 @@ mcp:
   allow_write: false    # 変更操作は不可（安全側）
 ```
 
-### サーバー起動
+### サーバー起動（スタブ: デフォルトビルド）
 ```bash
 ghub-desk mcp
+```
+
+デフォルトビルドではスタブサーバーが起動し、許可されたツール一覧を表示して待機します。
+本番相当の go-sdk 実装はビルドタグ `mcp_sdk` で有効化します。
+
+### サーバー起動（go-sdk: 本実装）
+```bash
+go build -tags mcp_sdk -o build/ghub-desk .
+./build/ghub-desk mcp --debug
 ```
 
 MCP クライアント（例: MCP Inspector やエージェント）から接続すると、
@@ -131,4 +140,3 @@ MCP クライアント（例: MCP Inspector やエージェント）から接続
 - outputs を構造化（JSON Schema）してクライアント側で再利用しやすくする
 - イベント/ストリーミング対応
 - サブリソースの詳細取得や差分検出
-
