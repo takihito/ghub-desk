@@ -34,6 +34,10 @@ func renderMaskedConfigYAML(cfg *config.Config) (string, error) {
 			InstallationID int64  `yaml:"installation_id"`
 			PrivateKey     string `yaml:"private_key"`
 		} `yaml:"github_app"`
+		MCP struct {
+			AllowPull  bool `yaml:"allow_pull"`
+			AllowWrite bool `yaml:"allow_write"`
+		} `yaml:"mcp"`
 	}{
 		Organization: cfg.Organization,
 		GitHubToken:  maskSecret(cfg.GitHubToken),
@@ -43,6 +47,8 @@ func renderMaskedConfigYAML(cfg *config.Config) (string, error) {
 	if cfg.GitHubApp.PrivateKey != "" {
 		safe.GitHubApp.PrivateKey = "[masked PEM]"
 	}
+	safe.MCP.AllowPull = cfg.MCP.AllowPull
+	safe.MCP.AllowWrite = cfg.MCP.AllowWrite
 
 	b, err := yaml.Marshal(&safe)
 	if err != nil {
