@@ -21,6 +21,7 @@ type Config struct {
 	Organization string    `yaml:"organization"`
 	GitHubToken  string    `yaml:"github_token"`
 	GitHubApp    GitHubApp `yaml:"github_app"`
+	MCP          MCPConfig `yaml:"mcp"`
 }
 
 // GitHubApp holds GitHub App specific configuration
@@ -30,76 +31,82 @@ type GitHubApp struct {
 	PrivateKey     string `yaml:"private_key"`
 }
 
+// MCPConfig controls MCP server permissions
+type MCPConfig struct {
+	AllowPull  bool `yaml:"allow_pull"`
+	AllowWrite bool `yaml:"allow_write"`
+}
+
 // GetConfig loads configuration from file and environment variables
 func GetConfig(customPath string) (*Config, error) {
-    cfg, err := LoadConfigNoValidate(customPath)
-    if err != nil {
-        return nil, err
-    }
-    // Validate configuration
-    if err := validateConfig(cfg); err != nil {
-        return nil, err
-    }
+	cfg, err := LoadConfigNoValidate(customPath)
+	if err != nil {
+		return nil, err
+	}
+	// Validate configuration
+	if err := validateConfig(cfg); err != nil {
+		return nil, err
+	}
 
-    return cfg, nil
+	return cfg, nil
 }
 
 // LoadConfigNoValidate loads configuration from file and environment variables without validation.
 // - If a custom path was provided and the file is missing or invalid, an error is returned.
 // - If no custom path was provided and the default file is missing, it is ignored.
 func LoadConfigNoValidate(customPath string) (*Config, error) {
-    cfg := &Config{}
+	cfg := &Config{}
 
-    // 1. Load from YAML file
-    isCustom := customPath != ""
-    configPath, err := ResolveConfigPath(customPath)
-    if err != nil {
-        return nil, err
-    }
+	// 1. Load from YAML file
+	isCustom := customPath != ""
+	configPath, err := ResolveConfigPath(customPath)
+	if err != nil {
+		return nil, err
+	}
 
-    file, rerr := os.ReadFile(configPath)
-    switch {
-    case rerr == nil:
-        expandedFile := os.ExpandEnv(string(file))
-        if err := yaml.Unmarshal([]byte(expandedFile), cfg); err != nil {
-            if isCustom {
-                return nil, fmt.Errorf("failed to parse config file %s: %w", configPath, err)
-            }
-        }
-    case os.IsNotExist(rerr):
-        if isCustom {
-            return nil, fmt.Errorf("--config file not found: %s", configPath)
-        }
-    default:
-        if isCustom {
-            return nil, fmt.Errorf("failed to read config file %s: %w", configPath, rerr)
-        }
-    }
+	file, rerr := os.ReadFile(configPath)
+	switch {
+	case rerr == nil:
+		expandedFile := os.ExpandEnv(string(file))
+		if err := yaml.Unmarshal([]byte(expandedFile), cfg); err != nil {
+			if isCustom {
+				return nil, fmt.Errorf("failed to parse config file %s: %w", configPath, err)
+			}
+		}
+	case os.IsNotExist(rerr):
+		if isCustom {
+			return nil, fmt.Errorf("--config file not found: %s", configPath)
+		}
+	default:
+		if isCustom {
+			return nil, fmt.Errorf("failed to read config file %s: %w", configPath, rerr)
+		}
+	}
 
-    // 2. Overlay with environment variables
-    if org := os.Getenv("GHUB_DESK_ORGANIZATION"); org != "" {
-        cfg.Organization = org
-    }
-    if token := os.Getenv("GHUB_DESK_GITHUB_TOKEN"); token != "" {
-        cfg.GitHubToken = token
-    }
-    if appID := os.Getenv("GHUB_DESK_APP_ID"); appID != "" {
-        v, err := strconv.ParseInt(appID, 10, 64)
-        if err == nil { // best-effort for non-validating load
-            cfg.GitHubApp.AppID = v
-        }
-    }
-    if instID := os.Getenv("GHUB_DESK_INSTALLATION_ID"); instID != "" {
-        v, err := strconv.ParseInt(instID, 10, 64)
-        if err == nil { // best-effort
-            cfg.GitHubApp.InstallationID = v
-        }
-    }
-    if key := os.Getenv("GHUB_DESK_PRIVATE_KEY"); key != "" {
-        cfg.GitHubApp.PrivateKey = key
-    }
+	// 2. Overlay with environment variables
+	if org := os.Getenv("GHUB_DESK_ORGANIZATION"); org != "" {
+		cfg.Organization = org
+	}
+	if token := os.Getenv("GHUB_DESK_GITHUB_TOKEN"); token != "" {
+		cfg.GitHubToken = token
+	}
+	if appID := os.Getenv("GHUB_DESK_APP_ID"); appID != "" {
+		v, err := strconv.ParseInt(appID, 10, 64)
+		if err == nil { // best-effort for non-validating load
+			cfg.GitHubApp.AppID = v
+		}
+	}
+	if instID := os.Getenv("GHUB_DESK_INSTALLATION_ID"); instID != "" {
+		v, err := strconv.ParseInt(instID, 10, 64)
+		if err == nil { // best-effort
+			cfg.GitHubApp.InstallationID = v
+		}
+	}
+	if key := os.Getenv("GHUB_DESK_PRIVATE_KEY"); key != "" {
+		cfg.GitHubApp.PrivateKey = key
+	}
 
-    return cfg, nil
+	return cfg, nil
 }
 
 func validateConfig(cfg *Config) error {

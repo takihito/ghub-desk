@@ -9,6 +9,7 @@ import (
 
 	"ghub-desk/config"
 	"ghub-desk/github"
+	"ghub-desk/mcp"
 	"ghub-desk/store"
 
 	"github.com/alecthomas/kong"
@@ -38,6 +39,7 @@ type CLI struct {
 	Push    PushCmd    `cmd:"" help:"Manipulate resources on GitHub"`
 	Init    InitCmd    `cmd:"" help:"Initialize local database tables"`
 	Version VersionCmd `cmd:"" help:"Show version information"`
+	MCP     McpCmd     `cmd:"" help:"Start MCP server"`
 
 	// internal cached config
 	cfgOnce sync.Once
@@ -68,27 +70,30 @@ type CommonTargetOptions struct {
 
 // TargetFlag represents an additional target option to evaluate.
 type TargetFlag struct {
-    Enabled bool
-    Name    string
+	Enabled bool
+	Name    string
 }
 
 // GetTarget determines the single selected target from the common options.
 func (c *CommonTargetOptions) GetTarget(extraTargets ...TargetFlag) (string, error) {
-    targets := []struct {
-        flag bool
-        name string
-    }{
-        {c.Users, "users"},
-        {c.DetailUsers, "detail-users"},
-        {c.Teams, "teams"},
-        {c.Repos, "repos"},
-        {c.TeamsUsers != "", "teams-users"},
-        {c.TokenPermission, "token-permission"},
-        {c.OutsideUsers, "outside-users"},
-    }
-    for _, et := range extraTargets {
-        targets = append(targets, struct{ flag bool; name string }{et.Enabled, et.Name})
-    }
+	targets := []struct {
+		flag bool
+		name string
+	}{
+		{c.Users, "users"},
+		{c.DetailUsers, "detail-users"},
+		{c.Teams, "teams"},
+		{c.Repos, "repos"},
+		{c.TeamsUsers != "", "teams-users"},
+		{c.TokenPermission, "token-permission"},
+		{c.OutsideUsers, "outside-users"},
+	}
+	for _, et := range extraTargets {
+		targets = append(targets, struct {
+			flag bool
+			name string
+		}{et.Enabled, et.Name})
+	}
 
 	var selectedTarget string
 	count := 0
@@ -126,8 +131,8 @@ type ViewCmd struct {
 
 // PushCmd represents the push command structure
 type PushCmd struct {
-    Remove RemoveCmd `cmd:"" help:"Remove resources from GitHub"`
-    Add    AddCmd    `cmd:"" help:"Add resources to GitHub"`
+	Remove RemoveCmd `cmd:"" help:"Remove resources from GitHub"`
+	Add    AddCmd    `cmd:"" help:"Add resources to GitHub"`
 }
 
 // RemoveCmd represents the remove subcommand structure
@@ -175,11 +180,10 @@ func Execute() error {
 	return ctx.Run(&cli)
 }
 
-
 // Run implements the pull command execution
 func (p *PullCmd) Run(cli *CLI) error {
-    // Determine target from flags
-    target, err := p.CommonTargetOptions.GetTarget(TargetFlag{Enabled: p.AllTeamsUsers, Name: "all-teams-users"})
+	// Determine target from flags
+	target, err := p.CommonTargetOptions.GetTarget(TargetFlag{Enabled: p.AllTeamsUsers, Name: "all-teams-users"})
 	if err != nil {
 		return err
 	}
@@ -221,8 +225,8 @@ func (p *PullCmd) Run(cli *CLI) error {
 
 // Run implements the view command execution
 func (v *ViewCmd) Run(cli *CLI) error {
-    // Determine target from flags
-    target, err := v.CommonTargetOptions.GetTarget(TargetFlag{Enabled: v.Settings, Name: "settings"})
+	// Determine target from flags
+	target, err := v.CommonTargetOptions.GetTarget(TargetFlag{Enabled: v.Settings, Name: "settings"})
 	if err != nil {
 		return err
 	}
@@ -434,4 +438,21 @@ func (v *VersionCmd) Run(cli *CLI) error {
 	fmt.Printf("commit: %s\n", appCommit)
 	fmt.Printf("built at: %s\n", appDate)
 	return nil
+}
+
+// McpCmd starts the MCP server
+type McpCmd struct{}
+
+func (m *McpCmd) Run(cli *CLI) error {
+	// Load config to get MCP permissions and auth
+	cfg, err := cli.Config()
+	if err != nil {
+		return fmt.Errorf("configuration error: %w", err)
+	}
+	if cli.Debug {
+		fmt.Printf("DEBUG: Starting MCP server (allow_pull=%v, allow_write=%v)\n", cfg.MCP.AllowPull, cfg.MCP.AllowWrite)
+		fmt.Printf("DEBUG: Exposing tools: %v\n", mcp.AllowedTools(cfg))
+	}
+	ctx := context.Background()
+	return mcp.Serve(ctx, cfg)
 }
