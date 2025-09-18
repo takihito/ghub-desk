@@ -197,6 +197,10 @@ func (p *PullCmd) Run(cli *CLI) error {
 	if err != nil {
 		return fmt.Errorf("configuration error: %w", err)
 	}
+	// Configure DB path if provided
+	if cfg.DatabasePath != "" {
+		store.SetDBPath(cfg.DatabasePath)
+	}
 
 	// Initialize GitHub client
 	client, err := github.InitClient(cfg)
@@ -239,6 +243,10 @@ func (v *ViewCmd) Run(cli *CLI) error {
 		return ShowSettings(cli)
 	}
 
+	// Load config (non-validating) to optionally apply DB path without requiring auth
+	if cfgNV, _ := config.LoadConfigNoValidate(cli.ConfigPath); cfgNV != nil && cfgNV.DatabasePath != "" {
+		store.SetDBPath(cfgNV.DatabasePath)
+	}
 	// Initialize database for non-config views
 	db, err := store.InitDatabase()
 	if err != nil {
@@ -422,6 +430,10 @@ func (a *AddCmd) getTarget() (string, string, error) {
 
 // Run implements the init command execution
 func (i *InitCmd) Run(cli *CLI) error {
+	// Load config (non-validating) to optionally apply DB path
+	if cfgNV, _ := config.LoadConfigNoValidate(cli.ConfigPath); cfgNV != nil && cfgNV.DatabasePath != "" {
+		store.SetDBPath(cfgNV.DatabasePath)
+	}
 	db, err := store.InitDatabase()
 	if err != nil {
 		return fmt.Errorf("failed to initialize database: %w", err)

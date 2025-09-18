@@ -41,3 +41,8 @@ mcp:
 
   # GitHub への変更操作（push add/remove）を許可するか
   allow_write: false
+
+# --- ストア設定（任意） ---
+# SQLite DB のファイルパス（既定: カレントの ghub-desk.db）。
+# 相対/絶対パスどちらも指定可能。環境変数 GHUB_DESK_DB_PATH でも上書きできます。
+database_path: ""

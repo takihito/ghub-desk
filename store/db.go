@@ -14,9 +14,24 @@ const (
 	DBFileName = "ghub-desk.db"
 )
 
+// DBPath is the runtime-configured SQLite file path. If empty, DBFileName is used.
+var DBPath string
+
+// SetDBPath sets a custom SQLite file path. Empty resets to default.
+func SetDBPath(path string) {
+	DBPath = path
+}
+
+func dbPath() string {
+	if DBPath != "" {
+		return DBPath
+	}
+	return DBFileName
+}
+
 // InitDatabase creates and initializes the SQLite database with required tables
 func InitDatabase() (*sql.DB, error) {
-	db, err := sql.Open("sqlite", DBFileName)
+	db, err := sql.Open("sqlite", dbPath())
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}

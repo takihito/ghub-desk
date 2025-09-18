@@ -22,6 +22,7 @@ type Config struct {
 	GitHubToken  string    `yaml:"github_token"`
 	GitHubApp    GitHubApp `yaml:"github_app"`
 	MCP          MCPConfig `yaml:"mcp"`
+	DatabasePath string    `yaml:"database_path"`
 }
 
 // GitHubApp holds GitHub App specific configuration
@@ -89,6 +90,9 @@ func LoadConfigNoValidate(customPath string) (*Config, error) {
 	}
 	if token := os.Getenv("GHUB_DESK_GITHUB_TOKEN"); token != "" {
 		cfg.GitHubToken = token
+	}
+	if dbp := os.Getenv("GHUB_DESK_DB_PATH"); dbp != "" {
+		cfg.DatabasePath = dbp
 	}
 	if appID := os.Getenv("GHUB_DESK_APP_ID"); appID != "" {
 		v, err := strconv.ParseInt(appID, 10, 64)

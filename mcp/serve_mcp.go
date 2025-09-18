@@ -21,6 +21,10 @@ import (
 // - health: simple readiness check
 // - view.users: return users from local SQLite DB
 func Serve(ctx context.Context, cfg *appcfg.Config) error {
+	// Apply DB path from config if provided
+	if cfg != nil && cfg.DatabasePath != "" {
+		store.SetDBPath(cfg.DatabasePath)
+	}
 	impl := &sdk.Implementation{
 		Name:    "ghub-desk",
 		Title:   "ghub-desk MCP",

@@ -38,6 +38,7 @@ func renderMaskedConfigYAML(cfg *config.Config) (string, error) {
 			AllowPull  bool `yaml:"allow_pull"`
 			AllowWrite bool `yaml:"allow_write"`
 		} `yaml:"mcp"`
+		DatabasePath string `yaml:"database_path"`
 	}{
 		Organization: cfg.Organization,
 		GitHubToken:  maskSecret(cfg.GitHubToken),
@@ -49,6 +50,7 @@ func renderMaskedConfigYAML(cfg *config.Config) (string, error) {
 	}
 	safe.MCP.AllowPull = cfg.MCP.AllowPull
 	safe.MCP.AllowWrite = cfg.MCP.AllowWrite
+	safe.DatabasePath = cfg.DatabasePath
 
 	b, err := yaml.Marshal(&safe)
 	if err != nil {
