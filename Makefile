@@ -28,6 +28,12 @@ build:
 	@go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) .
 	@echo "✅ Build completed: $(BUILD_DIR)/$(BINARY_NAME)"
 
+build_mcp:
+	@echo "🏗️  Building $(BINARY_NAME)..."
+	@mkdir -p $(BUILD_DIR)
+	@go build $(LDFLAGS) -tags mcp_sdk -o $(BUILD_DIR)/$(BINARY_NAME)-mcp .
+	@echo "✅ Build completed: $(BUILD_DIR)/$(BINARY_NAME)"
+
 # Install dependencies
 deps:
 	@echo "📦 Installing dependencies..."
