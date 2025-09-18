@@ -90,6 +90,20 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		Name:        "view.team-users",
 		Title:       "View Team Users",
 		Description: "List users in a specific team from local database.",
+		InputSchema: &jsonschema.Schema{
+			Type: "object",
+			Properties: map[string]*jsonschema.Schema{
+				"team": {
+					Type:        "string",
+					Title:       "Team Slug",
+					Description: "team slug (lowercase alnum + hyphen)",
+					MinLength:   func() *int { i := 1; return &i }(),
+					MaxLength:   func() *int { i := 100; return &i }(),
+					Pattern:     "^[a-z0-9]([a-z0-9-]{0,98}[a-z0-9])$",
+				},
+			},
+			Required: []string{"team"},
+		},
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in ViewTeamUsersIn) (*sdk.CallToolResult, ViewTeamUsersOut, error) {
 		if in.Team == "" {
 			return &sdk.CallToolResult{}, ViewTeamUsersOut{}, fmt.Errorf("team is required")
@@ -219,21 +233,21 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 }
 
 type HealthOut struct {
-	Status string `json:"status"`
-	Time   string `json:"time"`
+	Status string `json:"status" jsonschema:"health status (ok)"`
+	Time   string `json:"time" jsonschema:"server time in RFC3339"`
 }
 
 type ViewUsersOut struct {
-	Users []User `json:"users"`
+	Users []User `json:"users" jsonschema:"list of organization users"`
 }
 
 type User struct {
-	ID       int64  `json:"id"`
-	Login    string `json:"login"`
-	Name     string `json:"name,omitempty"`
-	Email    string `json:"email,omitempty"`
-	Company  string `json:"company,omitempty"`
-	Location string `json:"location,omitempty"`
+	ID       int64  `json:"id" jsonschema:"GitHub user ID"`
+	Login    string `json:"login" jsonschema:"GitHub login"`
+	Name     string `json:"name,omitempty" jsonschema:"display name"`
+	Email    string `json:"email,omitempty" jsonschema:"email address (may be empty)"`
+	Company  string `json:"company,omitempty" jsonschema:"company (may be empty)"`
+	Location string `json:"location,omitempty" jsonschema:"location (may be empty)"`
 }
 
 func listUsers() ([]User, error) {
@@ -269,11 +283,11 @@ func listUsers() ([]User, error) {
 }
 
 type Team struct {
-	ID          int64  `json:"id"`
-	Slug        string `json:"slug"`
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Privacy     string `json:"privacy,omitempty"`
+	ID          int64  `json:"id" jsonschema:"team ID"`
+	Slug        string `json:"slug" jsonschema:"team slug (lowercase alnum + hyphen)"`
+	Name        string `json:"name" jsonschema:"team name"`
+	Description string `json:"description,omitempty" jsonschema:"team description"`
+	Privacy     string `json:"privacy,omitempty" jsonschema:"team privacy (e.g., closed)"`
 }
 
 type ViewTeamsOut struct {
@@ -304,13 +318,13 @@ func listTeams() ([]Team, error) {
 }
 
 type Repo struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	FullName    string `json:"full_name"`
-	Description string `json:"description,omitempty"`
-	Private     bool   `json:"private"`
-	Language    string `json:"language,omitempty"`
-	Stars       int    `json:"stargazers_count"`
+	ID          int64  `json:"id" jsonschema:"repository ID"`
+	Name        string `json:"name" jsonschema:"repository name"`
+	FullName    string `json:"full_name" jsonschema:"full name (org/name)"`
+	Description string `json:"description,omitempty" jsonschema:"repository description"`
+	Private     bool   `json:"private" jsonschema:"is private"`
+	Language    string `json:"language,omitempty" jsonschema:"primary language"`
+	Stars       int    `json:"stargazers_count" jsonschema:"stars count"`
 }
 
 type ViewReposOut struct {
@@ -343,13 +357,13 @@ func listRepositories() ([]Repo, error) {
 }
 
 type TeamUser struct {
-	UserID int64  `json:"user_id"`
-	Login  string `json:"login"`
-	Role   string `json:"role"`
+	UserID int64  `json:"user_id" jsonschema:"user ID"`
+	Login  string `json:"login" jsonschema:"user login"`
+	Role   string `json:"role" jsonschema:"team role (e.g., member)"`
 }
 
 type ViewTeamUsersIn struct {
-	Team string `json:"team"`
+	Team string `json:"team" jsonschema:"team slug (lowercase alnum + hyphen)"`
 }
 
 type ViewTeamUsersOut struct {
@@ -381,7 +395,7 @@ func listTeamUsers(teamSlug string) ([]TeamUser, error) {
 }
 
 type ViewOutsideUsersOut struct {
-	Users []User `json:"users"`
+	Users []User `json:"users" jsonschema:"list of outside collaborators"`
 }
 
 func listOutsideUsers() ([]User, error) {
@@ -410,15 +424,15 @@ func listOutsideUsers() ([]User, error) {
 }
 
 type ViewTokenPermissionOut struct {
-	OAuthScopes               string `json:"oauth_scopes"`
-	AcceptedOAuthScopes       string `json:"accepted_oauth_scopes"`
-	AcceptedGitHubPermissions string `json:"accepted_github_permissions"`
-	GitHubMediaType           string `json:"github_media_type"`
-	RateLimit                 int    `json:"rate_limit"`
-	RateRemaining             int    `json:"rate_remaining"`
-	RateReset                 int    `json:"rate_reset"`
-	CreatedAt                 string `json:"created_at"`
-	UpdatedAt                 string `json:"updated_at"`
+	OAuthScopes               string `json:"oauth_scopes" jsonschema:"X-OAuth-Scopes"`
+	AcceptedOAuthScopes       string `json:"accepted_oauth_scopes" jsonschema:"X-Accepted-OAuth-Scopes"`
+	AcceptedGitHubPermissions string `json:"accepted_github_permissions" jsonschema:"X-Accepted-GitHub-Permissions"`
+	GitHubMediaType           string `json:"github_media_type" jsonschema:"X-GitHub-Media-Type"`
+	RateLimit                 int    `json:"rate_limit" jsonschema:"rate limit"`
+	RateRemaining             int    `json:"rate_remaining" jsonschema:"rate remaining"`
+	RateReset                 int    `json:"rate_reset" jsonschema:"rate reset epoch"`
+	CreatedAt                 string `json:"created_at" jsonschema:"record created at"`
+	UpdatedAt                 string `json:"updated_at" jsonschema:"record updated at"`
 }
 
 func getTokenPermission() (ViewTokenPermissionOut, error) {
