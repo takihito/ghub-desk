@@ -6,7 +6,9 @@ require (
 	github.com/alecthomas/kong v1.12.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.16.0
 	github.com/google/go-github/v55 v55.0.0
+	github.com/google/jsonschema-go v0.2.3
 	github.com/mattn/go-sqlite3 v1.14.32
+	github.com/modelcontextprotocol/go-sdk v0.5.0
 	golang.org/x/oauth2 v0.17.0
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.38.2
@@ -24,6 +26,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
+	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	golang.org/x/crypto v0.19.0 // indirect
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
 	golang.org/x/net v0.21.0 // indirect

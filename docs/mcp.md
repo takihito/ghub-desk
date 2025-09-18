@@ -119,6 +119,26 @@ go build -tags mcp_sdk -o build/ghub-desk .
 MCP クライアント（例: MCP Inspector やエージェント）から接続すると、
 `view.*` や（許可されていれば）`pull.*`、`push.*` のツールが使用可能になります。
 
+## 提供ツール（第1弾）
+
+- health
+  - 入力: なし（空オブジェクト）
+  - 出力: `{ "status": "ok", "time": "RFC3339" }`
+- view.users
+  - 入力: なし（空オブジェクト）
+  - 動作: ローカル DB からユーザー一覧を返す（最大 200 件）
+  - 出力例:
+    ```json
+    {
+      "users": [
+        {"id": 1, "login": "alice", "name": "Alice"},
+        {"id": 2, "login": "bob",   "name": "Bob"}
+      ]
+    }
+    ```
+
+注意: DB ファイルはカレントディレクトリの `ghub-desk.db` を使用します。
+
 ### ツール呼び出し例（概念）
 ```json
 {
