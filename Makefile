@@ -107,14 +107,14 @@ setup: deps build
 # Check GoReleaser
 goreleaser_check:
 	@echo "🔍 Checking GoReleaser configuration..."
-	@goreleaser check
+	@goreleaser check --config goreleaser_mcp.yaml
 
 # Local test build using GoReleaser (no release)
 goreleaser_build:
 	@echo "🏗️  Building locally with GoReleaser..."
-	@goreleaser build --snapshot --clean
+	@goreleaser build --snapshot --clean --config goreleaser_mcp.yaml
 
 # Release using GoReleaser
 goreleaser:
 	@echo "🚀 Building release..."
-	@goreleaser release --clean
+	@goreleaser release --clean --config goreleaser_mcp.yaml
