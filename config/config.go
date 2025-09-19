@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -127,6 +128,24 @@ func validateConfig(cfg *Config) error {
 
 	if !patConfigured && !appConfigured {
 		return fmt.Errorf("authentication not configured: please configure either github_token or github_app")
+	}
+
+	// Validate database path from file/env to avoid traversal patterns
+	if cfg.DatabasePath != "" {
+		cleaned := filepath.Clean(cfg.DatabasePath)
+		// reject paths that try to traverse upwards when given as relative
+		if !filepath.IsAbs(cleaned) {
+			// normalize to slash for check
+			s := strings.ReplaceAll(cleaned, "\\", "/")
+			if strings.HasPrefix(s, "../") || strings.Contains(s, "/../") {
+				return fmt.Errorf("invalid database_path: parent directory traversal is not allowed")
+			}
+		}
+		// basic sanity: disallow NUL and empty basename
+		if strings.ContainsRune(cleaned, '\x00') || filepath.Base(cleaned) == "." || filepath.Base(cleaned) == ".." {
+			return fmt.Errorf("invalid database_path: contains invalid characters or basename")
+		}
+		cfg.DatabasePath = cleaned
 	}
 
 	return nil

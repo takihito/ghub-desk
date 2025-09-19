@@ -6,6 +6,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	appcfg "ghub-desk/config"
@@ -21,6 +23,27 @@ const (
 	defaultListLimit   = 200
 	teamUsersListLimit = 500
 )
+
+var (
+	reUser = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$`)
+	reTeam = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)
+)
+
+func validateTeamSlug(s string) error {
+	s = strings.TrimSpace(s)
+	if s == "" || len(s) > 100 || !reTeam.MatchString(s) {
+		return fmt.Errorf("invalid team slug: lowercase alnum and hyphen only, no leading/trailing hyphen, length 1-100")
+	}
+	return nil
+}
+
+func validateUserName(s string) error {
+	s = strings.TrimSpace(s)
+	if !reUser.MatchString(s) {
+		return fmt.Errorf("invalid username: 1-39 chars alnum or hyphen, no leading/trailing hyphen")
+	}
+	return nil
+}
 
 // Serve starts the MCP server using the go-sdk over stdio.
 // Tools provided in phase 1:
@@ -132,6 +155,9 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		if in.Team == "" {
 			return &sdk.CallToolResult{}, ViewTeamUsersOut{}, fmt.Errorf("team is required")
 		}
+		if err := validateTeamSlug(in.Team); err != nil {
+			return &sdk.CallToolResult{}, ViewTeamUsersOut{}, err
+		}
 		users, err := listTeamUsers(in.Team)
 		if err != nil {
 			return &sdk.CallToolResult{}, ViewTeamUsersOut{}, fmt.Errorf("failed to list team users: %w", err)
@@ -217,6 +243,9 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullTeamUsersIn) (*sdk.CallToolResult, PullResult, error) {
 			if in.Team == "" {
 				return &sdk.CallToolResult{}, PullResult{}, fmt.Errorf("team is required")
+			}
+			if err := validateTeamSlug(in.Team); err != nil {
+				return &sdk.CallToolResult{}, PullResult{}, err
 			}
 			if err := doPull(ctx, cfg, "teams-users", in.Store, in.Team); err != nil {
 				return &sdk.CallToolResult{}, PullResult{}, err

@@ -122,6 +122,16 @@ func createTables(db *sql.DB) error {
 		}
 	}
 
+	// indexes
+	indexes := []string{
+		`CREATE INDEX IF NOT EXISTS idx_token_permissions_created_at ON ghub_token_permissions(created_at)`,
+	}
+	for _, idx := range indexes {
+		if _, err := db.Exec(idx); err != nil {
+			return fmt.Errorf("failed to create index: %w", err)
+		}
+	}
+
 	return nil
 }
 
