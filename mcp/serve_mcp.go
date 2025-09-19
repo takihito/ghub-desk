@@ -16,6 +16,12 @@ import (
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+const (
+	// defaultListLimit is the common LIMIT used for list views.
+	defaultListLimit   = 200
+	teamUsersListLimit = 500
+)
+
 // Serve starts the MCP server using the go-sdk over stdio.
 // Tools provided in phase 1:
 // - health: simple readiness check
@@ -38,9 +44,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		Title:       "Health Check",
 		Description: "Returns server health status.",
 		InputSchema: &jsonschema.Schema{Type: "object"},
-	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, HealthOut, error) {
-		_ = ctx
-		_ = req
+	}, func(_ context.Context, _ *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, HealthOut, error) {
 		return nil, HealthOut{Status: "ok", Time: time.Now().UTC().Format(time.RFC3339)}, nil
 	})
 
@@ -50,9 +54,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		Title:       "View Users",
 		Description: "List users from local database.",
 		InputSchema: &jsonschema.Schema{Type: "object"},
-	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewUsersOut, error) {
-		_ = ctx
-		_ = req
+	}, func(_ context.Context, _ *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewUsersOut, error) {
 		users, err := listUsers()
 		if err != nil {
 			// return as tool error (not protocol error)
@@ -260,7 +262,7 @@ func listUsers() ([]User, error) {
 		return nil, err
 	}
 	defer db.Close()
-	rows, err := db.Query(`SELECT id, login, name, email, company, location FROM ghub_users ORDER BY login LIMIT 200`)
+	rows, err := db.Query(fmt.Sprintf(`SELECT id, login, name, email, company, location FROM ghub_users ORDER BY login LIMIT %d`, defaultListLimit))
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +306,7 @@ func listTeams() ([]Team, error) {
 		return nil, err
 	}
 	defer db.Close()
-	rows, err := db.Query(`SELECT id, slug, name, description, privacy FROM ghub_teams ORDER BY slug LIMIT 200`)
+	rows, err := db.Query(fmt.Sprintf(`SELECT id, slug, name, description, privacy FROM ghub_teams ORDER BY slug LIMIT %d`, defaultListLimit))
 	if err != nil {
 		return nil, err
 	}
@@ -341,7 +343,7 @@ func listRepositories() ([]Repo, error) {
 		return nil, err
 	}
 	defer db.Close()
-	rows, err := db.Query(`SELECT id, name, full_name, description, private, language, stargazers_count FROM ghub_repositories ORDER BY name LIMIT 200`)
+	rows, err := db.Query(fmt.Sprintf(`SELECT id, name, full_name, description, private, language, stargazers_count FROM ghub_repositories ORDER BY name LIMIT %d`, defaultListLimit))
 	if err != nil {
 		return nil, err
 	}
@@ -381,7 +383,7 @@ func listTeamUsers(teamSlug string) ([]TeamUser, error) {
 		return nil, err
 	}
 	defer db.Close()
-	rows, err := db.Query(`SELECT user_id, user_login, role FROM ghub_team_users WHERE team_slug = ? ORDER BY user_login LIMIT 500`, teamSlug)
+	rows, err := db.Query(fmt.Sprintf(`SELECT user_id, user_login, role FROM ghub_team_users WHERE team_slug = ? ORDER BY user_login LIMIT %d`, teamUsersListLimit), teamSlug)
 	if err != nil {
 		return nil, err
 	}
@@ -408,7 +410,7 @@ func listOutsideUsers() ([]User, error) {
 		return nil, err
 	}
 	defer db.Close()
-	rows, err := db.Query(`SELECT id, login, name, email, company, location FROM ghub_outside_users ORDER BY login LIMIT 200`)
+	rows, err := db.Query(fmt.Sprintf(`SELECT id, login, name, email, company, location FROM ghub_outside_users ORDER BY login LIMIT %d`, defaultListLimit))
 	if err != nil {
 		return nil, err
 	}
