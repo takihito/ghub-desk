@@ -1,10 +1,11 @@
 APP=ghub-desk
 
 
-.PHONY: build clean install test run-help deps examples dev setup version
+.PHONY: build build_mcp dev_mcp clean install test run-help deps examples dev setup version
 
 # Variables
 BINARY_NAME=ghub-desk
+BINARY_NAME_MCP=ghub-desk-mcp
 BUILD_DIR=./build
 GO_FILES=$(shell find . -name "*.go")
 
@@ -28,11 +29,12 @@ build:
 	@go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) .
 	@echo "✅ Build completed: $(BUILD_DIR)/$(BINARY_NAME)"
 
+# Build the MCP-enabled binary (uses go-sdk via build tag)
 build_mcp:
-	@echo "🏗️  Building $(BINARY_NAME)..."
+	@echo "🏗️  Building $(BINARY_NAME_MCP) with MCP (go-sdk)..."
 	@mkdir -p $(BUILD_DIR)
-	@go build $(LDFLAGS) -tags mcp_sdk -o $(BUILD_DIR)/$(BINARY_NAME)-mcp .
-	@echo "✅ Build completed: $(BUILD_DIR)/$(BINARY_NAME)"
+	@go build -tags mcp_sdk $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME_MCP) .
+	@echo "✅ MCP Build completed: $(BUILD_DIR)/$(BINARY_NAME_MCP)"
 
 # Install dependencies
 deps:
@@ -94,6 +96,11 @@ examples: build
 dev: build
 	@echo "🛠️  Development mode - building and running..."
 	@$(BUILD_DIR)/$(BINARY_NAME) $(ARGS)
+
+# Development mode for MCP (go-sdk version)
+dev_mcp: build_mcp
+	@echo "🛠️  Development mode (MCP) - building and running..."
+	@$(BUILD_DIR)/$(BINARY_NAME_MCP) $(ARGS)
 
 # Quick setup for development
 setup: deps build
