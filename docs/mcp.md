@@ -112,6 +112,11 @@ ghub-desk mcp
 
 ### サーバー起動（go-sdk: 本実装）
 ```bash
+# 簡単: Makefile のターゲットを利用
+make build_mcp
+./build/ghub-desk mcp --debug
+
+# 直接 go build の場合
 go build -tags mcp_sdk -o build/ghub-desk .
 ./build/ghub-desk mcp --debug
 ```
