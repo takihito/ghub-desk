@@ -77,4 +77,5 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
+      - "^work-logs:"
 
