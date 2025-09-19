@@ -280,7 +280,7 @@ func listUsers() ([]User, error) {
 		return nil, err
 	}
 	defer db.Close()
-	rows, err := db.Query(fmt.Sprintf(`SELECT id, login, name, email, company, location FROM ghub_users ORDER BY login LIMIT %d`, defaultListLimit))
+	rows, err := db.Query(`SELECT id, login, name, email, company, location FROM ghub_users ORDER BY login LIMIT ?`, defaultListLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -324,7 +324,7 @@ func listTeams() ([]Team, error) {
 		return nil, err
 	}
 	defer db.Close()
-	rows, err := db.Query(fmt.Sprintf(`SELECT id, slug, name, description, privacy FROM ghub_teams ORDER BY slug LIMIT %d`, defaultListLimit))
+	rows, err := db.Query(`SELECT id, slug, name, description, privacy FROM ghub_teams ORDER BY slug LIMIT ?`, defaultListLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -361,7 +361,7 @@ func listRepositories() ([]Repo, error) {
 		return nil, err
 	}
 	defer db.Close()
-	rows, err := db.Query(fmt.Sprintf(`SELECT id, name, full_name, description, private, language, stargazers_count FROM ghub_repositories ORDER BY name LIMIT %d`, defaultListLimit))
+	rows, err := db.Query(`SELECT id, name, full_name, description, private, language, stargazers_count FROM ghub_repositories ORDER BY name LIMIT ?`, defaultListLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -401,7 +401,7 @@ func listTeamUsers(teamSlug string) ([]TeamUser, error) {
 		return nil, err
 	}
 	defer db.Close()
-	rows, err := db.Query(fmt.Sprintf(`SELECT user_id, user_login, role FROM ghub_team_users WHERE team_slug = ? ORDER BY user_login LIMIT %d`, teamUsersListLimit), teamSlug)
+	rows, err := db.Query(`SELECT user_id, user_login, role FROM ghub_team_users WHERE team_slug = ? ORDER BY user_login LIMIT ?`, teamSlug, teamUsersListLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -428,7 +428,7 @@ func listOutsideUsers() ([]User, error) {
 		return nil, err
 	}
 	defer db.Close()
-	rows, err := db.Query(fmt.Sprintf(`SELECT id, login, name, email, company, location FROM ghub_outside_users ORDER BY login LIMIT %d`, defaultListLimit))
+	rows, err := db.Query(`SELECT id, login, name, email, company, location FROM ghub_outside_users ORDER BY login LIMIT ?`, defaultListLimit)
 	if err != nil {
 		return nil, err
 	}
