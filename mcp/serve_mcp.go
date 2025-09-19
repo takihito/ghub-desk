@@ -22,14 +22,13 @@ const (
 	// defaultListLimit is the common LIMIT used for list views.
 	defaultListLimit   = 200
 	teamUsersListLimit = 500
+	teamSlugPattern    = "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
 )
 
 var (
 	reUser = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$`)
-	reTeam = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)
+	reTeam = regexp.MustCompile(teamSlugPattern)
 )
-
-const teamSlugPattern = "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
 
 func intPtr(i int) *int { return &i }
 
