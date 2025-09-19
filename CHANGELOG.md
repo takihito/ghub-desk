@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.1.4](https://github.com/takihito/ghub-desk/compare/v0.1.3...v0.1.4) - 2025-09-19
+- MCPサーバ対応 by @takihito in https://github.com/takihito/ghub-desk/pull/34
+
 ## [v0.1.3](https://github.com/takihito/ghub-desk/compare/v0.1.2...v0.1.3) - 2025-09-17
 - ユーザ名チーム名のValidation追加 by @takihito in https://github.com/takihito/ghub-desk/pull/29
 - feat(cmd,push): direct user removal and strict input validation by @takihito in https://github.com/takihito/ghub-desk/pull/31
