@@ -133,19 +133,29 @@ func validateConfig(cfg *Config) error {
 	// Validate database path from file/env to avoid traversal patterns
 	if cfg.DatabasePath != "" {
 		cleaned := filepath.Clean(cfg.DatabasePath)
-		// reject paths that try to traverse upwards when given as relative
-		if !filepath.IsAbs(cleaned) {
-			// normalize to slash for check
-			s := strings.ReplaceAll(cleaned, "\\", "/")
-			if strings.HasPrefix(s, "../") || strings.Contains(s, "/../") {
-				return fmt.Errorf("invalid database_path: parent directory traversal is not allowed")
-			}
-		}
-		// basic sanity: disallow NUL and empty basename
+		// basic sanity: disallow NUL and invalid basenames
 		if strings.ContainsRune(cleaned, '\x00') || filepath.Base(cleaned) == "." || filepath.Base(cleaned) == ".." {
 			return fmt.Errorf("invalid database_path: contains invalid characters or basename")
 		}
-		cfg.DatabasePath = cleaned
+
+		if filepath.IsAbs(cleaned) {
+			cfg.DatabasePath = cleaned
+		} else {
+			// For relative paths, ensure it stays within the current working directory.
+			wd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("could not get working directory: %w", err)
+			}
+			abs := filepath.Clean(filepath.Join(wd, cleaned))
+			rel, err := filepath.Rel(wd, abs)
+			if err != nil {
+				return fmt.Errorf("invalid database_path: %w", err)
+			}
+			if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+				return fmt.Errorf("invalid database_path: must reside within current working directory")
+			}
+			cfg.DatabasePath = abs
+		}
 	}
 
 	return nil

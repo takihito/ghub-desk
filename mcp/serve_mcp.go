@@ -29,6 +29,10 @@ var (
 	reTeam = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)
 )
 
+const teamSlugPattern = "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
+
+func intPtr(i int) *int { return &i }
+
 func validateTeamSlug(s string) error {
 	s = strings.TrimSpace(s)
 	if s == "" || len(s) > 100 || !reTeam.MatchString(s) {
@@ -144,9 +148,9 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 					Type:        "string",
 					Title:       "Team Slug",
 					Description: "team slug (lowercase alnum + hyphen)",
-					MinLength:   func() *int { i := 1; return &i }(),
-					MaxLength:   func() *int { i := 100; return &i }(),
-					Pattern:     "^[a-z0-9]([a-z0-9-]{0,98}[a-z0-9])$",
+					MinLength:   intPtr(1),
+					MaxLength:   intPtr(100),
+					Pattern:     teamSlugPattern,
 				},
 			},
 			Required: []string{"team"},
