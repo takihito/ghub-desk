@@ -12,10 +12,7 @@
 ## 設計概要
 - 新コマンド: `ghub-desk mcp`（サブコマンド `serve` は付けずに `mcp` 単独でサーバー起動を想定）
 - 新パッケージ: `mcp/`（サーバー起動ロジックとツール登録）
-  - `server.go`: go-sdk で MCP サーバーを初期化
-  - `tools_pull.go`: pull 系ツール（users, teams, repositories, team-users, outside-users, token-permission）
-  - `tools_view.go`: view 系ツール（同上、ローカルDB参照）
-  - `tools_push.go`: push 系ツール（remove/add）
+  - 実装は `serve_mcp.go` に集約（go-sdk による MCP サーバー初期化とツール登録を同一ファイルで管理）
   - 既存の `github/`, `store/`, `config/` を呼び出すラッパー
 - 権限制御（config.yaml; 後述）
   - `mcp.allow_pull`: GitHub API からの取得（および DB への保存を含む）を許可
@@ -141,6 +138,10 @@ MCP クライアント（例: MCP Inspector やエージェント）から接続
       ]
     }
     ```
+
+- view.detail-users
+  - 入力: なし（空オブジェクト）
+  - 動作: 現状は `view.users` と同一のレスポンス（将来的に項目拡張予定）
 
 注意: DB ファイルはカレントディレクトリの `ghub-desk.db` を使用します。
 

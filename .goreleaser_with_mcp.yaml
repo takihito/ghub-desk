@@ -2,7 +2,7 @@ version: 2
 
 # このファイルは MCP 対応版の配布レイアウト例です。
 # 既存の .goreleaser.yaml を置き換えずに、二系統（通常版/タグ付きMCP版）を並行配布する想定。
-# 使い方（スナップショット）: goreleaser build --snapshot --clean -f .goreleaser_mcp.yaml.example
+# 使い方（スナップショット）: goreleaser build --snapshot --clean -f .goreleaser_with_mcp.yaml
 
 project_name: ghub-desk
 

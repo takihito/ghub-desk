@@ -31,6 +31,10 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 	if cfg != nil && cfg.DatabasePath != "" {
 		store.SetDBPath(cfg.DatabasePath)
 	}
+	// Ensure configuration is provided before accessing permissions or auth
+	if cfg == nil {
+		return fmt.Errorf("configuration is required to start MCP server")
+	}
 	impl := &sdk.Implementation{
 		Name:    "ghub-desk",
 		Title:   "ghub-desk MCP",
@@ -58,6 +62,20 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		users, err := listUsers()
 		if err != nil {
 			// return as tool error (not protocol error)
+			return &sdk.CallToolResult{}, ViewUsersOut{}, fmt.Errorf("failed to list users: %w", err)
+		}
+		return nil, ViewUsersOut{Users: users}, nil
+	})
+
+	// view.detail-users tool (same output shape as view.users for now)
+	sdk.AddTool[struct{}, ViewUsersOut](srv, &sdk.Tool{
+		Name:        "view.detail-users",
+		Title:       "View Detail Users",
+		Description: "List users with details from local database.",
+		InputSchema: &jsonschema.Schema{Type: "object"},
+	}, func(_ context.Context, _ *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewUsersOut, error) {
+		users, err := listUsers()
+		if err != nil {
 			return &sdk.CallToolResult{}, ViewUsersOut{}, fmt.Errorf("failed to list users: %w", err)
 		}
 		return nil, ViewUsersOut{Users: users}, nil
