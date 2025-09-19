@@ -31,3 +31,18 @@ github_app:
   # -----BEGIN... から -----END... の行まで含める必要があります。
   private_key: |
     ${GHUB_DESK_PRIVATE_KEY}
+
+# --- MCP サーバー設定（任意） ---
+# MCP クライアントからの操作を許可する範囲を制御します。
+# 省略時は安全側で無効化されます（両方 false 相当）。
+mcp:
+  # GitHub API からの pull（取得）およびローカルDBへの保存（--store 相当）を許可するか
+  allow_pull: false
+
+  # GitHub への変更操作（push add/remove）を許可するか
+  allow_write: false
+
+# --- ストア設定（任意） ---
+# SQLite DB のファイルパス（既定: カレントの ghub-desk.db）。
+# 相対/絶対パスどちらも指定可能。環境変数 GHUB_DESK_DB_PATH でも上書きできます。
+database_path: ""

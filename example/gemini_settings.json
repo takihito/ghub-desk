@@ -1,0 +1,28 @@
+{
+  "extensions": {
+    "disabled": [],
+    "workspacesWithMigrationNudge": [
+      "/home/user/work_space/"
+    ]
+  },
+  "selectedAuthType": "oauth-personal",
+  "mcpServers": {
+    "ghub-desk": {
+      "command": "/usr/local/bin/ghub-desk",
+      "args": [
+        "mcp",
+        "--debug",
+        "--config",
+        "/home/user/.config/ghub-desk/config.yaml"
+      ],
+      "env": {
+        "GHUB_DESK_ORGANIZATION": "your-org"
+      },
+      "transport": "stdio",
+      "retry": {
+        "maxRestarts": 5,
+        "windowSeconds": 60
+      }
+    }
+  }
+}

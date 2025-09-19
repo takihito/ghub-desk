@@ -1,10 +1,11 @@
 APP=ghub-desk
 
 
-.PHONY: build clean install test run-help deps examples dev setup version
+.PHONY: build build_mcp dev_mcp clean install test run-help deps examples dev setup version
 
 # Variables
 BINARY_NAME=ghub-desk
+BINARY_NAME_MCP=ghub-desk-mcp
 BUILD_DIR=./build
 GO_FILES=$(shell find . -name "*.go")
 
@@ -27,6 +28,13 @@ build:
 	@mkdir -p $(BUILD_DIR)
 	@go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) .
 	@echo "✅ Build completed: $(BUILD_DIR)/$(BINARY_NAME)"
+
+# Build the MCP-enabled binary (uses go-sdk via build tag)
+build_mcp:
+	@echo "🏗️  Building $(BINARY_NAME_MCP) with MCP (go-sdk)..."
+	@mkdir -p $(BUILD_DIR)
+	@go build -tags mcp_sdk $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME_MCP) .
+	@echo "✅ MCP Build completed: $(BUILD_DIR)/$(BINARY_NAME_MCP)"
 
 # Install dependencies
 deps:
@@ -89,6 +97,11 @@ dev: build
 	@echo "🛠️  Development mode - building and running..."
 	@$(BUILD_DIR)/$(BINARY_NAME) $(ARGS)
 
+# Development mode for MCP (go-sdk version)
+dev_mcp: build_mcp
+	@echo "🛠️  Development mode (MCP) - building and running..."
+	@$(BUILD_DIR)/$(BINARY_NAME_MCP) $(ARGS)
+
 # Quick setup for development
 setup: deps build
 	@echo "🎯 Quick setup completed!"
@@ -101,14 +114,14 @@ setup: deps build
 # Check GoReleaser
 goreleaser_check:
 	@echo "🔍 Checking GoReleaser configuration..."
-	@goreleaser check
+	@goreleaser check --config .goreleaser_with_mcp.yaml
 
 # Local test build using GoReleaser (no release)
 goreleaser_build:
 	@echo "🏗️  Building locally with GoReleaser..."
-	@goreleaser build --snapshot --clean
+	@goreleaser build --snapshot --clean --config .goreleaser_with_mcp.yaml
 
 # Release using GoReleaser
 goreleaser:
 	@echo "🚀 Building release..."
-	@goreleaser release --clean
+	@goreleaser release --clean --config .goreleaser_with_mcp.yaml

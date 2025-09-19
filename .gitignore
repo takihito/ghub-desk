@@ -30,6 +30,7 @@ Thumbs.db
 *.test
 *.out
 go.work
+.gocache
 
 # Dependency directories
 vendor/
