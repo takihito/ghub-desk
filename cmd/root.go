@@ -221,9 +221,11 @@ func (p *PullCmd) Run(cli *CLI) error {
 	// Handle different target types with appropriate data fetching
 	finalTarget := target
 	if target == "teams-users" {
+		if err := validateTeamName(p.TeamsUsers); err != nil {
+			return err
+		}
 		finalTarget = p.TeamsUsers + "/users"
 	}
-
 	return github.HandlePullTarget(ctx, client, db, cfg.Organization, finalTarget, cfg.GitHubToken, p.Store, p.IntervalTime)
 }
 
@@ -257,6 +259,9 @@ func (v *ViewCmd) Run(cli *CLI) error {
 	// Handle different target types
 	finalTarget := target
 	if target == "teams-users" {
+		if err := validateTeamName(v.TeamsUsers); err != nil {
+			return err
+		}
 		finalTarget = v.TeamsUsers + "/users"
 	}
 
