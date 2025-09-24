@@ -36,7 +36,7 @@ var (
 func ValidateUserName(s string) error {
 	s = strings.TrimSpace(s)
 	if len(s) < UserNameMin || len(s) > UserNameMax || !reUser.MatchString(s) {
-		return fmt.Errorf("%w: 1-39 chars alnum or hyphen, no leading/trailing hyphen", ErrInvalidUserName)
+		return fmt.Errorf("%w: %d-%d chars alnum or hyphen, no leading/trailing hyphen", ErrInvalidUserName, TeamSlugMin, TeamSlugMax)
 	}
 	return nil
 }
@@ -46,7 +46,7 @@ func ValidateUserName(s string) error {
 func ValidateTeamSlug(s string) error {
 	s = strings.TrimSpace(s)
 	if len(s) < TeamSlugMin || len(s) > TeamSlugMax || !reTeam.MatchString(s) {
-		return fmt.Errorf("%w: lowercase alnum and hyphen only, no leading/trailing hyphen, length 1-100", ErrInvalidTeamSlug)
+		return fmt.Errorf("%w: lowercase alnum and hyphen only, no leading/trailing hyphen, length %d-%d", ErrInvalidTeamSlug, TeamSlugMin, TeamSlugMax)
 	}
 	return nil
 }
@@ -60,10 +60,10 @@ func ParseTeamUserPair(s string) (team string, user string, err error) {
 	team = strings.TrimSpace(parts[0])
 	user = strings.TrimSpace(parts[1])
 	if err := ValidateTeamSlug(team); err != nil {
-		return "", "", fmt.Errorf("%w: team slug invalid: %v", ErrInvalidPair, err)
+		return "", "", fmt.Errorf("%w: team slug invalid: %w", ErrInvalidPair, err)
 	}
 	if err := ValidateUserName(user); err != nil {
-		return "", "", fmt.Errorf("%w: user name invalid: %v", ErrInvalidPair, err)
+		return "", "", fmt.Errorf("%w: user name invalid: %w", ErrInvalidPair, err)
 	}
 	return team, user, nil
 }

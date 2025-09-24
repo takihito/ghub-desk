@@ -260,7 +260,7 @@ func (v *ViewCmd) Run(cli *CLI) error {
 	finalTarget := target
 	if target == "teams-users" {
 		if err := validateTeamName(v.TeamsUsers); err != nil {
-			return fmt.Errorf("%w", err)
+			return err
 		}
 		finalTarget = v.TeamsUsers + "/users"
 	}
