@@ -36,7 +36,7 @@ var (
 func ValidateUserName(s string) error {
 	s = strings.TrimSpace(s)
 	if len(s) < UserNameMin || len(s) > UserNameMax || !reUser.MatchString(s) {
-		return fmt.Errorf("%w: %d-%d chars alnum or hyphen, no leading/trailing hyphen", ErrInvalidUserName, TeamSlugMin, TeamSlugMax)
+		return fmt.Errorf("%w: %d-%d chars alnum or hyphen, no leading/trailing hyphen", ErrInvalidUserName, UserNameMin, UserNameMax)
 	}
 	return nil
 }
