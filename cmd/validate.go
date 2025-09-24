@@ -9,14 +9,14 @@ import (
 
 func validateUserName(s string) error {
 	if err := v.ValidateUserName(s); err != nil {
-		return fmt.Errorf("ユーザー名が不正です: 1〜39文字の英数字とハイフンのみ、先頭・末尾のハイフン不可 (%v)", err)
+		return fmt.Errorf("ユーザー名が不正です: (%w)", err)
 	}
 	return nil
 }
 
 func validateTeamName(s string) error { // team slug
 	if err := v.ValidateTeamSlug(s); err != nil {
-		return fmt.Errorf("チーム名(スラグ)が不正です: 小文字英数字とハイフンのみ、先頭・末尾のハイフン不可、長さは1〜100文字 (%v)", err)
+		return fmt.Errorf("チーム名(スラグ)が不正です: (%w)", err)
 	}
 	return nil
 }

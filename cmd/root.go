@@ -222,7 +222,7 @@ func (p *PullCmd) Run(cli *CLI) error {
 	finalTarget := target
 	if target == "teams-users" {
 		if err := validateTeamName(p.TeamsUsers); err != nil {
-			return fmt.Errorf("%w", err)
+			return err
 		}
 		finalTarget = p.TeamsUsers + "/users"
 	}
