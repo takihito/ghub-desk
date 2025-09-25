@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.1.5](https://github.com/takihito/ghub-desk/compare/v0.1.4...v0.1.5) - 2025-09-24
+- refactor(validate): unify user/team validation and reuse in cmd/mcp by @takihito in https://github.com/takihito/ghub-desk/pull/36
+
 ## [v0.1.4](https://github.com/takihito/ghub-desk/compare/v0.1.3...v0.1.4) - 2025-09-19
 - MCPサーバ対応 by @takihito in https://github.com/takihito/ghub-desk/pull/34
 
