@@ -38,24 +38,24 @@ func TestHandleViewTarget(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		target      string
+		req         TargetRequest
 		expectError bool
 	}{
-		{"users target", "users", false},
-		{"detail-users target", "detail-users", false},
-		{"teams target", "teams", false},
-		{"repos target", "repos", false},
-		{"repositories target", "repositories", false},
-		{"token-permission target", "token-permission", false},
-		{"outside-users target", "outside-users", false},
-		{"team users target (slug)", "test-team", false},
-		{"team users target (legacy suffix)", "test-team/users", false},
-		{"unknown target", "invalid target", true},
+		{"users target", TargetRequest{Kind: "users"}, false},
+		{"detail-users target", TargetRequest{Kind: "detail-users"}, false},
+		{"teams target", TargetRequest{Kind: "teams"}, false},
+		{"repos target", TargetRequest{Kind: "repos"}, false},
+		{"repositories target", TargetRequest{Kind: "repositories"}, false},
+		{"token-permission target", TargetRequest{Kind: "token-permission"}, false},
+		{"outside-users target", TargetRequest{Kind: "outside-users"}, false},
+		{"team users target (slug)", TargetRequest{Kind: "teams-users", TeamSlug: "test-team"}, false},
+		{"team users target (legacy suffix)", TargetRequest{Kind: "test-team/users"}, false},
+		{"unknown target", TargetRequest{Kind: "invalid target"}, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := HandleViewTarget(db, tt.target)
+			err := HandleViewTarget(db, tt.req)
 			if (err != nil) != tt.expectError {
 				t.Errorf("HandleViewTarget() error = %v, expectError %v", err, tt.expectError)
 			}

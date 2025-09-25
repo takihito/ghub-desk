@@ -518,9 +518,9 @@ func doPull(ctx context.Context, cfg *appcfg.Config, target string, storeData bo
 		}
 		defer db.Close()
 	}
-	finalTarget := target
+	req := gh.TargetRequest{Kind: target}
 	if target == "teams-users" && teamSlug != "" {
-		finalTarget = teamSlug
+		req.TeamSlug = teamSlug
 	}
-	return gh.HandlePullTarget(ctx, client, db, cfg.Organization, finalTarget, cfg.GitHubToken, storeData, gh.DefaultSleep)
+	return gh.HandlePullTarget(ctx, client, db, cfg.Organization, req, cfg.GitHubToken, storeData, gh.DefaultSleep)
 }

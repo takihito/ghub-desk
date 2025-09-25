@@ -63,7 +63,7 @@ type CommonTargetOptions struct {
 	DetailUsers     bool   `name:"detail-users" help:"Target: detail-users"`
 	Teams           bool   `help:"Target: teams"`
 	Repos           bool   `help:"Target: repos"`
-	TeamsUsers      string `name:"teams-users" help:"Target: team-users (provide team slug: 1–100 chars, lowercase alnum + hyphen)"`
+	TeamsUsers      string `name:"teams-users" help:"Target: teams-users (provide team slug: 1–100 chars, lowercase alnum + hyphen)"`
 	TokenPermission bool   `name:"token-permission" help:"Target: token-permission"`
 	OutsideUsers    bool   `name:"outside-users" help:"Target: outside-users"`
 }
@@ -218,15 +218,14 @@ func (p *PullCmd) Run(cli *CLI) error {
 		defer db.Close()
 	}
 
-	// Handle different target types with appropriate data fetching
-	finalTarget := target
+	req := github.TargetRequest{Kind: target}
 	if target == "teams-users" {
 		if err := validateTeamName(p.TeamsUsers); err != nil {
 			return err
 		}
-		finalTarget = p.TeamsUsers
+		req.TeamSlug = p.TeamsUsers
 	}
-	return github.HandlePullTarget(ctx, client, db, cfg.Organization, finalTarget, cfg.GitHubToken, p.Store, p.IntervalTime)
+	return github.HandlePullTarget(ctx, client, db, cfg.Organization, req, cfg.GitHubToken, p.Store, p.IntervalTime)
 }
 
 // Run implements the view command execution
@@ -256,16 +255,15 @@ func (v *ViewCmd) Run(cli *CLI) error {
 	}
 	defer db.Close()
 
-	// Handle different target types
-	finalTarget := target
+	req := store.TargetRequest{Kind: target}
 	if target == "teams-users" {
 		if err := validateTeamName(v.TeamsUsers); err != nil {
 			return err
 		}
-		finalTarget = v.TeamsUsers
+		req.TeamSlug = v.TeamsUsers
 	}
 
-	return store.HandleViewTarget(db, finalTarget)
+	return store.HandleViewTarget(db, req)
 }
 
 // Run implements the remove subcommand execution

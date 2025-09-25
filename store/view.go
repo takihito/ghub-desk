@@ -8,9 +8,15 @@ import (
 	"ghub-desk/validate"
 )
 
+// TargetRequest represents the requested view target including optional metadata.
+type TargetRequest struct {
+	Kind     string
+	TeamSlug string
+}
+
 // HandleViewTarget processes different types of view targets
-func HandleViewTarget(db *sql.DB, target string) error {
-	switch target {
+func HandleViewTarget(db *sql.DB, req TargetRequest) error {
+	switch req.Kind {
 	case "users", "detail-users":
 		return ViewUsers(db)
 	case "teams":
@@ -21,15 +27,32 @@ func HandleViewTarget(db *sql.DB, target string) error {
 		return ViewTokenPermission(db)
 	case "outside-users":
 		return ViewOutsideUsers(db)
+	case "teams-users":
+		if req.TeamSlug == "" {
+			return fmt.Errorf("team slug must be specified when using teams-users target")
+		}
+		if err := validate.ValidateTeamSlug(req.TeamSlug); err != nil {
+			return fmt.Errorf("invalid team slug: %w", err)
+		}
+		return ViewTeamUsers(db, req.TeamSlug)
 	default:
-		if strings.HasSuffix(target, "/users") {
-			teamSlug := strings.TrimSuffix(target, "/users")
+		if req.TeamSlug != "" {
+			if err := validate.ValidateTeamSlug(req.TeamSlug); err != nil {
+				return fmt.Errorf("invalid team slug: %w", err)
+			}
+			return ViewTeamUsers(db, req.TeamSlug)
+		}
+		if strings.HasSuffix(req.Kind, "/users") {
+			teamSlug := strings.TrimSuffix(req.Kind, "/users")
+			if err := validate.ValidateTeamSlug(teamSlug); err != nil {
+				return fmt.Errorf("invalid team slug: %w", err)
+			}
 			return ViewTeamUsers(db, teamSlug)
 		}
-		if err := validate.ValidateTeamSlug(target); err == nil {
-			return ViewTeamUsers(db, target)
+		if err := validate.ValidateTeamSlug(req.Kind); err == nil {
+			return ViewTeamUsers(db, req.Kind)
 		}
-		return fmt.Errorf("unknown target: %s", target)
+		return fmt.Errorf("unknown target: %s", req.Kind)
 	}
 }
 
