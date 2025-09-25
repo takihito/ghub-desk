@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"ghub-desk/store"
+	"ghub-desk/validate"
 
 	"github.com/google/go-github/v55/github"
 )
@@ -39,6 +40,9 @@ func HandlePullTarget(ctx context.Context, client *github.Client, db *sql.DB, or
 		teamSlug := strings.TrimSuffix(target, "/users")
 		return PullTeamUsers(ctx, client, db, org, teamSlug, storeData, intervalTime)
 	default:
+		if err := validate.ValidateTeamSlug(target); err == nil {
+			return PullTeamUsers(ctx, client, db, org, target, storeData, intervalTime)
+		}
 		return fmt.Errorf("unknown target: %s", target)
 	}
 }

@@ -224,7 +224,7 @@ func (p *PullCmd) Run(cli *CLI) error {
 		if err := validateTeamName(p.TeamsUsers); err != nil {
 			return err
 		}
-		finalTarget = p.TeamsUsers + "/users"
+		finalTarget = p.TeamsUsers
 	}
 	return github.HandlePullTarget(ctx, client, db, cfg.Organization, finalTarget, cfg.GitHubToken, p.Store, p.IntervalTime)
 }
@@ -262,7 +262,7 @@ func (v *ViewCmd) Run(cli *CLI) error {
 		if err := validateTeamName(v.TeamsUsers); err != nil {
 			return err
 		}
-		finalTarget = v.TeamsUsers + "/users"
+		finalTarget = v.TeamsUsers
 	}
 
 	return store.HandleViewTarget(db, finalTarget)

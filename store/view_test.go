@@ -48,8 +48,9 @@ func TestHandleViewTarget(t *testing.T) {
 		{"repositories target", "repositories", false},
 		{"token-permission target", "token-permission", false},
 		{"outside-users target", "outside-users", false},
-		{"team users target", "test-team/users", false},
-		{"unknown target", "unknown", true},
+		{"team users target (slug)", "test-team", false},
+		{"team users target (legacy suffix)", "test-team/users", false},
+		{"unknown target", "invalid target", true},
 	}
 
 	for _, tt := range tests {

@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+
+	"ghub-desk/validate"
 )
 
 // HandleViewTarget processes different types of view targets
@@ -23,6 +25,9 @@ func HandleViewTarget(db *sql.DB, target string) error {
 		if strings.HasSuffix(target, "/users") {
 			teamSlug := strings.TrimSuffix(target, "/users")
 			return ViewTeamUsers(db, teamSlug)
+		}
+		if err := validate.ValidateTeamSlug(target); err == nil {
+			return ViewTeamUsers(db, target)
 		}
 		return fmt.Errorf("unknown target: %s", target)
 	}
