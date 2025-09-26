@@ -192,7 +192,7 @@ func PullTeamUsers(ctx context.Context, client *github.Client, db *sql.DB, org, 
 // PullAllTeamsUsers fetches users for all stored teams
 func PullAllTeamsUsers(ctx context.Context, client *github.Client, db *sql.DB, org string, storeData bool, intervalTime time.Duration) error {
 	// Get all team slugs from the database
-	rows, err := db.Query(`SELECT slug FROM teams`)
+	rows, err := db.Query(`SELECT slug FROM ghub_teams`)
 	if err != nil {
 		return fmt.Errorf("failed to query teams: %w", err)
 	}

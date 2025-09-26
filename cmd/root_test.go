@@ -88,6 +88,39 @@ func TestPullCmdGetTarget(t *testing.T) {
 	}
 }
 
+func TestParseTeamUsersPath(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expected    string
+		expectError bool
+	}{
+		{"valid", "team-slug/users", "team-slug", false},
+		{"missing suffix", "team-slug", "", true},
+		{"wrong suffix", "team/userss", "", true},
+		{"empty slug", "/users", "", true},
+		{"extra part", "team/slug/users", "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual, err := parseTeamUsersPath(tt.input)
+			if tt.expectError {
+				if err == nil {
+					t.Fatalf("expected error for input %q", tt.input)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if actual != tt.expected {
+				t.Fatalf("expected %q, got %q", tt.expected, actual)
+			}
+		})
+	}
+}
+
 // Note: Testing the full Execute() function with Kong is complex due to
 // Kong's parser behavior and process exit handling. The above tests cover
 // the core logic without triggering Kong's parser.

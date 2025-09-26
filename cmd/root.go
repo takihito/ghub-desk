@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -63,7 +64,7 @@ type CommonTargetOptions struct {
 	DetailUsers     bool   `name:"detail-users" help:"Target: detail-users"`
 	Teams           bool   `help:"Target: teams"`
 	Repos           bool   `help:"Target: repos"`
-	TeamsUsers      string `name:"team-user" help:"Target: team-user (provide team slug: 1–100 chars, lowercase alnum + hyphen)"`
+	TeamsUsers      string `name:"team-user" aliases:"teams-users" help:"Target: team-user (provide team slug: 1–100 chars, lowercase alnum + hyphen)"`
 	TokenPermission bool   `name:"token-permission" help:"Target: token-permission"`
 	OutsideUsers    bool   `name:"outside-users" help:"Target: outside-users"`
 }
@@ -126,7 +127,8 @@ type PullCmd struct {
 // ViewCmd represents the view command structure
 type ViewCmd struct {
 	CommonTargetOptions `embed:""`
-	Settings            bool `name:"settings" help:"Show application settings (masked)"`
+	Settings            bool   `name:"settings" help:"Show application settings (masked)"`
+	TargetPath          string `arg:"" optional:"" help:"Target path (e.g. team-slug/users)."`
 }
 
 // PushCmd represents the push command structure
@@ -230,6 +232,17 @@ func (p *PullCmd) Run(cli *CLI) error {
 
 // Run implements the view command execution
 func (v *ViewCmd) Run(cli *CLI) error {
+	if v.TargetPath != "" {
+		slug, err := parseTeamUsersPath(v.TargetPath)
+		if err != nil {
+			return err
+		}
+		if v.TeamsUsers != "" && v.TeamsUsers != slug {
+			return fmt.Errorf("フラグと引数で指定されたチームが一致しません")
+		}
+		v.TeamsUsers = slug
+	}
+
 	// Determine target from flags
 	target, err := v.CommonTargetOptions.GetTarget(TargetFlag{Enabled: v.Settings, Name: "settings"})
 	if err != nil {
@@ -264,6 +277,25 @@ func (v *ViewCmd) Run(cli *CLI) error {
 	}
 
 	return store.HandleViewTarget(db, req)
+}
+
+func parseTeamUsersPath(path string) (string, error) {
+	cleaned := strings.TrimSpace(path)
+	if cleaned == "" {
+		return "", fmt.Errorf("表示対象の引数が空です。{team_slug}/users の形式で指定してください")
+	}
+
+	parts := strings.Split(cleaned, "/")
+	if len(parts) != 2 || parts[1] != "users" {
+		return "", fmt.Errorf("表示対象は {team_slug}/users の形式で指定してください")
+	}
+
+	teamSlug := parts[0]
+	if teamSlug == "" {
+		return "", fmt.Errorf("チームスラグが空です。{team_slug}/users の形式で指定してください")
+	}
+
+	return teamSlug, nil
 }
 
 // Run implements the remove subcommand execution
