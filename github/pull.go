@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 	"time"
 
 	"ghub-desk/store"
@@ -51,22 +50,6 @@ func HandlePullTarget(ctx context.Context, client *github.Client, db *sql.DB, or
 		}
 		return PullTeamUsers(ctx, client, db, org, req.TeamSlug, storeData, intervalTime)
 	default:
-		if req.TeamSlug != "" {
-			if err := validate.ValidateTeamSlug(req.TeamSlug); err != nil {
-				return fmt.Errorf("invalid team slug: %w", err)
-			}
-			return PullTeamUsers(ctx, client, db, org, req.TeamSlug, storeData, intervalTime)
-		}
-		if strings.HasSuffix(req.Kind, "/users") {
-			teamSlug := strings.TrimSuffix(req.Kind, "/users")
-			if err := validate.ValidateTeamSlug(teamSlug); err != nil {
-				return fmt.Errorf("invalid team slug: %w", err)
-			}
-			return PullTeamUsers(ctx, client, db, org, teamSlug, storeData, intervalTime)
-		}
-		if err := validate.ValidateTeamSlug(req.Kind); err == nil {
-			return PullTeamUsers(ctx, client, db, org, req.Kind, storeData, intervalTime)
-		}
 		return fmt.Errorf("unknown target: %s", req.Kind)
 	}
 }

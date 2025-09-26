@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"ghub-desk/config"
+
 	_ "github.com/mattn/go-sqlite3" // Import sqlite3 driver
 )
 
@@ -55,7 +56,6 @@ func TestHandlePullTarget_ValidTargets(t *testing.T) {
 		{Kind: "token-permission"},
 		{Kind: "outside-users"},
 		{Kind: "teams-users", TeamSlug: "test-team"},
-		{Kind: "test-team/users"},
 	}
 
 	for _, target := range targets {

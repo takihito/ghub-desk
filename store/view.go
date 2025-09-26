@@ -3,7 +3,6 @@ package store
 import (
 	"database/sql"
 	"fmt"
-	"strings"
 
 	"ghub-desk/validate"
 )
@@ -36,22 +35,6 @@ func HandleViewTarget(db *sql.DB, req TargetRequest) error {
 		}
 		return ViewTeamUsers(db, req.TeamSlug)
 	default:
-		if req.TeamSlug != "" {
-			if err := validate.ValidateTeamSlug(req.TeamSlug); err != nil {
-				return fmt.Errorf("invalid team slug: %w", err)
-			}
-			return ViewTeamUsers(db, req.TeamSlug)
-		}
-		if strings.HasSuffix(req.Kind, "/users") {
-			teamSlug := strings.TrimSuffix(req.Kind, "/users")
-			if err := validate.ValidateTeamSlug(teamSlug); err != nil {
-				return fmt.Errorf("invalid team slug: %w", err)
-			}
-			return ViewTeamUsers(db, teamSlug)
-		}
-		if err := validate.ValidateTeamSlug(req.Kind); err == nil {
-			return ViewTeamUsers(db, req.Kind)
-		}
 		return fmt.Errorf("unknown target: %s", req.Kind)
 	}
 }

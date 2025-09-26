@@ -49,7 +49,6 @@ func TestHandleViewTarget(t *testing.T) {
 		{"token-permission target", TargetRequest{Kind: "token-permission"}, false},
 		{"outside-users target", TargetRequest{Kind: "outside-users"}, false},
 		{"team users target (slug)", TargetRequest{Kind: "teams-users", TeamSlug: "test-team"}, false},
-		{"team users target (legacy suffix)", TargetRequest{Kind: "test-team/users"}, false},
 		{"unknown target", TargetRequest{Kind: "invalid target"}, true},
 	}
 
