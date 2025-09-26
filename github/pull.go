@@ -41,9 +41,9 @@ func HandlePullTarget(ctx context.Context, client *github.Client, db *sql.DB, or
 		return PullTokenPermission(ctx, client, db, storeData, intervalTime)
 	case "outside-users":
 		return PullOutsideUsers(ctx, client, db, org, storeData, intervalTime)
-	case "teams-users":
+	case "team-user":
 		if req.TeamSlug == "" {
-			return fmt.Errorf("team slug must be specified when using teams-users target")
+			return fmt.Errorf("team slug must be specified when using team-user target")
 		}
 		if err := validate.ValidateTeamSlug(req.TeamSlug); err != nil {
 			return fmt.Errorf("invalid team slug: %w", err)

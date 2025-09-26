@@ -55,7 +55,7 @@ func TestHandlePullTarget_ValidTargets(t *testing.T) {
 		{Kind: "all-teams-users"},
 		{Kind: "token-permission"},
 		{Kind: "outside-users"},
-		{Kind: "teams-users", TeamSlug: "test-team"},
+		{Kind: "team-user", TeamSlug: "test-team"},
 	}
 
 	for _, target := range targets {

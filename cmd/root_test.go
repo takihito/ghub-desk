@@ -38,9 +38,9 @@ func TestPullCmdGetTarget(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:        "teams-users target",
+			name:        "team-user target",
 			cmd:         PullCmd{CommonTargetOptions: CommonTargetOptions{TeamsUsers: "engineering"}},
-			expected:    "teams-users",
+			expected:    "team-user",
 			expectError: false,
 		},
 		{

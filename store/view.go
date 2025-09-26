@@ -26,9 +26,9 @@ func HandleViewTarget(db *sql.DB, req TargetRequest) error {
 		return ViewTokenPermission(db)
 	case "outside-users":
 		return ViewOutsideUsers(db)
-	case "teams-users":
+	case "team-user":
 		if req.TeamSlug == "" {
-			return fmt.Errorf("team slug must be specified when using teams-users target")
+			return fmt.Errorf("team slug must be specified when using team-user target")
 		}
 		if err := validate.ValidateTeamSlug(req.TeamSlug); err != nil {
 			return fmt.Errorf("invalid team slug: %w", err)

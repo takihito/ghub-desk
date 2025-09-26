@@ -63,7 +63,7 @@ type CommonTargetOptions struct {
 	DetailUsers     bool   `name:"detail-users" help:"Target: detail-users"`
 	Teams           bool   `help:"Target: teams"`
 	Repos           bool   `help:"Target: repos"`
-	TeamsUsers      string `name:"teams-users" help:"Target: teams-users (provide team slug: 1–100 chars, lowercase alnum + hyphen)"`
+	TeamsUsers      string `name:"team-user" help:"Target: team-user (provide team slug: 1–100 chars, lowercase alnum + hyphen)"`
 	TokenPermission bool   `name:"token-permission" help:"Target: token-permission"`
 	OutsideUsers    bool   `name:"outside-users" help:"Target: outside-users"`
 }
@@ -84,7 +84,7 @@ func (c *CommonTargetOptions) GetTarget(extraTargets ...TargetFlag) (string, err
 		{c.DetailUsers, "detail-users"},
 		{c.Teams, "teams"},
 		{c.Repos, "repos"},
-		{c.TeamsUsers != "", "teams-users"},
+		{c.TeamsUsers != "", "team-user"},
 		{c.TokenPermission, "token-permission"},
 		{c.OutsideUsers, "outside-users"},
 	}
@@ -219,7 +219,7 @@ func (p *PullCmd) Run(cli *CLI) error {
 	}
 
 	req := github.TargetRequest{Kind: target}
-	if target == "teams-users" {
+	if target == "team-user" {
 		if err := validateTeamName(p.TeamsUsers); err != nil {
 			return err
 		}
@@ -256,7 +256,7 @@ func (v *ViewCmd) Run(cli *CLI) error {
 	defer db.Close()
 
 	req := store.TargetRequest{Kind: target}
-	if target == "teams-users" {
+	if target == "team-user" {
 		if err := validateTeamName(v.TeamsUsers); err != nil {
 			return err
 		}
