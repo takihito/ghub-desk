@@ -112,9 +112,9 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		return nil, ViewReposOut{Repositories: repos}, nil
 	})
 
-	// view.team-users {team}
+	// view.teams-users {team}
 	sdk.AddTool[ViewTeamUsersIn, ViewTeamUsersOut](srv, &sdk.Tool{
-		Name:        "view.team-users",
+		Name:        "view.teams-users",
 		Title:       "View Team Users",
 		Description: "List users in a specific team from local database.",
 		InputSchema: &jsonschema.Schema{
@@ -215,9 +215,9 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 			return nil, PullResult{Ok: true, Target: "repos"}, nil
 		})
 
-		// pull.team-users {team:string, store?:bool}
+		// pull.teams-users {team:string, store?:bool}
 		sdk.AddTool[PullTeamUsersIn, PullResult](srv, &sdk.Tool{
-			Name:        "pull.team-users",
+			Name:        "pull.teams-users",
 			Title:       "Pull Team Users",
 			Description: "Fetch users in a team from GitHub; optionally store in DB.",
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullTeamUsersIn) (*sdk.CallToolResult, PullResult, error) {
@@ -518,9 +518,9 @@ func doPull(ctx context.Context, cfg *appcfg.Config, target string, storeData bo
 		}
 		defer db.Close()
 	}
-	finalTarget := target
+	req := gh.TargetRequest{Kind: target}
 	if target == "teams-users" && teamSlug != "" {
-		finalTarget = teamSlug + "/users"
+		req.TeamSlug = teamSlug
 	}
-	return gh.HandlePullTarget(ctx, client, db, cfg.Organization, finalTarget, cfg.GitHubToken, storeData, gh.DefaultSleep)
+	return gh.HandlePullTarget(ctx, client, db, cfg.Organization, req, cfg.GitHubToken, storeData, gh.DefaultSleep)
 }

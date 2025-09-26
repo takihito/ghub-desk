@@ -63,7 +63,7 @@ type CommonTargetOptions struct {
 	DetailUsers     bool   `name:"detail-users" help:"Target: detail-users"`
 	Teams           bool   `help:"Target: teams"`
 	Repos           bool   `help:"Target: repos"`
-	TeamsUsers      string `name:"teams-users" help:"Target: team-users (provide team slug: 1–100 chars, lowercase alnum + hyphen)"`
+	TeamsUsers      string `name:"team-user" help:"Target: team-user (provide team slug: 1–100 chars, lowercase alnum + hyphen)"`
 	TokenPermission bool   `name:"token-permission" help:"Target: token-permission"`
 	OutsideUsers    bool   `name:"outside-users" help:"Target: outside-users"`
 }
@@ -84,7 +84,7 @@ func (c *CommonTargetOptions) GetTarget(extraTargets ...TargetFlag) (string, err
 		{c.DetailUsers, "detail-users"},
 		{c.Teams, "teams"},
 		{c.Repos, "repos"},
-		{c.TeamsUsers != "", "teams-users"},
+		{c.TeamsUsers != "", "team-user"},
 		{c.TokenPermission, "token-permission"},
 		{c.OutsideUsers, "outside-users"},
 	}
@@ -218,15 +218,14 @@ func (p *PullCmd) Run(cli *CLI) error {
 		defer db.Close()
 	}
 
-	// Handle different target types with appropriate data fetching
-	finalTarget := target
-	if target == "teams-users" {
+	req := github.TargetRequest{Kind: target}
+	if target == "team-user" {
 		if err := validateTeamName(p.TeamsUsers); err != nil {
 			return err
 		}
-		finalTarget = p.TeamsUsers + "/users"
+		req.TeamSlug = p.TeamsUsers
 	}
-	return github.HandlePullTarget(ctx, client, db, cfg.Organization, finalTarget, cfg.GitHubToken, p.Store, p.IntervalTime)
+	return github.HandlePullTarget(ctx, client, db, cfg.Organization, req, cfg.GitHubToken, p.Store, p.IntervalTime)
 }
 
 // Run implements the view command execution
@@ -256,16 +255,15 @@ func (v *ViewCmd) Run(cli *CLI) error {
 	}
 	defer db.Close()
 
-	// Handle different target types
-	finalTarget := target
-	if target == "teams-users" {
+	req := store.TargetRequest{Kind: target}
+	if target == "team-user" {
 		if err := validateTeamName(v.TeamsUsers); err != nil {
 			return err
 		}
-		finalTarget = v.TeamsUsers + "/users"
+		req.TeamSlug = v.TeamsUsers
 	}
 
-	return store.HandleViewTarget(db, finalTarget)
+	return store.HandleViewTarget(db, req)
 }
 
 // Run implements the remove subcommand execution

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"ghub-desk/config"
+
 	_ "github.com/mattn/go-sqlite3" // Import sqlite3 driver
 )
 
@@ -22,7 +23,7 @@ func TestHandlePullTarget_UnknownTarget(t *testing.T) {
 	}
 	defer db.Close()
 
-	err = HandlePullTarget(context.Background(), client, db, cfg.Organization, "unknown-target", cfg.GitHubToken, false, 0)
+	err = HandlePullTarget(context.Background(), client, db, cfg.Organization, TargetRequest{Kind: "unknown-target"}, cfg.GitHubToken, false, 0)
 	if err == nil {
 		t.Error("Expected error for unknown target, got nil")
 	}
@@ -46,19 +47,19 @@ func TestHandlePullTarget_ValidTargets(t *testing.T) {
 	}
 	defer db.Close()
 
-	targets := []string{
-		"users",
-		"detail-users",
-		"teams",
-		"repos",
-		"all-teams-users",
-		"token-permission",
-		"outside-users",
-		"test-team/users",
+	targets := []TargetRequest{
+		{Kind: "users"},
+		{Kind: "detail-users"},
+		{Kind: "teams"},
+		{Kind: "repos"},
+		{Kind: "all-teams-users"},
+		{Kind: "token-permission"},
+		{Kind: "outside-users"},
+		{Kind: "team-user", TeamSlug: "test-team"},
 	}
 
 	for _, target := range targets {
-		t.Run("target_"+target, func(t *testing.T) {
+		t.Run("target_"+target.Kind, func(t *testing.T) {
 			err := HandlePullTarget(context.Background(), client, db, cfg.Organization, target, cfg.GitHubToken, false, 0)
 			// In a real test with a mock, we would assert specific outcomes.
 			// For now, we just check that no unexpected error occurs.

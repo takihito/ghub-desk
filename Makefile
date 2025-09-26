@@ -81,16 +81,16 @@ examples: build
 	@echo "  export GHUB_DESK_GITHUB_TOKEN=\"your-github-token\""
 	@echo ""
 	@echo "Pull commands:"
-	@echo "  $(BUILD_DIR)/$(BINARY_NAME) pull users"
-	@echo "  $(BUILD_DIR)/$(BINARY_NAME) pull --store teams"
-	@echo "  $(BUILD_DIR)/$(BINARY_NAME) pull team-name/users"
+	@echo "  $(BUILD_DIR)/$(BINARY_NAME) pull --users"
+	@echo "  $(BUILD_DIR)/$(BINARY_NAME) pull --teams --store"
+	@echo "  $(BUILD_DIR)/$(BINARY_NAME) pull --teams-users"
 	@echo ""
 	@echo "Push commands (DRYRUN):"
-	@echo "  $(BUILD_DIR)/$(BINARY_NAME) push remove team-name"
-	@echo "  $(BUILD_DIR)/$(BINARY_NAME) push remove user-name"
+	@echo "  $(BUILD_DIR)/$(BINARY_NAME) push remove --team team-slug"
+	@echo "  $(BUILD_DIR)/$(BINARY_NAME) push remove --user user-name"
 	@echo ""
 	@echo "Push commands (EXECUTE):"
-	@echo "  $(BUILD_DIR)/$(BINARY_NAME) push remove --exec team-name"
+	@echo "  $(BUILD_DIR)/$(BINARY_NAME) push remove --team team-slug --exec "
 
 # Development mode - build and run with args
 dev: build

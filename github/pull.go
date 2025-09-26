@@ -4,10 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 	"time"
 
 	"ghub-desk/store"
+	"ghub-desk/validate"
 
 	"github.com/google/go-github/v55/github"
 )
@@ -18,28 +18,39 @@ const (
 	DefaultSleep   = 1 * time.Second
 )
 
+// TargetRequest represents the requested pull target including optional metadata.
+type TargetRequest struct {
+	Kind     string
+	TeamSlug string
+}
+
 // HandlePullTarget processes different types of pull targets (users, teams, repos, team_users)
-func HandlePullTarget(ctx context.Context, client *github.Client, db *sql.DB, org, target, token string, storeData bool, intervalTime time.Duration) error {
-	switch {
-	case target == "users":
+func HandlePullTarget(ctx context.Context, client *github.Client, db *sql.DB, org string, req TargetRequest, token string, storeData bool, intervalTime time.Duration) error {
+	switch req.Kind {
+	case "users":
 		return PullUsers(ctx, client, db, org, storeData, intervalTime)
-	case target == "detail-users":
+	case "detail-users":
 		return PullDetailUsers(ctx, client, db, org, token, storeData, intervalTime)
-	case target == "teams":
+	case "teams":
 		return PullTeams(ctx, client, db, org, storeData, intervalTime)
-	case target == "repos":
+	case "repos":
 		return PullRepositories(ctx, client, db, org, storeData, intervalTime)
-	case target == "all-teams-users":
+	case "all-teams-users":
 		return PullAllTeamsUsers(ctx, client, db, org, storeData, intervalTime)
-	case target == "token-permission":
+	case "token-permission":
 		return PullTokenPermission(ctx, client, db, storeData, intervalTime)
-	case target == "outside-users":
+	case "outside-users":
 		return PullOutsideUsers(ctx, client, db, org, storeData, intervalTime)
-	case strings.HasSuffix(target, "/users"):
-		teamSlug := strings.TrimSuffix(target, "/users")
-		return PullTeamUsers(ctx, client, db, org, teamSlug, storeData, intervalTime)
+	case "team-user":
+		if req.TeamSlug == "" {
+			return fmt.Errorf("team slug must be specified when using team-user target")
+		}
+		if err := validate.ValidateTeamSlug(req.TeamSlug); err != nil {
+			return fmt.Errorf("invalid team slug: %w", err)
+		}
+		return PullTeamUsers(ctx, client, db, org, req.TeamSlug, storeData, intervalTime)
 	default:
-		return fmt.Errorf("unknown target: %s", target)
+		return fmt.Errorf("unknown target: %s", req.Kind)
 	}
 }
 
