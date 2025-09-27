@@ -64,7 +64,7 @@ type CommonTargetOptions struct {
 	DetailUsers     bool   `name:"detail-users" help:"Target: detail-users"`
 	Teams           bool   `help:"Target: teams"`
 	Repos           bool   `help:"Target: repos"`
-	TeamsUsers      string `name:"team-user" aliases:"teams-users" help:"Target: team-user (provide team slug: 1–100 chars, lowercase alnum + hyphen)"`
+	TeamUser        string `name:"team-user" aliases:"teams-users" help:"Target: team-user (provide team slug: 1–100 chars, lowercase alnum + hyphen)"`
 	TokenPermission bool   `name:"token-permission" help:"Target: token-permission"`
 	OutsideUsers    bool   `name:"outside-users" help:"Target: outside-users"`
 }
@@ -85,7 +85,7 @@ func (c *CommonTargetOptions) GetTarget(extraTargets ...TargetFlag) (string, err
 		{c.DetailUsers, "detail-users"},
 		{c.Teams, "teams"},
 		{c.Repos, "repos"},
-		{c.TeamsUsers != "", "team-user"},
+		{c.TeamUser != "", "team-user"},
 		{c.TokenPermission, "token-permission"},
 		{c.OutsideUsers, "outside-users"},
 	}
@@ -222,10 +222,10 @@ func (p *PullCmd) Run(cli *CLI) error {
 
 	req := github.TargetRequest{Kind: target}
 	if target == "team-user" {
-		if err := validateTeamName(p.TeamsUsers); err != nil {
+		if err := validateTeamName(p.TeamUser); err != nil {
 			return err
 		}
-		req.TeamSlug = p.TeamsUsers
+		req.TeamSlug = p.TeamUser
 	}
 	return github.HandlePullTarget(ctx, client, db, cfg.Organization, req, cfg.GitHubToken, p.Store, p.IntervalTime)
 }
@@ -237,10 +237,10 @@ func (v *ViewCmd) Run(cli *CLI) error {
 		if err != nil {
 			return err
 		}
-		if v.TeamsUsers != "" && v.TeamsUsers != slug {
+		if v.TeamUser != "" && v.TeamUser != slug {
 			return fmt.Errorf("フラグと引数で指定されたチームが一致しません")
 		}
-		v.TeamsUsers = slug
+		v.TeamUser = slug
 	}
 
 	// Determine target from flags
@@ -270,10 +270,10 @@ func (v *ViewCmd) Run(cli *CLI) error {
 
 	req := store.TargetRequest{Kind: target}
 	if target == "team-user" {
-		if err := validateTeamName(v.TeamsUsers); err != nil {
+		if err := validateTeamName(v.TeamUser); err != nil {
 			return err
 		}
-		req.TeamSlug = v.TeamsUsers
+		req.TeamSlug = v.TeamUser
 	}
 
 	return store.HandleViewTarget(db, req)
