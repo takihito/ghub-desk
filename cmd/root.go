@@ -120,7 +120,8 @@ type PullCmd struct {
 	AllTeamsUsers       bool `name:"all-teams-users" help:"Target: all-teams-users"`
 
 	// Options
-	Store        bool          `help:"Save to local SQLite database"`
+	NoStore      bool          `name:"no-store" help:"Do not save to local SQLite database"`
+	Stdout       bool          `name:"stdout" help:"Print API response to stdout"`
 	IntervalTime time.Duration `help:"Sleep interval between API requests" default:"3s"`
 }
 
@@ -190,8 +191,9 @@ func (p *PullCmd) Run(cli *CLI) error {
 		return err
 	}
 
+	storeData := !p.NoStore
 	if cli.Debug {
-		fmt.Printf("DEBUG: Pulling target='%s', store=%v, interval=%v\n", target, p.Store, p.IntervalTime)
+		fmt.Printf("DEBUG: Pulling target='%s', store=%v, stdout=%v, interval=%v\n", target, storeData, p.Stdout, p.IntervalTime)
 	}
 
 	// Load configuration once via CLI helper
@@ -212,7 +214,7 @@ func (p *PullCmd) Run(cli *CLI) error {
 	ctx := context.Background()
 
 	var db *sql.DB
-	if p.Store || target == "all-teams-users" {
+	if storeData || target == "all-teams-users" {
 		db, err = store.InitDatabase()
 		if err != nil {
 			return fmt.Errorf("failed to initialize database: %w", err)
@@ -227,7 +229,19 @@ func (p *PullCmd) Run(cli *CLI) error {
 		}
 		req.TeamSlug = p.TeamUser
 	}
-	return github.HandlePullTarget(ctx, client, db, cfg.Organization, req, cfg.GitHubToken, p.Store, p.IntervalTime)
+	return github.HandlePullTarget(
+		ctx,
+		client,
+		db,
+		cfg.Organization,
+		req,
+		cfg.GitHubToken,
+		github.PullOptions{
+			Store:    storeData,
+			Stdout:   p.Stdout,
+			Interval: p.IntervalTime,
+		},
+	)
 }
 
 // Run implements the view command execution

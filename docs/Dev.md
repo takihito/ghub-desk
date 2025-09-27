@@ -52,10 +52,10 @@ GitHubオーガニゼーション上でメンバーやチームを操作する�
 
 ````
 # SQLiteには保存する
-$ ghub-desk pull --store --users
+$ ghub-desk pull --users
 
 # SQLiteには保存せず
-$ ghub-desk pull --users
+$ ghub-desk pull --users --no-store
 
 # SQLiteをソースとして表示する 
 $ ghub-desk view --users
@@ -64,10 +64,10 @@ $ ghub-desk view --users
 ````
 # より詳細なユーザ情報を取得する
 # SQLiteには保存する
-$ ghub-desk pull --store --detail-users
+$ ghub-desk pull --detail-users
 
 # SQLiteには保存せず
-$ ghub-desk pull --detail-users
+$ ghub-desk pull --detail-users --no-store
 
 # SQLiteをソースとして表示する 
 $ ghub-desk view --detail-users
@@ -77,10 +77,10 @@ $ ghub-desk view --detail-users
 
 ````
 # SQLiteには保存する
-$ ghub-desk pull --store --teams
+$ ghub-desk pull --teams
 
 # SQLiteには保存せず
-$ ghub-desk pull --teams
+$ ghub-desk pull --teams --no-store
 
 # SQLiteをソースとして表示する 
 $ ghub-desk view --teams 
@@ -90,10 +90,10 @@ $ ghub-desk view --teams
 
 ````
 # SQLiteには保存する
-$ ghub-desk pull --store --teams-users {team_slug}
+$ ghub-desk pull --teams-users {team_slug}
 
 # SQLiteには保存せず
-$ ghub-desk pull --teams-users {team_slug}
+$ ghub-desk pull --teams-users {team_slug} --no-store
 
 # SQLiteをソースとして表示する 
 $ ghub-desk view --teams-users {team_slug}
@@ -102,10 +102,10 @@ $ ghub-desk view --teams-users {team_slug}
 ````
 # SQLiteに保存したチーム一覧を元に、チームユーザに所属するユーザ一覧を取得する
 # SQLiteには保存する
-$ ghub-desk pull --store --all-teams-users 
+$ ghub-desk pull --all-teams-users 
 
 # SQLiteには保存せず
-$ ghub-desk pull --all-teams-users 
+$ ghub-desk pull --all-teams-users --no-store 
 
 # SQLiteに保存されるとviewで確認することができます（{team_slug} は slug を指定）
 $ ghub-desk view {team_slug}/users
@@ -116,10 +116,10 @@ $ ghub-desk view {team_slug}/users
 
 ````
 # SQLiteには保存する
-$ ghub-desk pull --store --repos 
+$ ghub-desk pull --repos 
 
 # SQLiteには保存せず
-$ ghub-desk pull --repos
+$ ghub-desk pull --repos --no-store
 
 # SQLiteをソースとして表示する 
 $ ghub-desk view --repos
@@ -157,11 +157,14 @@ $ ghub-desk push --remove --team-user  {team_slug}/{user_name}
 * TOKENの権限チェック
 
 ````
-# GITHUB API で使用しているトークンの権限を表示します
-$ ghub-desk pull --token-permission
+# GITHUB API で使用しているトークンの権限を表示します（JSON 出力）
+$ ghub-desk pull --token-permission --stdout
 
 # SQLiteに保存します
-$ ghub-desk pull --token-permission --store
+$ ghub-desk pull --token-permission
+
+# SQLiteに保存せず
+$ ghub-desk pull --token-permission --no-store
 
 #SQLiteに保存したトークンの権限情報を表示します
 $ ghub-desk view --token-permission

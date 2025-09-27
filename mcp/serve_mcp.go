@@ -186,7 +186,8 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 			if in.Detail {
 				target = "detail-users"
 			}
-			if err := doPull(ctx, cfg, target, in.Store, ""); err != nil {
+			opts := resolvePullOptions(in.NoStore, in.Stdout, in.Store)
+			if err := doPull(ctx, cfg, target, opts, ""); err != nil {
 				return &sdk.CallToolResult{}, PullResult{}, err
 			}
 			return nil, PullResult{Ok: true, Target: target}, nil
@@ -198,7 +199,8 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 			Title:       "Pull Teams",
 			Description: "Fetch teams from GitHub; optionally store in DB.",
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
-			if err := doPull(ctx, cfg, "teams", in.Store, ""); err != nil {
+			opts := resolvePullOptions(in.NoStore, in.Stdout, in.Store)
+			if err := doPull(ctx, cfg, "teams", opts, ""); err != nil {
 				return &sdk.CallToolResult{}, PullResult{}, err
 			}
 			return nil, PullResult{Ok: true, Target: "teams"}, nil
@@ -210,7 +212,8 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 			Title:       "Pull Repositories",
 			Description: "Fetch repositories from GitHub; optionally store in DB.",
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
-			if err := doPull(ctx, cfg, "repos", in.Store, ""); err != nil {
+			opts := resolvePullOptions(in.NoStore, in.Stdout, in.Store)
+			if err := doPull(ctx, cfg, "repos", opts, ""); err != nil {
 				return &sdk.CallToolResult{}, PullResult{}, err
 			}
 			return nil, PullResult{Ok: true, Target: "repos"}, nil
@@ -228,7 +231,8 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 			if err := v.ValidateTeamSlug(in.Team); err != nil {
 				return &sdk.CallToolResult{}, PullResult{}, err
 			}
-			if err := doPull(ctx, cfg, "team-user", in.Store, in.Team); err != nil {
+			opts := resolvePullOptions(in.NoStore, in.Stdout, in.Store)
+			if err := doPull(ctx, cfg, "team-user", opts, in.Team); err != nil {
 				return &sdk.CallToolResult{}, PullResult{}, err
 			}
 			return nil, PullResult{Ok: true, Target: "team-user"}, nil
@@ -240,7 +244,8 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 			Title:       "Pull Outside Users",
 			Description: "Fetch outside collaborators; optionally store in DB.",
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
-			if err := doPull(ctx, cfg, "outside-users", in.Store, ""); err != nil {
+			opts := resolvePullOptions(in.NoStore, in.Stdout, in.Store)
+			if err := doPull(ctx, cfg, "outside-users", opts, ""); err != nil {
 				return &sdk.CallToolResult{}, PullResult{}, err
 			}
 			return nil, PullResult{Ok: true, Target: "outside-users"}, nil
@@ -252,7 +257,8 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 			Title:       "Pull Token Permission",
 			Description: "Fetch token permission info; optionally store in DB.",
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
-			if err := doPull(ctx, cfg, "token-permission", in.Store, ""); err != nil {
+			opts := resolvePullOptions(in.NoStore, in.Stdout, in.Store)
+			if err := doPull(ctx, cfg, "token-permission", opts, ""); err != nil {
 				return &sdk.CallToolResult{}, PullResult{}, err
 			}
 			return nil, PullResult{Ok: true, Target: "token-permission"}, nil
@@ -537,17 +543,23 @@ func getTokenPermission() (ViewTokenPermissionOut, error) {
 
 // Pull inputs/outputs
 type PullCommonIn struct {
-	Store bool `json:"store,omitempty"`
+	NoStore bool  `json:"no_store,omitempty"`
+	Stdout  bool  `json:"stdout,omitempty"`
+	Store   *bool `json:"store,omitempty"` // deprecated legacy flag
 }
 
 type PullUsersIn struct {
-	Store  bool `json:"store,omitempty"`
-	Detail bool `json:"detail,omitempty"`
+	NoStore bool  `json:"no_store,omitempty"`
+	Stdout  bool  `json:"stdout,omitempty"`
+	Store   *bool `json:"store,omitempty"` // deprecated legacy flag
+	Detail  bool  `json:"detail,omitempty"`
 }
 
 type PullTeamUsersIn struct {
-	Team  string `json:"team"`
-	Store bool   `json:"store,omitempty"`
+	Team    string `json:"team"`
+	NoStore bool   `json:"no_store,omitempty"`
+	Stdout  bool   `json:"stdout,omitempty"`
+	Store   *bool  `json:"store,omitempty"` // deprecated legacy flag
 }
 
 type PullResult struct {
@@ -570,13 +582,27 @@ type PushResult struct {
 	Message  string `json:"message,omitempty"`
 }
 
-func doPull(ctx context.Context, cfg *appcfg.Config, target string, storeData bool, teamSlug string) error {
+func resolvePullOptions(noStore, stdout bool, legacyStore *bool) gh.PullOptions {
+	store := true
+	if legacyStore != nil {
+		store = *legacyStore
+	}
+	if noStore {
+		store = false
+	}
+	return gh.PullOptions{
+		Store:  store,
+		Stdout: stdout,
+	}
+}
+
+func doPull(ctx context.Context, cfg *appcfg.Config, target string, opts gh.PullOptions, teamSlug string) error {
 	client, err := gh.InitClient(cfg)
 	if err != nil {
 		return fmt.Errorf("github client init: %w", err)
 	}
 	var db *sql.DB
-	if storeData {
+	if opts.Store || target == "all-teams-users" {
 		db, err = store.InitDatabase()
 		if err != nil {
 			return fmt.Errorf("db init: %w", err)
@@ -587,7 +613,10 @@ func doPull(ctx context.Context, cfg *appcfg.Config, target string, storeData bo
 	if target == "team-user" && teamSlug != "" {
 		req.TeamSlug = teamSlug
 	}
-	return gh.HandlePullTarget(ctx, client, db, cfg.Organization, req, cfg.GitHubToken, storeData, gh.DefaultSleep)
+	if opts.Interval == 0 {
+		opts.Interval = gh.DefaultSleep
+	}
+	return gh.HandlePullTarget(ctx, client, db, cfg.Organization, req, cfg.GitHubToken, opts)
 }
 
 func resolvePushRemoveInput(in PushRemoveIn) (string, string, error) {

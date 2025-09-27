@@ -36,16 +36,16 @@ export GHUB_DESK_GITHUB_TOKEN="your-token"         # GitHub Access Token
 
 ```bash
 # 組織メンバーの基本情報を取得・保存
-./ghub-desk pull --store --users
+./ghub-desk pull --users
 
 # 組織メンバーの詳細情報を取得・保存
-./ghub-desk pull --store --detail-users
+./ghub-desk pull --detail-users
 
 # 保存されたユーザー情報を表示
 ./ghub-desk view --users
 
 # チーム情報を取得・表示
-./ghub-desk pull --store --teams
+./ghub-desk pull --teams
 ./ghub-desk view --teams
 
 # データベース初期化
