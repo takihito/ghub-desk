@@ -186,7 +186,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 			if in.Detail {
 				target = "detail-users"
 			}
-			opts := resolvePullOptions(in.NoStore, in.Stdout, in.Store)
+			opts := resolvePullOptions(in.NoStore, in.Stdout)
 			if err := doPull(ctx, cfg, target, opts, ""); err != nil {
 				return &sdk.CallToolResult{}, PullResult{}, err
 			}
@@ -199,7 +199,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 			Title:       "Pull Teams",
 			Description: "Fetch teams from GitHub; optionally store in DB.",
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
-			opts := resolvePullOptions(in.NoStore, in.Stdout, in.Store)
+			opts := resolvePullOptions(in.NoStore, in.Stdout)
 			if err := doPull(ctx, cfg, "teams", opts, ""); err != nil {
 				return &sdk.CallToolResult{}, PullResult{}, err
 			}
@@ -212,7 +212,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 			Title:       "Pull Repositories",
 			Description: "Fetch repositories from GitHub; optionally store in DB.",
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
-			opts := resolvePullOptions(in.NoStore, in.Stdout, in.Store)
+			opts := resolvePullOptions(in.NoStore, in.Stdout)
 			if err := doPull(ctx, cfg, "repos", opts, ""); err != nil {
 				return &sdk.CallToolResult{}, PullResult{}, err
 			}
@@ -231,7 +231,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 			if err := v.ValidateTeamSlug(in.Team); err != nil {
 				return &sdk.CallToolResult{}, PullResult{}, err
 			}
-			opts := resolvePullOptions(in.NoStore, in.Stdout, in.Store)
+			opts := resolvePullOptions(in.NoStore, in.Stdout)
 			if err := doPull(ctx, cfg, "team-user", opts, in.Team); err != nil {
 				return &sdk.CallToolResult{}, PullResult{}, err
 			}
@@ -244,7 +244,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 			Title:       "Pull Outside Users",
 			Description: "Fetch outside collaborators; optionally store in DB.",
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
-			opts := resolvePullOptions(in.NoStore, in.Stdout, in.Store)
+			opts := resolvePullOptions(in.NoStore, in.Stdout)
 			if err := doPull(ctx, cfg, "outside-users", opts, ""); err != nil {
 				return &sdk.CallToolResult{}, PullResult{}, err
 			}
@@ -257,7 +257,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 			Title:       "Pull Token Permission",
 			Description: "Fetch token permission info; optionally store in DB.",
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
-			opts := resolvePullOptions(in.NoStore, in.Stdout, in.Store)
+			opts := resolvePullOptions(in.NoStore, in.Stdout)
 			if err := doPull(ctx, cfg, "token-permission", opts, ""); err != nil {
 				return &sdk.CallToolResult{}, PullResult{}, err
 			}
@@ -543,23 +543,20 @@ func getTokenPermission() (ViewTokenPermissionOut, error) {
 
 // Pull inputs/outputs
 type PullCommonIn struct {
-	NoStore bool  `json:"no_store,omitempty"`
-	Stdout  bool  `json:"stdout,omitempty"`
-	Store   *bool `json:"store,omitempty"` // deprecated legacy flag
+	NoStore bool `json:"no_store,omitempty"`
+	Stdout  bool `json:"stdout,omitempty"`
 }
 
 type PullUsersIn struct {
-	NoStore bool  `json:"no_store,omitempty"`
-	Stdout  bool  `json:"stdout,omitempty"`
-	Store   *bool `json:"store,omitempty"` // deprecated legacy flag
-	Detail  bool  `json:"detail,omitempty"`
+	NoStore bool `json:"no_store,omitempty"`
+	Stdout  bool `json:"stdout,omitempty"`
+	Detail  bool `json:"detail,omitempty"`
 }
 
 type PullTeamUsersIn struct {
 	Team    string `json:"team"`
 	NoStore bool   `json:"no_store,omitempty"`
 	Stdout  bool   `json:"stdout,omitempty"`
-	Store   *bool  `json:"store,omitempty"` // deprecated legacy flag
 }
 
 type PullResult struct {
@@ -582,16 +579,11 @@ type PushResult struct {
 	Message  string `json:"message,omitempty"`
 }
 
-func resolvePullOptions(noStore, stdout bool, legacyStore *bool) gh.PullOptions {
-	store := true
-	if legacyStore != nil {
-		store = *legacyStore
-	}
-	if noStore {
-		store = false
-	}
+// resolvePullOptions converts CLI-style flags to PullOptions.
+// デフォルトは保存有効、`no_store` 指定時のみ無効化する。
+func resolvePullOptions(noStore, stdout bool) gh.PullOptions {
 	return gh.PullOptions{
-		Store:  store,
+		Store:  !noStore,
 		Stdout: stdout,
 	}
 }
