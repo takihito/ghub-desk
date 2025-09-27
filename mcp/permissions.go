@@ -18,7 +18,7 @@ func AllowedTools(cfg *config.Config) []string {
 		"view.detail-users",
 		"view.teams",
 		"view.repos",
-		"view.teams-users",
+		"view.team-user",
 		"view.outside-users",
 		"view.token-permission",
 	)
@@ -28,7 +28,7 @@ func AllowedTools(cfg *config.Config) []string {
 			"pull.users",
 			"pull.teams",
 			"pull.repositories",
-			"pull.teams-users",
+			"pull.team-user",
 			"pull.outside-users",
 			"pull.token-permission",
 		)

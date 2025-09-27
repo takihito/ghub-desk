@@ -39,7 +39,7 @@
   - params: `{ store?: boolean }`
   - requires: `allow_pull`
 
-- `pull.teams-users`
+- `pull.team-user`
   - params: `{ team: string, store?: boolean }`
   - requires: `allow_pull`
 
@@ -55,7 +55,7 @@
   - params: `{ detail?: boolean }`
   - effect: DB から表示用データを返す（テキスト/構造化）
 
-- `view.*` 系（teams/repositories/teams-users/outside-users/token-permission）
+- `view.*` 系（users/detail-users/teams/team-user/repositories/outside-users/token-permission）
   - params: 必要に応じて team 名など
 
 - `push.remove`
