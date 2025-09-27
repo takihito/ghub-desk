@@ -39,7 +39,7 @@ func TestPullCmdGetTarget(t *testing.T) {
 		},
 		{
 			name:        "team-user target",
-			cmd:         PullCmd{CommonTargetOptions: CommonTargetOptions{TeamsUsers: "engineering"}},
+			cmd:         PullCmd{CommonTargetOptions: CommonTargetOptions{TeamUser: "engineering"}},
 			expected:    "team-user",
 			expectError: false,
 		},
@@ -83,6 +83,39 @@ func TestPullCmdGetTarget(t *testing.T) {
 				if result != tt.expected {
 					t.Errorf("Expected %s, got %s", tt.expected, result)
 				}
+			}
+		})
+	}
+}
+
+func TestParseTeamUsersPath(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		expected    string
+		expectError bool
+	}{
+		{"valid", "team-slug/users", "team-slug", false},
+		{"missing suffix", "team-slug", "", true},
+		{"wrong suffix", "team/userss", "", true},
+		{"empty slug", "/users", "", true},
+		{"extra part", "team/slug/users", "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual, err := parseTeamUsersPath(tt.input)
+			if tt.expectError {
+				if err == nil {
+					t.Fatalf("expected error for input %q", tt.input)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if actual != tt.expected {
+				t.Fatalf("expected %q, got %q", tt.expected, actual)
 			}
 		})
 	}

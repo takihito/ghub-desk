@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	appcfg "ghub-desk/config"
@@ -112,9 +113,9 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		return nil, ViewReposOut{Repositories: repos}, nil
 	})
 
-	// view.teams-users {team}
+	// view.team-user {team}
 	sdk.AddTool[ViewTeamUsersIn, ViewTeamUsersOut](srv, &sdk.Tool{
-		Name:        "view.teams-users",
+		Name:        "view.team-user",
 		Title:       "View Team Users",
 		Description: "List users in a specific team from local database.",
 		InputSchema: &jsonschema.Schema{
@@ -215,9 +216,9 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 			return nil, PullResult{Ok: true, Target: "repos"}, nil
 		})
 
-		// pull.teams-users {team:string, store?:bool}
+		// pull.team-user {team:string, store?:bool}
 		sdk.AddTool[PullTeamUsersIn, PullResult](srv, &sdk.Tool{
-			Name:        "pull.teams-users",
+			Name:        "pull.team-user",
 			Title:       "Pull Team Users",
 			Description: "Fetch users in a team from GitHub; optionally store in DB.",
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullTeamUsersIn) (*sdk.CallToolResult, PullResult, error) {
@@ -227,10 +228,10 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 			if err := v.ValidateTeamSlug(in.Team); err != nil {
 				return &sdk.CallToolResult{}, PullResult{}, err
 			}
-			if err := doPull(ctx, cfg, "teams-users", in.Store, in.Team); err != nil {
+			if err := doPull(ctx, cfg, "team-user", in.Store, in.Team); err != nil {
 				return &sdk.CallToolResult{}, PullResult{}, err
 			}
-			return nil, PullResult{Ok: true, Target: "teams-users"}, nil
+			return nil, PullResult{Ok: true, Target: "team-user"}, nil
 		})
 
 		// pull.outside-users {store?:bool}
@@ -260,6 +261,55 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 
 	// Respect config permissions if needed in the future for additional tools.
 	// For phase 1, only non-destructive tools are registered.
+
+	if cfg.MCP.AllowWrite {
+		sdk.AddTool[PushRemoveIn, PushResult](srv, &sdk.Tool{
+			Name:        "push.remove",
+			Title:       "Push Remove",
+			Description: "Remove teams, users, or team members. Dry-run unless exec=true.",
+			InputSchema: &jsonschema.Schema{
+				Type: "object",
+				Properties: map[string]*jsonschema.Schema{
+					"team": {
+						Type:        "string",
+						Description: "Team slug to delete from the organization.",
+						MinLength:   intPtr(v.TeamSlugMin),
+						MaxLength:   intPtr(v.TeamSlugMax),
+						Pattern:     v.TeamSlugPattern,
+					},
+					"user": {
+						Type:        "string",
+						Description: "Username to remove from the organization.",
+						MinLength:   intPtr(v.UserNameMin),
+						MaxLength:   intPtr(v.UserNameMax),
+						Pattern:     v.UserNamePattern,
+					},
+					"team_user": {
+						Type:        "string",
+						Description: "Team/user pair in the form {team_slug}/{user_name}.",
+					},
+					"exec": {
+						Type:        "boolean",
+						Description: "Execute removal when true; otherwise dry run.",
+					},
+				},
+			},
+		}, func(ctx context.Context, req *sdk.CallToolRequest, in PushRemoveIn) (*sdk.CallToolResult, PushResult, error) {
+			target, value, err := resolvePushRemoveInput(in)
+			if err != nil {
+				return &sdk.CallToolResult{}, PushResult{}, err
+			}
+			if !in.Exec {
+				msg := fmt.Sprintf("DRYRUN: Would remove %s '%s' from organization %s", target, value, cfg.Organization)
+				return nil, PushResult{Ok: true, Target: target, Value: value, Executed: false, Message: msg}, nil
+			}
+			if err := doPushRemove(ctx, cfg, target, value); err != nil {
+				return &sdk.CallToolResult{}, PushResult{}, err
+			}
+			msg := fmt.Sprintf("Removed %s '%s' from organization %s", target, value, cfg.Organization)
+			return nil, PushResult{Ok: true, Target: target, Value: value, Executed: true, Message: msg}, nil
+		})
+	}
 
 	// Run server over stdio transport
 	return srv.Run(ctx, &sdk.StdioTransport{})
@@ -505,6 +555,21 @@ type PullResult struct {
 	Target string `json:"target"`
 }
 
+type PushRemoveIn struct {
+	Team     string `json:"team,omitempty"`
+	User     string `json:"user,omitempty"`
+	TeamUser string `json:"team_user,omitempty"`
+	Exec     bool   `json:"exec,omitempty"`
+}
+
+type PushResult struct {
+	Ok       bool   `json:"ok"`
+	Target   string `json:"target,omitempty"`
+	Value    string `json:"value,omitempty"`
+	Executed bool   `json:"executed"`
+	Message  string `json:"message,omitempty"`
+}
+
 func doPull(ctx context.Context, cfg *appcfg.Config, target string, storeData bool, teamSlug string) error {
 	client, err := gh.InitClient(cfg)
 	if err != nil {
@@ -519,8 +584,60 @@ func doPull(ctx context.Context, cfg *appcfg.Config, target string, storeData bo
 		defer db.Close()
 	}
 	req := gh.TargetRequest{Kind: target}
-	if target == "teams-users" && teamSlug != "" {
+	if target == "team-user" && teamSlug != "" {
 		req.TeamSlug = teamSlug
 	}
 	return gh.HandlePullTarget(ctx, client, db, cfg.Organization, req, cfg.GitHubToken, storeData, gh.DefaultSleep)
+}
+
+func resolvePushRemoveInput(in PushRemoveIn) (string, string, error) {
+	var (
+		target string
+		value  string
+		count  int
+	)
+
+	if strings.TrimSpace(in.Team) != "" {
+		if err := v.ValidateTeamSlug(in.Team); err != nil {
+			return "", "", err
+		}
+		target = "team"
+		value = strings.TrimSpace(in.Team)
+		count++
+	}
+
+	if strings.TrimSpace(in.User) != "" {
+		if err := v.ValidateUserName(in.User); err != nil {
+			return "", "", err
+		}
+		target = "user"
+		value = strings.TrimSpace(in.User)
+		count++
+	}
+
+	if strings.TrimSpace(in.TeamUser) != "" {
+		teamSlug, userName, err := v.ParseTeamUserPair(strings.TrimSpace(in.TeamUser))
+		if err != nil {
+			return "", "", err
+		}
+		target = "team-user"
+		value = fmt.Sprintf("%s/%s", teamSlug, userName)
+		count++
+	}
+
+	if count == 0 {
+		return "", "", fmt.Errorf("対象を1つ指定してください (--team, --user, --team-user に相当)")
+	}
+	if count > 1 {
+		return "", "", fmt.Errorf("対象を1つだけ指定してください (複数指定はできません)")
+	}
+	return target, value, nil
+}
+
+func doPushRemove(ctx context.Context, cfg *appcfg.Config, target, value string) error {
+	client, err := gh.InitClient(cfg)
+	if err != nil {
+		return fmt.Errorf("github client init: %w", err)
+	}
+	return gh.ExecutePushRemove(ctx, client, cfg.Organization, target, value)
 }
