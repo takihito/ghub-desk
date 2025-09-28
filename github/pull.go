@@ -111,7 +111,8 @@ func PullDetailUsers(ctx context.Context, client *github.Client, db *sql.DB, org
 		}
 	}
 
-	var detailedOutput []*github.User
+	var detailedUsersList []*github.User
+	detailedUsersList = make([]*github.User, 0)
 	_, err := fetchAndStore(
 		ctx, client,
 		func(ctx context.Context, org string, optsList *github.ListOptions) ([]*github.User, *github.Response, error) {
@@ -135,11 +136,7 @@ func PullDetailUsers(ctx context.Context, client *github.Client, db *sql.DB, org
 				// Rate limiting: sleep between requests to avoid hitting API limits
 				time.Sleep(opts.Interval)
 			}
-
-			if opts.Stdout {
-				detailedOutput = append(detailedOutput, detailedUsers...)
-			}
-
+			detailedUsersList = append(detailedUsersList, detailedUsers...)
 			if !opts.Store || db == nil {
 				return nil
 			}
@@ -152,10 +149,7 @@ func PullDetailUsers(ctx context.Context, client *github.Client, db *sql.DB, org
 	}
 
 	if opts.Stdout {
-		if detailedOutput == nil {
-			detailedOutput = make([]*github.User, 0)
-		}
-		if err := printJSON(detailedOutput); err != nil {
+		if err := printJSON(detailedUsersList); err != nil {
 			return err
 		}
 	}
@@ -355,12 +349,6 @@ func PullAllTeamsUsers(ctx context.Context, client *github.Client, db *sql.DB, o
 	fmt.Printf("Completed fetching users for all teams.\n")
 
 	if opts.Stdout {
-		if stdoutResults == nil {
-			stdoutResults = make([]struct {
-				Team  string         `json:"team"`
-				Users []*github.User `json:"users"`
-			}, 0)
-		}
 		if err := printJSON(stdoutResults); err != nil {
 			return err
 		}
