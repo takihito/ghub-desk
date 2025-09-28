@@ -111,8 +111,7 @@ func PullDetailUsers(ctx context.Context, client *github.Client, db *sql.DB, org
 		}
 	}
 
-	var detailedUsersList []*github.User
-	detailedUsersList = make([]*github.User, 0)
+	detailedUsersList := make([]*github.User, 0)
 	_, err := fetchAndStore(
 		ctx, client,
 		func(ctx context.Context, org string, optsList *github.ListOptions) ([]*github.User, *github.Response, error) {
