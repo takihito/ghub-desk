@@ -23,7 +23,7 @@ func TestHandlePullTarget_UnknownTarget(t *testing.T) {
 	}
 	defer db.Close()
 
-	err = HandlePullTarget(context.Background(), client, db, cfg.Organization, TargetRequest{Kind: "unknown-target"}, cfg.GitHubToken, false, 0)
+	err = HandlePullTarget(context.Background(), client, db, cfg.Organization, TargetRequest{Kind: "unknown-target"}, cfg.GitHubToken, PullOptions{Store: false})
 	if err == nil {
 		t.Error("Expected error for unknown target, got nil")
 	}
@@ -60,7 +60,7 @@ func TestHandlePullTarget_ValidTargets(t *testing.T) {
 
 	for _, target := range targets {
 		t.Run("target_"+target.Kind, func(t *testing.T) {
-			err := HandlePullTarget(context.Background(), client, db, cfg.Organization, target, cfg.GitHubToken, false, 0)
+			err := HandlePullTarget(context.Background(), client, db, cfg.Organization, target, cfg.GitHubToken, PullOptions{Store: false})
 			// In a real test with a mock, we would assert specific outcomes.
 			// For now, we just check that no unexpected error occurs.
 			if err != nil {

@@ -36,7 +36,7 @@ github_app:
 # MCP クライアントからの操作を許可する範囲を制御します。
 # 省略時は安全側で無効化されます（両方 false 相当）。
 mcp:
-  # GitHub API からの pull（取得）およびローカルDBへの保存（--store 相当）を許可するか
+  # GitHub API からの pull（取得）およびローカルDBへの保存（--no-store 未指定時）を許可するか
   allow_pull: false
 
   # GitHub への変更操作（push add/remove）を許可するか

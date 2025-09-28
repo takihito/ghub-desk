@@ -181,7 +181,7 @@ func ViewTokenPermission(db *sql.DB) error {
 
 	if !rows.Next() {
 		fmt.Println("No token permission data found in database.")
-		fmt.Println("Run 'ghub-desk pull --token-permission --store' first.")
+		fmt.Println("Run 'ghub-desk pull --token-permission' first.")
 		return nil
 	}
 

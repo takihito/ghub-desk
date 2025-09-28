@@ -82,7 +82,7 @@ examples: build
 	@echo ""
 	@echo "Pull commands:"
 	@echo "  $(BUILD_DIR)/$(BINARY_NAME) pull --users"
-	@echo "  $(BUILD_DIR)/$(BINARY_NAME) pull --teams --store"
+	@echo "  $(BUILD_DIR)/$(BINARY_NAME) pull --teams"
 	@echo "  $(BUILD_DIR)/$(BINARY_NAME) pull --teams-users"
 	@echo ""
 	@echo "Push commands (DRYRUN):"
