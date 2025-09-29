@@ -269,6 +269,44 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 	// For phase 1, only non-destructive tools are registered.
 
 	if cfg.MCP.AllowWrite {
+		sdk.AddTool[PushAddIn, PushResult](srv, &sdk.Tool{
+			Name:        "push.add",
+			Title:       "Push Add",
+			Description: "Add users to teams. Dry-run unless exec=true.",
+			InputSchema: &jsonschema.Schema{
+				Type: "object",
+				Properties: map[string]*jsonschema.Schema{
+					"team_user": {
+						Type:        "string",
+						Description: "Team/user pair in the form {team_slug}/{user_name}.",
+					},
+					"exec": {
+						Type:        "boolean",
+						Description: "Execute add when true; otherwise dry run.",
+					},
+					"no_store": {
+						Type:        "boolean",
+						Description: "Skip local database update when true.",
+					},
+				},
+				Required: []string{"team_user"},
+			},
+		}, func(ctx context.Context, req *sdk.CallToolRequest, in PushAddIn) (*sdk.CallToolResult, PushResult, error) {
+			target, value, err := resolvePushAddInput(in)
+			if err != nil {
+				return &sdk.CallToolResult{}, PushResult{}, err
+			}
+			if !in.Exec {
+				msg := fmt.Sprintf("DRYRUN: Would add %s '%s' to organization %s", target, value, cfg.Organization)
+				return nil, PushResult{Ok: true, Target: target, Value: value, Executed: false, Message: msg}, nil
+			}
+			if err := doPushAdd(ctx, cfg, target, value, !in.NoStore); err != nil {
+				return &sdk.CallToolResult{}, PushResult{}, err
+			}
+			msg := fmt.Sprintf("Added %s '%s' to organization %s", target, value, cfg.Organization)
+			return nil, PushResult{Ok: true, Target: target, Value: value, Executed: true, Message: msg}, nil
+		})
+
 		sdk.AddTool[PushRemoveIn, PushResult](srv, &sdk.Tool{
 			Name:        "push.remove",
 			Title:       "Push Remove",
@@ -298,6 +336,10 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 						Type:        "boolean",
 						Description: "Execute removal when true; otherwise dry run.",
 					},
+					"no_store": {
+						Type:        "boolean",
+						Description: "Skip local database update when true.",
+					},
 				},
 			},
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PushRemoveIn) (*sdk.CallToolResult, PushResult, error) {
@@ -309,7 +351,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 				msg := fmt.Sprintf("DRYRUN: Would remove %s '%s' from organization %s", target, value, cfg.Organization)
 				return nil, PushResult{Ok: true, Target: target, Value: value, Executed: false, Message: msg}, nil
 			}
-			if err := doPushRemove(ctx, cfg, target, value); err != nil {
+			if err := doPushRemove(ctx, cfg, target, value, !in.NoStore); err != nil {
 				return &sdk.CallToolResult{}, PushResult{}, err
 			}
 			msg := fmt.Sprintf("Removed %s '%s' from organization %s", target, value, cfg.Organization)
@@ -564,11 +606,18 @@ type PullResult struct {
 	Target string `json:"target"`
 }
 
+type PushAddIn struct {
+	TeamUser string `json:"team_user"`
+	Exec     bool   `json:"exec,omitempty"`
+	NoStore  bool   `json:"no_store,omitempty"`
+}
+
 type PushRemoveIn struct {
 	Team     string `json:"team,omitempty"`
 	User     string `json:"user,omitempty"`
 	TeamUser string `json:"team_user,omitempty"`
 	Exec     bool   `json:"exec,omitempty"`
+	NoStore  bool   `json:"no_store,omitempty"`
 }
 
 type PushResult struct {
@@ -586,6 +635,18 @@ func resolvePullOptions(noStore, stdout bool) gh.PullOptions {
 		Store:  !noStore,
 		Stdout: stdout,
 	}
+}
+
+func resolvePushAddInput(in PushAddIn) (string, string, error) {
+	pair := strings.TrimSpace(in.TeamUser)
+	if pair == "" {
+		return "", "", fmt.Errorf("team_user を指定してください (例: team-slug/user)")
+	}
+	teamSlug, userName, err := v.ParseTeamUserPair(pair)
+	if err != nil {
+		return "", "", err
+	}
+	return "team-user", fmt.Sprintf("%s/%s", teamSlug, userName), nil
 }
 
 func doPull(ctx context.Context, cfg *appcfg.Config, target string, opts gh.PullOptions, teamSlug string) error {
@@ -609,6 +670,28 @@ func doPull(ctx context.Context, cfg *appcfg.Config, target string, opts gh.Pull
 		opts.Interval = gh.DefaultSleep
 	}
 	return gh.HandlePullTarget(ctx, client, db, cfg.Organization, req, cfg.GitHubToken, opts)
+}
+
+func doPushAdd(ctx context.Context, cfg *appcfg.Config, target, value string, storeResult bool) error {
+	client, err := gh.InitClient(cfg)
+	if err != nil {
+		return fmt.Errorf("github client init: %w", err)
+	}
+	if err := gh.ExecutePushAdd(ctx, client, cfg.Organization, target, value); err != nil {
+		return err
+	}
+	if !storeResult {
+		return nil
+	}
+	db, err := store.InitDatabase()
+	if err != nil {
+		return fmt.Errorf("db init: %w", err)
+	}
+	defer db.Close()
+	if err := gh.SyncPushAdd(ctx, client, db, cfg.Organization, target, value); err != nil {
+		return fmt.Errorf("db sync: %w", err)
+	}
+	return nil
 }
 
 func resolvePushRemoveInput(in PushRemoveIn) (string, string, error) {
@@ -655,10 +738,24 @@ func resolvePushRemoveInput(in PushRemoveIn) (string, string, error) {
 	return target, value, nil
 }
 
-func doPushRemove(ctx context.Context, cfg *appcfg.Config, target, value string) error {
+func doPushRemove(ctx context.Context, cfg *appcfg.Config, target, value string, storeResult bool) error {
 	client, err := gh.InitClient(cfg)
 	if err != nil {
 		return fmt.Errorf("github client init: %w", err)
 	}
-	return gh.ExecutePushRemove(ctx, client, cfg.Organization, target, value)
+	if err := gh.ExecutePushRemove(ctx, client, cfg.Organization, target, value); err != nil {
+		return err
+	}
+	if !storeResult {
+		return nil
+	}
+	db, err := store.InitDatabase()
+	if err != nil {
+		return fmt.Errorf("db init: %w", err)
+	}
+	defer db.Close()
+	if err := gh.SyncPushRemove(ctx, client, db, cfg.Organization, target, value); err != nil {
+		return fmt.Errorf("db sync: %w", err)
+	}
+	return nil
 }

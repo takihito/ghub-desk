@@ -389,3 +389,152 @@ func TestStoreOutsideUsers(t *testing.T) {
 		t.Errorf("Expected 2 outside users, got %d", count)
 	}
 }
+
+func TestUpsertAndDeleteTeamUser(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open test database: %v", err)
+	}
+	defer db.Close()
+
+	if err := createTables(db); err != nil {
+		t.Fatalf("Failed to create tables: %v", err)
+	}
+
+	team := &github.Team{ID: github.Int64(10), Slug: github.String("team-one"), Name: github.String("Team One")}
+	user := &github.User{ID: github.Int64(20), Login: github.String("user-one")}
+
+	if err := StoreTeams(db, []*github.Team{team}); err != nil {
+		t.Fatalf("failed to store team: %v", err)
+	}
+	if err := StoreUsers(db, []*github.User{user}); err != nil {
+		t.Fatalf("failed to store user: %v", err)
+	}
+
+	if err := UpsertTeamUser(db, team.GetSlug(), team.GetID(), user, "maintainer"); err != nil {
+		t.Fatalf("failed to upsert team user: %v", err)
+	}
+
+	var (
+		scannedTeamID int64
+		scannedUserID int64
+		scannedLogin  string
+		scannedRole   string
+	)
+	row := db.QueryRow(`SELECT team_id, user_id, user_login, role FROM ghub_team_users WHERE team_slug = ?`, team.GetSlug())
+	if err := row.Scan(&scannedTeamID, &scannedUserID, &scannedLogin, &scannedRole); err != nil {
+		t.Fatalf("failed to scan team user row: %v", err)
+	}
+	if scannedTeamID != team.GetID() {
+		t.Fatalf("unexpected team id: got %d want %d", scannedTeamID, team.GetID())
+	}
+	if scannedUserID != user.GetID() {
+		t.Fatalf("unexpected user id: got %d want %d", scannedUserID, user.GetID())
+	}
+	if scannedLogin != user.GetLogin() {
+		t.Fatalf("unexpected login: got %s want %s", scannedLogin, user.GetLogin())
+	}
+	if scannedRole != "maintainer" {
+		t.Fatalf("unexpected role: got %s want maintainer", scannedRole)
+	}
+
+	if err := DeleteTeamUser(db, team.GetSlug(), user.GetLogin()); err != nil {
+		t.Fatalf("failed to delete team user relation: %v", err)
+	}
+
+	var remaining int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM ghub_team_users`).Scan(&remaining); err != nil {
+		t.Fatalf("failed to count team users: %v", err)
+	}
+	if remaining != 0 {
+		t.Fatalf("expected no team user relations, got %d", remaining)
+	}
+}
+
+func TestDeleteTeamBySlug(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open test database: %v", err)
+	}
+	defer db.Close()
+
+	if err := createTables(db); err != nil {
+		t.Fatalf("Failed to create tables: %v", err)
+	}
+
+	team := &github.Team{ID: github.Int64(30), Slug: github.String("team-two"), Name: github.String("Team Two")}
+	user := &github.User{ID: github.Int64(40), Login: github.String("user-two")}
+
+	if err := StoreTeams(db, []*github.Team{team}); err != nil {
+		t.Fatalf("failed to store team: %v", err)
+	}
+	if err := StoreUsers(db, []*github.User{user}); err != nil {
+		t.Fatalf("failed to store user: %v", err)
+	}
+	if err := UpsertTeamUser(db, team.GetSlug(), team.GetID(), user, "member"); err != nil {
+		t.Fatalf("failed to upsert team user: %v", err)
+	}
+
+	if err := DeleteTeamBySlug(db, team.GetSlug()); err != nil {
+		t.Fatalf("failed to delete team by slug: %v", err)
+	}
+
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM ghub_teams`).Scan(&count); err != nil {
+		t.Fatalf("failed to count teams: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected teams to be empty, got %d", count)
+	}
+
+	if err := db.QueryRow(`SELECT COUNT(*) FROM ghub_team_users`).Scan(&count); err != nil {
+		t.Fatalf("failed to count team users: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected team users to be empty, got %d", count)
+	}
+}
+
+func TestDeleteUserByLogin(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open test database: %v", err)
+	}
+	defer db.Close()
+
+	if err := createTables(db); err != nil {
+		t.Fatalf("Failed to create tables: %v", err)
+	}
+
+	team := &github.Team{ID: github.Int64(50), Slug: github.String("team-three"), Name: github.String("Team Three")}
+	user := &github.User{ID: github.Int64(60), Login: github.String("user-three")}
+
+	if err := StoreTeams(db, []*github.Team{team}); err != nil {
+		t.Fatalf("failed to store team: %v", err)
+	}
+	if err := StoreUsers(db, []*github.User{user}); err != nil {
+		t.Fatalf("failed to store user: %v", err)
+	}
+	if err := UpsertTeamUser(db, team.GetSlug(), team.GetID(), user, "member"); err != nil {
+		t.Fatalf("failed to upsert team user: %v", err)
+	}
+
+	if err := DeleteUserByLogin(db, user.GetLogin()); err != nil {
+		t.Fatalf("failed to delete user by login: %v", err)
+	}
+
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM ghub_users`).Scan(&count); err != nil {
+		t.Fatalf("failed to count users: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected users to be empty, got %d", count)
+	}
+
+	if err := db.QueryRow(`SELECT COUNT(*) FROM ghub_team_users`).Scan(&count); err != nil {
+		t.Fatalf("failed to count team users: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected team users to be empty, got %d", count)
+	}
+}

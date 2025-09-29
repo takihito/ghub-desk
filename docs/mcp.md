@@ -145,6 +145,40 @@ MCP クライアント（例: MCP Inspector やエージェント）から接続
 
 注意: DB ファイルはカレントディレクトリの `ghub-desk.db` を使用します。
 
+- pull.users
+  - 入力: `{ "no_store": false, "stdout": false, "detail": false }`（各項目はオプション）
+  - 動作: GitHub から組織ユーザー（detail=true で詳細情報）を取得し、`store=true` ならローカル DB に保存。
+  - requires: `allow_pull`
+- pull.teams
+  - 入力: `{ "no_store": false, "stdout": false }`
+  - 動作: 組織チーム一覧を GitHub から取得し、保存指定時に DB へ反映。
+  - requires: `allow_pull`
+- pull.repositories
+  - 入力: `{ "no_store": false, "stdout": false }`
+  - 動作: 組織リポジトリを取得し、保存オプションに応じて DB 更新。
+  - requires: `allow_pull`
+- pull.team-user
+  - 入力: `{ "team": "team-slug", "no_store": false, "stdout": false }`
+  - 動作: 指定チームに所属するユーザーを取得し、保存オプションが有効なら DB に保存。
+  - requires: `allow_pull`
+- pull.outside-users
+  - 入力: `{ "no_store": false, "stdout": false }`
+  - 動作: Outside Collaborator を取得し、必要に応じて DB に保存。
+  - requires: `allow_pull`
+- pull.token-permission
+  - 入力: `{ "no_store": false, "stdout": false }`
+  - 動作: PAT の権限情報を取得し、保存オプションが有効なら DB に保存。
+  - requires: `allow_pull`
+
+- push.add
+  - 入力: `{ "team_user": "team-slug/username", "exec": false, "no_store": false }` (`no_store` は任意でローカルDB更新を抑止)
+  - 動作: `exec=false` の場合は DRYRUN として想定される追加内容を返す。`exec=true` で GitHub API を呼び出しチームへユーザーを追加し、`no_store=false` ならローカルDBも同期。
+  - requires: `allow_write`
+- push.remove
+  - 入力: `{ "team": "" | null, "user": "" | null, "team_user": "team-slug/username" | null, "exec": false, "no_store": false }`（対象はいずれか1つ。`no_store` は任意）
+  - 動作: `exec=false` の場合は DRYRUN。`exec=true` で指定対象（チーム削除、組織からのユーザー削除、チームメンバー削除）を実行し、`no_store=false` ならローカルDBへ反映。
+  - requires: `allow_write`
+
 ### ツール呼び出し例（概念）
 ```json
 {
