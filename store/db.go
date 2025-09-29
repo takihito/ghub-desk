@@ -212,6 +212,68 @@ func StoreTeamUsers(db *sql.DB, users []*github.User, teamSlug string) error {
 	return nil
 }
 
+// UpsertTeamUser adds or updates a single team membership relation in the local database.
+func UpsertTeamUser(db *sql.DB, teamSlug string, teamID int64, user *github.User, role string) error {
+	if db == nil {
+		return fmt.Errorf("database connection is required to upsert team user")
+	}
+	if user == nil {
+		return fmt.Errorf("user information is required to upsert team user")
+	}
+	if teamID == 0 {
+		return fmt.Errorf("team ID is required to upsert team user")
+	}
+	if role == "" {
+		role = "member"
+	}
+	now := time.Now().Format("2006-01-02 15:04:05")
+	_, err := db.Exec(`INSERT OR REPLACE INTO ghub_team_users(team_id, user_id, user_login, team_slug, role, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		teamID, user.GetID(), user.GetLogin(), teamSlug, role, now)
+	if err != nil {
+		return fmt.Errorf("failed to upsert team user %s for team %s: %w", user.GetLogin(), teamSlug, err)
+	}
+	return nil
+}
+
+// DeleteTeamBySlug removes a team and its memberships from the local database.
+func DeleteTeamBySlug(db *sql.DB, teamSlug string) error {
+	if db == nil {
+		return fmt.Errorf("database connection is required to delete team")
+	}
+	if _, err := db.Exec(`DELETE FROM ghub_team_users WHERE team_slug = ?`, teamSlug); err != nil {
+		return fmt.Errorf("failed to delete team users for team %s: %w", teamSlug, err)
+	}
+	if _, err := db.Exec(`DELETE FROM ghub_teams WHERE slug = ?`, teamSlug); err != nil {
+		return fmt.Errorf("failed to delete team %s: %w", teamSlug, err)
+	}
+	return nil
+}
+
+// DeleteUserByLogin removes a user and related memberships from the local database.
+func DeleteUserByLogin(db *sql.DB, login string) error {
+	if db == nil {
+		return fmt.Errorf("database connection is required to delete user")
+	}
+	if _, err := db.Exec(`DELETE FROM ghub_team_users WHERE user_login = ?`, login); err != nil {
+		return fmt.Errorf("failed to delete team memberships for user %s: %w", login, err)
+	}
+	if _, err := db.Exec(`DELETE FROM ghub_users WHERE login = ?`, login); err != nil {
+		return fmt.Errorf("failed to delete user %s: %w", login, err)
+	}
+	return nil
+}
+
+// DeleteTeamUser removes a membership relation between a team and a user from the local database.
+func DeleteTeamUser(db *sql.DB, teamSlug, userLogin string) error {
+	if db == nil {
+		return fmt.Errorf("database connection is required to delete team user relation")
+	}
+	if _, err := db.Exec(`DELETE FROM ghub_team_users WHERE team_slug = ? AND user_login = ?`, teamSlug, userLogin); err != nil {
+		return fmt.Errorf("failed to delete team user relation %s/%s: %w", teamSlug, userLogin, err)
+	}
+	return nil
+}
+
 // StoreOutsideUsers stores GitHub outside collaborators in the database
 func StoreOutsideUsers(db *sql.DB, users []*github.User) error {
 	now := time.Now().Format("2006-01-02 15:04:05")

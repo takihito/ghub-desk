@@ -144,12 +144,14 @@ type RemoveCmd struct {
 	Team     string `help:"Remove team from organization (team slug: 1–100 chars, lowercase alnum + hyphen)"`
 	User     string `help:"Remove user from organization (username: 1–39 chars, alnum + hyphen, no leading/trailing hyphen)"`
 	TeamUser string `name:"team-user" help:"Remove user from team (format: team-slug/username)"`
+	NoStore  bool   `name:"no-store" help:"Do not update local SQLite database after executing the operation"`
 }
 
 // AddCmd represents the add subcommand structure
 type AddCmd struct {
 	Exec     bool   `help:"Execute the operation (without this flag, runs in DRYRUN mode)"`
 	TeamUser string `name:"team-user" help:"Add user to team (format: team-slug/username)"`
+	NoStore  bool   `name:"no-store" help:"Do not update local SQLite database after executing the operation"`
 }
 
 // InitCmd represents the init command structure
@@ -201,7 +203,6 @@ func (p *PullCmd) Run(cli *CLI) error {
 	if err != nil {
 		return fmt.Errorf("configuration error: %w", err)
 	}
-	// Configure DB path if provided
 	if cfg.DatabasePath != "" {
 		store.SetDBPath(cfg.DatabasePath)
 	}
@@ -329,6 +330,9 @@ func (r *RemoveCmd) Run(cli *CLI) error {
 	if err != nil {
 		return fmt.Errorf("configuration error: %w", err)
 	}
+	if cfg.DatabasePath != "" {
+		store.SetDBPath(cfg.DatabasePath)
+	}
 
 	// Initialize GitHub client
 	client, err := github.InitClient(cfg)
@@ -344,6 +348,16 @@ func (r *RemoveCmd) Run(cli *CLI) error {
 			return fmt.Errorf("failed to execute remove: %w", err)
 		}
 		fmt.Println("Successfully removed.")
+		if !r.NoStore {
+			db, err := store.InitDatabase()
+			if err != nil {
+				return fmt.Errorf("failed to initialize database: %w", err)
+			}
+			defer db.Close()
+			if err := github.SyncPushRemove(ctx, client, db, cfg.Organization, target, targetValue); err != nil {
+				return fmt.Errorf("failed to update local database: %w", err)
+			}
+		}
 	} else {
 		fmt.Printf("DRYRUN: Would remove %s '%s' from organization %s\n", target, targetValue, cfg.Organization)
 		fmt.Println("To execute, add the --exec flag.")
@@ -433,6 +447,16 @@ func (a *AddCmd) Run(cli *CLI) error {
 			return fmt.Errorf("failed to execute add: %w", err)
 		}
 		fmt.Println("Successfully added.")
+		if !a.NoStore {
+			db, err := store.InitDatabase()
+			if err != nil {
+				return fmt.Errorf("failed to initialize database: %w", err)
+			}
+			defer db.Close()
+			if err := github.SyncPushAdd(ctx, client, db, cfg.Organization, target, targetValue); err != nil {
+				return fmt.Errorf("failed to update local database: %w", err)
+			}
+		}
 	} else {
 		fmt.Printf("DRYRUN: Would add %s '%s' to organization %s\n", target, targetValue, cfg.Organization)
 		fmt.Println("To execute, add the --exec flag.")

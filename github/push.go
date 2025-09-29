@@ -2,8 +2,12 @@ package github
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
+
+	"ghub-desk/store"
+	"ghub-desk/validate"
 
 	"github.com/google/go-github/v55/github"
 )
@@ -87,4 +91,61 @@ func FormatScopePermission(resp *github.Response) string {
 			resp.Header.Get("X-Accepted-OAuth-Scopes"), resp.Header.Get("X-Accepted-GitHub-Permissions"))
 	}
 	return scopePermission
+}
+
+// SyncPushAdd reflects side effects of push add operations into the local database.
+func SyncPushAdd(ctx context.Context, client *github.Client, db *sql.DB, org, target, resourceName string) error {
+	switch target {
+	case "team-user":
+		teamSlug, userLogin, err := validate.ParseTeamUserPair(resourceName)
+		if err != nil {
+			return err
+		}
+		team, _, err := client.Teams.GetTeamBySlug(ctx, org, teamSlug)
+		if err != nil {
+			return fmt.Errorf("チーム情報の取得に失敗しました: %w", err)
+		}
+		if err := store.StoreTeams(db, []*github.Team{team}); err != nil {
+			return fmt.Errorf("チーム情報の保存に失敗しました: %w", err)
+		}
+		user, _, err := client.Users.Get(ctx, userLogin)
+		if err != nil {
+			return fmt.Errorf("ユーザー情報の取得に失敗しました: %w", err)
+		}
+		if err := store.StoreUsers(db, []*github.User{user}); err != nil {
+			return fmt.Errorf("ユーザー情報の保存に失敗しました: %w", err)
+		}
+		membership, _, err := client.Teams.GetTeamMembershipBySlug(ctx, org, teamSlug, userLogin)
+		if err != nil {
+			return fmt.Errorf("チームメンバー情報の取得に失敗しました: %w", err)
+		}
+		role := "member"
+		if membership != nil && membership.Role != nil && membership.GetRole() != "" {
+			role = membership.GetRole()
+		}
+		if err := store.UpsertTeamUser(db, teamSlug, team.GetID(), user, role); err != nil {
+			return err
+		}
+		return nil
+	default:
+		return fmt.Errorf("サポートされていない追加対象: %s", target)
+	}
+}
+
+// SyncPushRemove reflects side effects of push remove operations into the local database.
+func SyncPushRemove(ctx context.Context, client *github.Client, db *sql.DB, org, target, resourceName string) error {
+	switch target {
+	case "team":
+		return store.DeleteTeamBySlug(db, resourceName)
+	case "user":
+		return store.DeleteUserByLogin(db, resourceName)
+	case "team-user":
+		teamSlug, userLogin, err := validate.ParseTeamUserPair(resourceName)
+		if err != nil {
+			return err
+		}
+		return store.DeleteTeamUser(db, teamSlug, userLogin)
+	default:
+		return fmt.Errorf("サポートされていない削除対象: %s", target)
+	}
 }
