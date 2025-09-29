@@ -269,6 +269,40 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 	// For phase 1, only non-destructive tools are registered.
 
 	if cfg.MCP.AllowWrite {
+		sdk.AddTool[PushAddIn, PushResult](srv, &sdk.Tool{
+			Name:        "push.add",
+			Title:       "Push Add",
+			Description: "Add users to teams. Dry-run unless exec=true.",
+			InputSchema: &jsonschema.Schema{
+				Type: "object",
+				Properties: map[string]*jsonschema.Schema{
+					"team_user": {
+						Type:        "string",
+						Description: "Team/user pair in the form {team_slug}/{user_name}.",
+					},
+					"exec": {
+						Type:        "boolean",
+						Description: "Execute add when true; otherwise dry run.",
+					},
+				},
+				Required: []string{"team_user"},
+			},
+		}, func(ctx context.Context, req *sdk.CallToolRequest, in PushAddIn) (*sdk.CallToolResult, PushResult, error) {
+			target, value, err := resolvePushAddInput(in)
+			if err != nil {
+				return &sdk.CallToolResult{}, PushResult{}, err
+			}
+			if !in.Exec {
+				msg := fmt.Sprintf("DRYRUN: Would add %s '%s' to organization %s", target, value, cfg.Organization)
+				return nil, PushResult{Ok: true, Target: target, Value: value, Executed: false, Message: msg}, nil
+			}
+			if err := doPushAdd(ctx, cfg, target, value); err != nil {
+				return &sdk.CallToolResult{}, PushResult{}, err
+			}
+			msg := fmt.Sprintf("Added %s '%s' to organization %s", target, value, cfg.Organization)
+			return nil, PushResult{Ok: true, Target: target, Value: value, Executed: true, Message: msg}, nil
+		})
+
 		sdk.AddTool[PushRemoveIn, PushResult](srv, &sdk.Tool{
 			Name:        "push.remove",
 			Title:       "Push Remove",
@@ -564,6 +598,11 @@ type PullResult struct {
 	Target string `json:"target"`
 }
 
+type PushAddIn struct {
+	TeamUser string `json:"team_user"`
+	Exec     bool   `json:"exec,omitempty"`
+}
+
 type PushRemoveIn struct {
 	Team     string `json:"team,omitempty"`
 	User     string `json:"user,omitempty"`
@@ -588,6 +627,18 @@ func resolvePullOptions(noStore, stdout bool) gh.PullOptions {
 	}
 }
 
+func resolvePushAddInput(in PushAddIn) (string, string, error) {
+	pair := strings.TrimSpace(in.TeamUser)
+	if pair == "" {
+		return "", "", fmt.Errorf("team_user を指定してください (例: team-slug/user)")
+	}
+	teamSlug, userName, err := v.ParseTeamUserPair(pair)
+	if err != nil {
+		return "", "", err
+	}
+	return "team-user", fmt.Sprintf("%s/%s", teamSlug, userName), nil
+}
+
 func doPull(ctx context.Context, cfg *appcfg.Config, target string, opts gh.PullOptions, teamSlug string) error {
 	client, err := gh.InitClient(cfg)
 	if err != nil {
@@ -609,6 +660,14 @@ func doPull(ctx context.Context, cfg *appcfg.Config, target string, opts gh.Pull
 		opts.Interval = gh.DefaultSleep
 	}
 	return gh.HandlePullTarget(ctx, client, db, cfg.Organization, req, cfg.GitHubToken, opts)
+}
+
+func doPushAdd(ctx context.Context, cfg *appcfg.Config, target, value string) error {
+	client, err := gh.InitClient(cfg)
+	if err != nil {
+		return fmt.Errorf("github client init: %w", err)
+	}
+	return gh.ExecutePushAdd(ctx, client, cfg.Organization, target, value)
 }
 
 func resolvePushRemoveInput(in PushRemoveIn) (string, string, error) {

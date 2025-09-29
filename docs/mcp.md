@@ -145,6 +145,11 @@ MCP クライアント（例: MCP Inspector やエージェント）から接続
 
 注意: DB ファイルはカレントディレクトリの `ghub-desk.db` を使用します。
 
+- push.add
+  - 入力: `{ "team_user": "team-slug/username", "exec": false }`
+  - 動作: `exec=false` の場合は DRYRUN として想定される追加内容を返す。`exec=true` で GitHub API を呼び出しチームへユーザーを追加。
+  - requires: `allow_write`
+
 ### ツール呼び出し例（概念）
 ```json
 {
