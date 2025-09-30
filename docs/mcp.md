@@ -1,202 +1,95 @@
-# MCP サーバー機能（計画と使用例）
+# MCP サーバー機能ガイド
 
-本ドキュメントは、ghub-desk に Model Context Protocol (MCP) サーバー機能を追加するための計画および使用例を示します。実装は段階的に進めます。
+`ghub-desk` は Model Context Protocol (MCP) を通じて CLI の pull/view/push 機能をエージェントに公開できます。本書では現在実装済みの MCP サーバーの構成、提供ツール、利用方法を整理します。
 
-## 目的
-- LLM/エージェントなどの MCP クライアントから、組織の GitHub 情報取得・表示・一部操作（慎重に制限）を行えるサーバーを提供する。
-- 既存の CLI 機能（pull/view/push）を安全にラップし、`config.yaml` による権限制御を行う。
+## 実装概要
+- エントリポイント: `ghub-desk mcp`
+- 設定: `config.Config.MCP` の `allow_pull` / `allow_write` で公開ツールを制御
+- 永続化: CLI と同じ SQLite (`ghub-desk.db` 既定、`database_path` で変更可能)
+- 認証: CLI と同じく Personal Access Token もしくは GitHub App のどちらか 1 つを設定
 
-## 依存
-- go SDK: https://github.com/modelcontextprotocol/go-sdk
+## ビルドモード
+| モード | コマンド | 内容 |
+| --- | --- | --- |
+| スタブサーバー (既定) | `go build ./...`<br>`ghub-desk mcp` | go-sdk に依存しないビルド。起動すると許可されたツール一覧を表示し、Ctrl+C を待機します。|
+| go-sdk サーバー | `make build_mcp`<br>`./build/ghub-desk mcp --debug` | `-tags mcp_sdk` でビルドし、`github.com/modelcontextprotocol/go-sdk` を使った本格的な MCP サーバーを stdio で起動します。|
 
-## 設計概要
-- 新コマンド: `ghub-desk mcp`（サブコマンド `serve` は付けずに `mcp` 単独でサーバー起動を想定）
-- 新パッケージ: `mcp/`（サーバー起動ロジックとツール登録）
-  - 実装は `serve_mcp.go` に集約（go-sdk による MCP サーバー初期化とツール登録を同一ファイルで管理）
-  - 既存の `github/`, `store/`, `config/` を呼び出すラッパー
-- 権限制御（config.yaml; 後述）
-  - `mcp.allow_pull`: GitHub API からの取得（および DB への保存を含む）を許可
-  - `mcp.allow_write`: GitHub への変更（push add/remove）を許可
-  - 既定は安全側: `allow_pull: false`, `allow_write: false`
-  - 設定が `false` の機能はツール未登録（見えない）または実行時に 403 を返す
-- 通信方式
-  - 初期実装は標準入出力（stdio）を想定（MCP 標準）。将来的にソケット/HTTP は検討
-  - `ghub-desk mcp` 実行で stdio 上にサーバーを立て、クライアントは同プロセス起動で接続
+> go-sdk サーバーのみが MCP クライアントからの JSON-RPC に応答します。スタブは開発時の確認用です。
 
-### ツール設計（例）
-以下は代表例。最終的なスキーマは go-sdk の `schema`/`jsonschema` に合わせて定義。
+## 設定例
+`~/.config/ghub-desk/config.yaml`
 
-- `pull.users`
-  - params: `{ store?: boolean, detail?: boolean }`
-  - effect: GitHub から users を取得。`store=true` の場合は `store/` 経由で DB 保存
-  - requires: `allow_pull`
-
-- `pull.teams`
-  - params: `{ store?: boolean }`
-  - requires: `allow_pull`
-
-- `pull.repositories`
-  - params: `{ store?: boolean }`
-  - requires: `allow_pull`
-
-- `pull.team-user`
-  - params: `{ team: string, store?: boolean }`
-  - requires: `allow_pull`
-
-- `pull.outside-users`
-  - params: `{ store?: boolean }`
-  - requires: `allow_pull`
-
-- `pull.token-permission`
-  - params: `{ store?: boolean }`
-  - requires: `allow_pull`
-
-- `view.users`
-  - params: `{ detail?: boolean }`
-  - effect: DB から表示用データを返す（テキスト/構造化）
-
-- `view.*` 系（users/detail-users/teams/team-user/repositories/outside-users/token-permission）
-  - params: 必要に応じて team 名など
-
-- `push.remove`
-  - params: `{ target: "team"|"user", name: string, exec?: boolean }`
-  - requires: `allow_write`
-  - note: `exec=false` は DRYRUN
-
-- `push.add`
-  - params: `{ target: "team-user", value: "team/user", role?: string, exec?: boolean }`
-  - requires: `allow_write`
-
-### エラーポリシー
-- JSON-RPC/MCP のエラーコードを使用（既存 `mcp/errors.go` のコードに従う）
-- 権限制御で拒否時は 403 を返す
-
-## 実装ステップ
-1) 依存追加: `go get github.com/modelcontextprotocol/go-sdk`
-2) `config` に `mcp` セクションを追加（例は下記）
-3) `cmd` に `mcp` サブコマンドを追加
-   - `Execute` 経由で `mcp.Serve()` を呼ぶ
-4) `mcp` パッケージ新設
-   - `server.go` にサーバー初期化（stdio transport）
-   - `tools_*.go` で各ツール登録とパラメータ検証
-   - 既存の `github`/`store` へ橋渡し
-5) テスト
-   - ハンドラのユニットテスト（権限制御、パラメータバリデーション、エラー変換）
-   - 最小の結合テスト（stdio をモックしてリクエスト/レスポンスの往復確認）
-6) ドキュメント整備
-   - 本ファイル（docs/mcp.md）の更新
-   - `README.md` と `config.yaml.example` 更新
-
-## 使用例（予定）
-
-### 設定（~/.config/ghub-desk/config.yaml）
 ```yaml
 organization: "your-org"
-github_token: "${GHUB_DESK_GITHUB_TOKEN}"
+github_token: "${GHUB_DESK_GITHUB_TOKEN}" # または github_app セクション
+
+database_path: "./ghub-desk.db"
 
 mcp:
-  allow_pull: true      # GitHub API からの取得を許可
-  allow_write: false    # 変更操作は不可（安全側）
+  allow_pull: true   # pull.* を登録
+  allow_write: false # push.* は無効化 (安全側)
 ```
 
-### サーバー起動（スタブ: デフォルトビルド）
-```bash
-ghub-desk mcp
-```
+`allow_pull` と `allow_write` は MCP サーバーのツール登録に直結します。`nil` 設定時は false と同等です。
 
-デフォルトビルドではスタブサーバーが起動し、許可されたツール一覧を表示して待機します。
-本番相当の go-sdk 実装はビルドタグ `mcp_sdk` で有効化します。
+## 提供ツール
+### 共通
+| ツール名 | 説明 | 入力 | 備考 |
+| --- | --- | --- | --- |
+| `health` | サーバーヘルス確認 | なし | `{"status":"ok","time":"RFC3339"}` を返却 |
 
-### サーバー起動（go-sdk: 本実装）
+### view.* (常時利用可能)
+すべてローカル DB を参照し、最大 200 件（チームメンバーは 500 件）を返します。
+
+| ツール名 | 説明 | 入力 | 出力概要 |
+| --- | --- | --- | --- |
+| `view.users` | 組織ユーザー一覧 | なし | `users[]` に `id`, `login`, `name`, `email` など |
+| `view.detail-users` | 詳細ユーザー（現状は `view.users` と同じ） | なし | `users[]` |
+| `view.teams` | チーム情報 | なし | `teams[]` に `id`, `slug`, `name`, `description`, `privacy` |
+| `view.repos` | リポジトリ情報 | なし | `repositories[]` に `name`, `full_name`, `private`, `language`, `stars` |
+| `view.team-user` | 指定チームのメンバー | `{ "team": "team-slug" }` | `users[]` に `user_id`, `login`, `role` |
+| `view.outside-users` | Outside Collaborator | なし | `users[]` |
+| `view.token-permission` | `pull.token-permission` の保存内容 | なし | PAT/GitHub App 権限情報。未取得の場合はエラー |
+
+### pull.* (`allow_pull: true` の場合のみ)
+GitHub API を呼び出し、成功時に既定で SQLite を更新します。`no_store: true` で保存を抑止、`stdout: true` で API レスポンスを標準出力にコピーします。
+
+| ツール名 | 説明 | 入力 | 備考 |
+| --- | --- | --- | --- |
+| `pull.users` | 組織ユーザー取得 | `{ "no_store"?, "stdout"?, "detail"? }` | `detail:true` で `detail-users` を取得 |
+| `pull.teams` | チーム一覧取得 | `{ "no_store"?, "stdout"? }` |  |
+| `pull.repositories` | リポジトリ一覧取得 | `{ "no_store"?, "stdout"? }` |  |
+| `pull.team-user` | チームメンバー取得 | `{ "team", "no_store"?, "stdout"? }` | `team` は slug 形式 (`team-slug`) |
+| `pull.outside-users` | Outside Collaborator 取得 | `{ "no_store"?, "stdout"? }` |  |
+| `pull.token-permission` | トークン権限情報取得 | `{ "no_store"?, "stdout"? }` | 最新のレスポンスを DB に保存 |
+
+### push.* (`allow_write: true` の場合のみ)
+GitHub 側へ変更を加える操作です。既定では DRYRUN として実行内容を返し、`exec: true` を指定したときのみ API を呼び出します。`no_store: true` で成功後のローカル DB 同期 (`SyncPushAdd/Remove`) をスキップできます。
+
+| ツール名 | 説明 | 入力 | 備考 |
+| --- | --- | --- | --- |
+| `push.add` | チームへのユーザー追加 | `{ "team_user", "exec"?, "no_store"? }` | `team_user` は `team-slug/username`。成功時 `message` を返す |
+| `push.remove` | チーム削除 / 組織ユーザー削除 / チームメンバー削除 | `{ "team"? \| "user"? \| "team_user"?, "exec"?, "no_store"? }` | 対象はいずれか 1 つだけ指定。`exec:false` は DRYRUN |
+
+## 起動例
 ```bash
-# 簡単: Makefile のターゲットを利用
+# スタブサーバー (許可ツール一覧のみ表示)
+go run ./cmd/ghub-desk mcp
+
+# go-sdk サーバー (実際の MCP を提供)
 make build_mcp
 ./build/ghub-desk mcp --debug
-
-# 直接 go build の場合
-go build -tags mcp_sdk -o build/ghub-desk .
-./build/ghub-desk mcp --debug
 ```
 
-MCP クライアント（例: MCP Inspector やエージェント）から接続すると、
-`view.*` や（許可されていれば）`pull.*`、`push.*` のツールが使用可能になります。
+MCP クライアント（例: MCP Inspector）をサブプロセスとして起動すると、`health` / `view.*` / `pull.*` / `push.*` を呼び出せます。`allow_write` を有効にする前に DRYRUN 出力で影響範囲を確認してください。
 
-## 提供ツール（第1弾）
+## エラーハンドリングと注意点
+- 認証設定が無い、もしくは PAT と GitHub App を同時に設定している場合はサーバー起動時にエラーになります。
+- `view.token-permission` は保存済みデータが無いとエラーを返します（`pull.token-permission` を `no_store:false` で実行してください）。
+- DB パスは `config.yaml` や `GHUB_DESK_DB_PATH` で上書き可能です。MCP 側でも同じパスを利用します。
+- MCP サーバーからの pull/push 実行は CLI と同じレート制限・権限に従います。GitHub App 認証を利用する場合は `GHUB_DESK_APP_ID` / `GHUB_DESK_INSTALLATION_ID` / `GHUB_DESK_PRIVATE_KEY` を設定してください。
 
-- health
-  - 入力: なし（空オブジェクト）
-  - 出力: `{ "status": "ok", "time": "RFC3339" }`
-- view.users
-  - 入力: なし（空オブジェクト）
-  - 動作: ローカル DB からユーザー一覧を返す（最大 200 件）
-  - 出力例:
-    ```json
-    {
-      "users": [
-        {"id": 1, "login": "alice", "name": "Alice"},
-        {"id": 2, "login": "bob",   "name": "Bob"}
-      ]
-    }
-    ```
-
-- view.detail-users
-  - 入力: なし（空オブジェクト）
-  - 動作: 現状は `view.users` と同一のレスポンス（将来的に項目拡張予定）
-
-注意: DB ファイルはカレントディレクトリの `ghub-desk.db` を使用します。
-
-- pull.users
-  - 入力: `{ "no_store": false, "stdout": false, "detail": false }`（各項目はオプション）
-  - 動作: GitHub から組織ユーザー（detail=true で詳細情報）を取得し、`store=true` ならローカル DB に保存。
-  - requires: `allow_pull`
-- pull.teams
-  - 入力: `{ "no_store": false, "stdout": false }`
-  - 動作: 組織チーム一覧を GitHub から取得し、保存指定時に DB へ反映。
-  - requires: `allow_pull`
-- pull.repositories
-  - 入力: `{ "no_store": false, "stdout": false }`
-  - 動作: 組織リポジトリを取得し、保存オプションに応じて DB 更新。
-  - requires: `allow_pull`
-- pull.team-user
-  - 入力: `{ "team": "team-slug", "no_store": false, "stdout": false }`
-  - 動作: 指定チームに所属するユーザーを取得し、保存オプションが有効なら DB に保存。
-  - requires: `allow_pull`
-- pull.outside-users
-  - 入力: `{ "no_store": false, "stdout": false }`
-  - 動作: Outside Collaborator を取得し、必要に応じて DB に保存。
-  - requires: `allow_pull`
-- pull.token-permission
-  - 入力: `{ "no_store": false, "stdout": false }`
-  - 動作: PAT の権限情報を取得し、保存オプションが有効なら DB に保存。
-  - requires: `allow_pull`
-
-- push.add
-  - 入力: `{ "team_user": "team-slug/username", "exec": false, "no_store": false }` (`no_store` は任意でローカルDB更新を抑止)
-  - 動作: `exec=false` の場合は DRYRUN として想定される追加内容を返す。`exec=true` で GitHub API を呼び出しチームへユーザーを追加し、`no_store=false` ならローカルDBも同期。
-  - requires: `allow_write`
-- push.remove
-  - 入力: `{ "team": "" | null, "user": "" | null, "team_user": "team-slug/username" | null, "exec": false, "no_store": false }`（対象はいずれか1つ。`no_store` は任意）
-  - 動作: `exec=false` の場合は DRYRUN。`exec=true` で指定対象（チーム削除、組織からのユーザー削除、チームメンバー削除）を実行し、`no_store=false` ならローカルDBへ反映。
-  - requires: `allow_write`
-
-### ツール呼び出し例（概念）
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "tools/call",
-  "params": {
-    "name": "pull.users",
-    "arguments": { "store": true, "detail": false }
-  }
-}
-```
-
-### 注意事項
-- `allow_write: true` を有効にする場合は、DRYRUN を活用し影響範囲を十分に確認してください。
-- 認証設定（PAT または GitHub App）は既存設定に従います。
-
-## 今後の拡張
-- outputs を構造化（JSON Schema）してクライアント側で再利用しやすくする
+## 今後のアイデア
+- レスポンススキーマの細分化（JSON Schema）
 - イベント/ストリーミング対応
-- サブリソースの詳細取得や差分検出
+- pull 結果の差分比較ツール
