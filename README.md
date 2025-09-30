@@ -6,7 +6,7 @@ GitHub Organization Management CLI & MCP Server
 
 ## Overview
 
-`ghub-desk` is a command-line tool for organizing members, teams, and repositories in a GitHub organization. It communicates with the GitHub API to fetch organization data, caches the responses in SQLite for offline access, and can run as a Model Context Protocol (MCP) server so that LLMs and agents can safely reuse the same capabilities.
+`ghub-desk` is a command-line tool for managing members, teams, and repositories in a GitHub organization. It communicates with the GitHub API to fetch organization data, caches the responses in SQLite for offline access, and can run as a Model Context Protocol (MCP) server so that LLMs and agents can safely reuse the same capabilities.
 
 - GitHub API powered `pull`, `view`, and `push` commands
 - Mutating commands run in DRYRUN mode by default and require `--exec` to perform changes
@@ -55,7 +55,7 @@ You can authenticate with GitHub App credentials instead of a Personal Access To
 
 ```bash
 export GHUB_DESK_APP_ID="123456"                 # GitHub App ID
-export GHUB_DESK_INSTALLATION_ID="7890123"      # Installation ID for the target org
+export GHUB_DESK_INSTALLATION_ID="76543210"      # Installation ID for the target org
 export GHUB_DESK_PRIVATE_KEY="$(cat /path/to/private-key.pem)" # Full PEM string
 ```
 
@@ -113,7 +113,6 @@ mcp:
 
 # Inspect members of a specific team slug
 ./ghub-desk view --team-user team-slug
-./ghub-desk view team-slug/users
 
 # Review masked configuration values
 ./ghub-desk view --settings
