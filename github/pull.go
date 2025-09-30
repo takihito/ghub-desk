@@ -80,12 +80,12 @@ func PullUsers(ctx context.Context, client *github.Client, db *sql.DB, org strin
 			return client.Organizations.ListMembers(ctx, org, memberOpts)
 		},
 		func(db *sql.DB, users []*github.User) error {
-			if !opts.Store || db == nil {
+			if db == nil {
 				return nil
 			}
 			return store.StoreUsers(db, users)
 		},
-		db, org, opts.Interval,
+		db, org, opts.Interval, opts.Store,
 	)
 	if err != nil {
 		return err
@@ -136,12 +136,12 @@ func PullDetailUsers(ctx context.Context, client *github.Client, db *sql.DB, org
 				time.Sleep(opts.Interval)
 			}
 			detailedUsersList = append(detailedUsersList, detailedUsers...)
-			if !opts.Store || db == nil {
+			if db == nil {
 				return nil
 			}
 			return store.StoreUsersWithDetails(db, detailedUsers)
 		},
-		db, org, opts.Interval,
+		db, org, opts.Interval, opts.Store,
 	)
 	if err != nil {
 		return err
@@ -173,12 +173,12 @@ func PullTeams(ctx context.Context, client *github.Client, db *sql.DB, org strin
 			return client.Teams.ListTeams(ctx, org, optsList)
 		},
 		func(db *sql.DB, teams []*github.Team) error {
-			if !opts.Store || db == nil {
+			if db == nil {
 				return nil
 			}
 			return store.StoreTeams(db, teams)
 		},
-		db, org, opts.Interval,
+		db, org, opts.Interval, opts.Store,
 	)
 	if err != nil {
 		return err
@@ -211,12 +211,12 @@ func PullRepositories(ctx context.Context, client *github.Client, db *sql.DB, or
 			return client.Repositories.ListByOrg(ctx, org, repoOpts)
 		},
 		func(db *sql.DB, repos []*github.Repository) error {
-			if !opts.Store || db == nil {
+			if db == nil {
 				return nil
 			}
 			return store.StoreRepositories(db, repos)
 		},
-		db, org, opts.Interval,
+		db, org, opts.Interval, opts.Store,
 	)
 	if err != nil {
 		return err
@@ -271,12 +271,12 @@ func pullTeamUsers(ctx context.Context, client *github.Client, db *sql.DB, org, 
 			return client.Teams.ListTeamMembersBySlug(ctx, org, teamSlug, teamOpts)
 		},
 		func(db *sql.DB, users []*github.User) error {
-			if !opts.Store || db == nil {
+			if db == nil {
 				return nil
 			}
 			return store.StoreTeamUsers(db, users, teamSlug)
 		},
-		db, org, opts.Interval,
+		db, org, opts.Interval, opts.Store,
 	)
 	if err != nil {
 		return nil, err
@@ -445,8 +445,9 @@ func fetchAndStore[T any](
 	db *sql.DB,
 	org string,
 	intervalTime time.Duration,
+	store bool,
 ) ([]*T, error) {
-	var allItems []*T
+	allItems := make([]*T, 0)
 	page := 1
 	count := 0
 
@@ -479,14 +480,10 @@ func fetchAndStore[T any](
 	}
 
 	// Store all fetched data in the database
-	if len(allItems) > 0 {
+	if store && len(allItems) > 0 {
 		if err := storeFunc(db, allItems); err != nil {
 			return nil, fmt.Errorf("failed to store data: %w", err)
 		}
-	}
-
-	if allItems == nil {
-		allItems = make([]*T, 0)
 	}
 
 	return allItems, nil
@@ -520,7 +517,7 @@ func PullOutsideUsers(ctx context.Context, client *github.Client, db *sql.DB, or
 			}
 			return store.StoreOutsideUsers(db, users)
 		},
-		db, org, opts.Interval,
+		db, org, opts.Interval, opts.Store,
 	)
 	if err != nil {
 		return err
