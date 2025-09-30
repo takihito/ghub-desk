@@ -46,7 +46,7 @@ GitHub Organization Management CLI & MCP Server
 
 ```bash
 export GHUB_DESK_ORGANIZATION="your-org-name"      # GitHub organization name
-export GHUB_DESK_GITHUB_TOKEN="your-token"         # Personal Access Token
+export GHUB_DESK_GITHUB_TOKEN="your-token"         # GitHub Personal Access Token (PAT)
 ```
 
 ### Authenticating with a GitHub App
