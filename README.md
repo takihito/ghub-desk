@@ -2,175 +2,179 @@
 
 GitHub Organization Management CLI & MCP Server
 
-## 概要
+[Read this document in Japanese](README.ja.md)
 
-`ghub-desk`は、GitHub 組織のメンバー・チーム・リポジトリ情報を整理するためのコマンドラインツールです。GitHub API と連携して組織情報を取得し、SQLite にキャッシュしてオフライン参照を支援します。また、Model Context Protocol (MCP) サーバーとして起動することで、LLM やエージェントから同じ機能を安全に呼び出すことができます。
+## Overview
 
-- GitHub API を利用した `pull` / `view` / `push` コマンド
-- 変更系コマンドは DRYRUN を標準とし、`--exec` 指定時のみ実行
-- 設定ファイルと環境変数での柔軟な構成 (DB パス、MCP 権限など)
-- MCP ツール経由での自動化と統合
+`ghub-desk` is a command-line tool for organizing members, teams, and repositories in a GitHub organization. It communicates with the GitHub API to fetch organization data, caches the responses in SQLite for offline access, and can run as a Model Context Protocol (MCP) server so that LLMs and agents can safely reuse the same capabilities.
 
-## 主な機能
+- GitHub API powered `pull`, `view`, and `push` commands
+- Mutating commands run in DRYRUN mode by default and require `--exec` to perform changes
+- Flexible configuration via config files and environment variables (database path, MCP permissions, etc.)
+- Easy automation through MCP tool integrations
 
-### データ取得 (pull)
-- ターゲット: `users`, `detail-users`, `teams`, `repos`, `team-user`, `all-teams-users`, `outside-users`, `token-permission`
-- `--no-store` でローカル DB への保存をスキップ、`--stdout` で API レスポンスを標準出力に表示
-- `--interval-time` で GitHub API 呼び出し間隔を調整
+## Core Commands
 
-### データ表示 (view)
-- `pull` で保存した情報を SQLite から表示
-- `--team-user` や `{team-slug}/users` 引数で特定チームのユーザーを参照
-- `--settings` でマスク済み設定値を確認
+### Data collection (pull)
+- Targets: `users`, `detail-users`, `teams`, `repos`, `team-user`, `all-teams-users`, `outside-users`, `token-permission`
+- Use `--no-store` to skip writing to the local DB, `--stdout` to stream API responses to stdout
+- Use `--interval-time` to throttle GitHub API calls
 
-### データ操作 (push add/remove)
-- 組織・チームからのユーザー追加/削除、チーム削除に対応
-- デフォルトは DRYRUN (`--exec` 指定時のみ GitHub API を実行)
-- `--no-store` で成功後のローカル DB 同期を抑止可能
+### Data inspection (view)
+- Display the data stored by `pull` from SQLite
+- Use `--team-user` or `team-slug/users` arguments to inspect specific teams
+- Use `--settings` to review masked configuration values
 
-### データ初期化 (init)
-- SQLite テーブルを初期化して保存領域を準備
+### Data mutations (push add/remove)
+- Add or remove users from the organization and its teams, or delete teams
+- Runs in DRYRUN mode by default; apply changes with `--exec`
+- Use `--no-store` to skip syncing the local DB after successful operations
 
-### バージョン確認 (version)
-- ビルド時に埋め込まれたバージョン/コミット/ビルド日時を表示
+### Database initialization (init)
+- Prepare SQLite tables for local storage
 
-### MCP サーバー (mcp)
-- MCP クライアント (例: MCP Inspector) から CLI 機能を呼び出すためのサーバーを起動
-- 設定ファイルの `mcp.allow_pull` / `mcp.allow_write` で利用可能なツールを制御
+### Version information (version)
+- Display build-time metadata (version, commit, build time)
 
-## 設定
+### MCP server (mcp)
+- Launch an MCP server so clients (for example, MCP Inspector) can call the CLI features
+- Control the exposed tools with `mcp.allow_pull` and `mcp.allow_write`
 
-### 環境変数
+## Configuration
 
-```bash
-export GHUB_DESK_ORGANIZATION="your-org-name"      # GitHub 組織名
-export GHUB_DESK_GITHUB_TOKEN="your-token"         # GitHub Access Token
-```
-
-### GitHub App での認証
-
-Personal Access Token の代わりに GitHub App の資格情報でも認証できます。App 認証を利用する場合は、下記の環境変数を設定するか、設定ファイルの `github_app` セクションに値を記載してください（PAT と App を同時に指定することはできません）。
+### Environment variables
 
 ```bash
-export GHUB_DESK_APP_ID="123456"                 # GitHub App の App ID
-export GHUB_DESK_INSTALLATION_ID="7890123"      # インストール先の Installation ID
-export GHUB_DESK_PRIVATE_KEY="$(cat /path/to/private-key.pem)" # PEM 文字列全体
+export GHUB_DESK_ORGANIZATION="your-org-name"      # GitHub organization name
+export GHUB_DESK_GITHUB_TOKEN="your-token"         # Personal Access Token
 ```
 
-`GHUB_DESK_PRIVATE_KEY` には秘密鍵（`-----BEGIN...END-----` を含む）を直接文字列として設定するか、設定ファイルで複数行文字列として読み込ませてください。
+### Authenticating with a GitHub App
 
-### 設定ファイル例 (~/.config/ghub-desk/config.yaml)
+You can authenticate with GitHub App credentials instead of a Personal Access Token. Provide the following environment variables or set the `github_app` section in the config file. Do not configure a PAT and a GitHub App at the same time.
+
+```bash
+export GHUB_DESK_APP_ID="123456"                 # GitHub App ID
+export GHUB_DESK_INSTALLATION_ID="7890123"      # Installation ID for the target org
+export GHUB_DESK_PRIVATE_KEY="$(cat /path/to/private-key.pem)" # Full PEM string
+```
+
+`GHUB_DESK_PRIVATE_KEY` must contain the entire private key text (including `-----BEGIN ...` and `-----END ...`). Set it directly via the environment or load it as a multi-line string in the config file.
+
+### Example config file (~/.config/ghub-desk/config.yaml)
 
 ```yaml
 organization: "your-org"
 github_token: "${GHUB_DESK_GITHUB_TOKEN}"
-database_path: "./ghub-desk.db"          # 任意。指定しない場合はカレントディレクトリを使用
+database_path: "./ghub-desk.db"          # Optional. Defaults to the current directory.
 
 mcp:
-  allow_pull: true                       # pull 系ツールを公開
-  allow_write: false                     # push add/remove は無効
+  allow_pull: true                       # expose pull/view tools
+  allow_write: false                     # keep push add/remove disabled by default
 ```
 
-### 入力制約（ユーザー名・チーム）
+### Input constraints (usernames and teams)
 
-- ユーザー名
-  - 許可: 英数字・ハイフンのみ
-  - 先頭/末尾にハイフンは不可
-  - 長さ: 1〜39 文字
-- チーム名（slug）
-  - API 指定は slug を使用します（表示名ではありません）
-  - 許可: 小文字英数字・ハイフンのみ
-  - 先頭/末尾にハイフンは不可
-  - 長さ: 1〜100 文字
-- チーム名(slug)/ユーザー名
-  - 形式: `{team-slug}/{username}` を `--team-user` に渡してください
+- Usernames
+  - Allowed characters: alphanumeric and hyphen
+  - Hyphen cannot appear at the beginning or end
+  - Length: 1 to 39 characters
+- Team slugs
+  - Use the slug in API calls (not the display name)
+  - Allowed characters: lowercase alphanumeric and hyphen
+  - Hyphen cannot appear at the beginning or end
+  - Length: 1 to 100 characters
+- Team slug with username
+  - Use the `{team-slug}/{username}` format when passing to `--team-user`
 
-## 基本的な使用例
+## Usage
 
 ### pull
 
 ```bash
-# 組織メンバーの基本情報を取得・保存
+# Fetch and store basic organization member information
 ./ghub-desk pull --users
 
-# 取得結果を標準出力へ出しつつ詳細情報も保存
+# Store detailed user information while streaming the API response
 ./ghub-desk pull --detail-users --stdout
 
-# チーム一覧を取得。DB を更新せず API 結果のみ確認
+# Retrieve the team list without updating the DB
 ./ghub-desk pull --teams --no-store
 
-# 全チームのメンバーを連続取得（リクエスト間隔は既定 3s）
+# Fetch members for every team (default interval: 3s)
 ./ghub-desk pull --all-teams-users
 ```
 
 ### view
 
 ```bash
-# 保存済みのユーザー情報を表示
+# Show stored user information
 ./ghub-desk view --users
 
-# チーム slug を指定してメンバーを表示
+# Inspect members of a specific team slug
 ./ghub-desk view --team-user team-slug
+./ghub-desk view team-slug/users
 
-# マスク済みの設定値を確認
+# Review masked configuration values
 ./ghub-desk view --settings
 ```
 
 ### push
 
 ```bash
-# チームにユーザーを追加（DRYRUN）
+# Add a user to a team (DRYRUN)
 ./ghub-desk push add --team-user team-slug/username
 
-# 追加を実行し、成功時にローカル DB も同期
+# Execute the addition and sync the local DB on success
 ./ghub-desk push add --team-user team-slug/username --exec
 
-# チームからユーザーを削除し、ローカル DB 更新は抑止
+# Remove a user from a team while skipping the DB sync
 ./ghub-desk push remove --team-user team-slug/username --exec --no-store
 ```
 
 ### init / version
 
 ```bash
-# SQLite テーブルを初期化
+# Initialize SQLite tables
 ./ghub-desk init
 
-# バージョン情報を表示
+# Display build metadata
 ./ghub-desk version
 ```
 
-## MCP サーバー
+## MCP server
 
 ```bash
-# MCP サーバーを起動 (許可されたツールのみ公開)
+# Launch the MCP server (only exposes allowed tools)
 ./ghub-desk mcp --debug
 
+# Build with the go-sdk support and launch
+make build_mcp
+./build/ghub-desk mcp
 ```
 
-- MCP サーバーは設定の `mcp.allow_pull` / `allow_write` に応じて `pull.*` / `push.*` ツールを公開します。
-- `allow_write` を有効にする場合は、`--exec` フラグの利用や DRYRUN で影響範囲を確認してから実行してください。
+- The server exposes `pull.*` and `push.*` tools based on `mcp.allow_pull` and `mcp.allow_write`.
+- When enabling write operations, run with `--exec` and review the DRYRUN output first.
 
-## 技術
+## Technology
 
-- **REST API**: GitHub API を利用したデータ取得・操作
-- **ローカルデータベース**: SQLite を使用したオフラインでのデータ参照
-- **MCP**: Model Context Protocol を介した外部クライアント連携 (`github.com/modelcontextprotocol/go-sdk`)
+- **REST API**: GitHub API for data retrieval and mutations
+- **Local database**: SQLite for offline access to cached data
+- **MCP**: Model Context Protocol integration (`github.com/modelcontextprotocol/go-sdk`)
 
-## ビルド
+## Build
 
 ```bash
 make build
-
-make build_mcp
 ```
 
-## テスト
+## Test
 
 ```bash
 make test
 ```
 
-## 対応プラットフォーム
+## Supported platforms
 
 - Go 1.24+
 - macOS, Linux, Windows
