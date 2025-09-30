@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -37,6 +38,36 @@ func TestInitDatabase(t *testing.T) {
 		if tableName != table {
 			t.Errorf("Expected table name %s, got %s", table, tableName)
 		}
+	}
+}
+
+func TestInsertOrReplaceBatchColumnLimit(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open test database: %v", err)
+	}
+	defer db.Close()
+
+	columns := make([]string, sqliteMaxVariables+1)
+	for i := range columns {
+		columns[i] = fmt.Sprintf("col_%d", i)
+	}
+
+	row := make([]any, len(columns))
+	for i := range row {
+		row[i] = i
+	}
+
+	rows := [][]any{row}
+
+	err = insertOrReplaceBatch(db, "ghub_users", columns, rows)
+	if err == nil {
+		t.Fatal("expected error when column count exceeds SQLite limit, got nil")
+	}
+
+	expected := fmt.Sprintf("column count %d exceeds SQLite limit %d for %s", len(columns), sqliteMaxVariables, "ghub_users")
+	if err.Error() != expected {
+		t.Fatalf("unexpected error: got %q, want %q", err.Error(), expected)
 	}
 }
 
