@@ -53,7 +53,7 @@ Personal Access Token の代わりに GitHub App の資格情報でも認証で�
 
 ```bash
 export GHUB_DESK_APP_ID="123456"                 # GitHub App の App ID
-export GHUB_DESK_INSTALLATION_ID="7890123"      # インストール先の Installation ID
+export GHUB_DESK_INSTALLATION_ID="76543210"      # インストール先の Installation ID
 export GHUB_DESK_PRIVATE_KEY="$(cat /path/to/private-key.pem)" # PEM 文字列全体
 ```
 
@@ -141,10 +141,17 @@ mcp:
 
 ## MCP サーバー
 
+
+```bash
+# MCP サーバー用バイナリをビルド
+
+make build_mcp
+```
+
 ```bash
 # MCP サーバーを起動 (許可されたツールのみ公開)
-./ghub-desk mcp --debug
 
+./ghub-desk mcp --debug
 ```
 
 - MCP サーバーは設定の `mcp.allow_pull` / `allow_write` に応じて `pull.*` / `push.*` ツールを公開します。
