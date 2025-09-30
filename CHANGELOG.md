@@ -1,5 +1,16 @@
 # Changelog
 
+## [v0.1.6](https://github.com/takihito/ghub-desk/compare/v0.1.5...v0.1.6) - 2025-09-30
+- refactoring option  by @takihito in https://github.com/takihito/ghub-desk/pull/38
+- MCP: Add Pull Remove by @takihito in https://github.com/takihito/ghub-desk/pull/40
+- オプション変更:--store削除, --no-store追加 by @takihito in https://github.com/takihito/ghub-desk/pull/41
+- MCP:function pull  by @takihito in https://github.com/takihito/ghub-desk/pull/42
+- Refactoring Operation DB  by @takihito in https://github.com/takihito/ghub-desk/pull/43
+- Update Document README.md / add README.ja.md by @takihito in https://github.com/takihito/ghub-desk/pull/44
+- Bump golang.org/x/crypto from 0.19.0 to 0.35.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/49
+- Bump golang.org/x/oauth2 from 0.17.0 to 0.27.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/47
+- Bump github.com/cloudflare/circl from 1.3.3 to 1.6.1 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/46
+
 ## [v0.1.5](https://github.com/takihito/ghub-desk/compare/v0.1.4...v0.1.5) - 2025-09-24
 - refactor(validate): unify user/team validation and reuse in cmd/mcp by @takihito in https://github.com/takihito/ghub-desk/pull/36
 
