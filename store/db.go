@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/go-github/v55/github"
@@ -11,8 +12,56 @@ import (
 
 const (
 	// Database configuration
-	DBFileName = "ghub-desk.db"
+	DBFileName         = "ghub-desk.db"
+	sqliteMaxVariables = 999
 )
+
+func insertOrReplaceBatch(db *sql.DB, table string, columns []string, rows [][]any) error {
+	if len(rows) == 0 {
+		return nil
+	}
+
+	columnCount := len(columns)
+	if columnCount == 0 {
+		return fmt.Errorf("no columns provided for %s", table)
+	}
+
+	plHolder := "(" + strings.TrimRight(strings.Repeat("?,", columnCount), ",") + ")"
+	batchSize := sqliteMaxVariables / columnCount
+	if batchSize == 0 {
+		batchSize = 1
+	}
+
+	for start := 0; start < len(rows); start += batchSize {
+		end := start + batchSize
+		if end > len(rows) {
+			end = len(rows)
+		}
+
+		placeholders := make([]string, 0, end-start)
+		args := make([]any, 0, columnCount*(end-start))
+
+		for _, row := range rows[start:end] {
+			if len(row) != columnCount {
+				return fmt.Errorf("expected %d values for %s insert, got %d", columnCount, table, len(row))
+			}
+			placeholders = append(placeholders, plHolder)
+			args = append(args, row...)
+		}
+
+		query := fmt.Sprintf(
+			"INSERT OR REPLACE INTO %s(%s) VALUES %s",
+			table,
+			strings.Join(columns, ", "),
+			strings.Join(placeholders, ","),
+		)
+		if _, err := db.Exec(query, args...); err != nil {
+			return fmt.Errorf("failed to insert into %s: %w", table, err)
+		}
+	}
+
+	return nil
+}
 
 // DBPath is the runtime-configured SQLite file path. If empty, DBFileName is used.
 var DBPath string
@@ -137,14 +186,28 @@ func createTables(db *sql.DB) error {
 
 // StoreUsers stores GitHub users in the database
 func StoreUsers(db *sql.DB, users []*github.User) error {
+	if len(users) == 0 {
+		return nil
+	}
+
 	now := time.Now().Format("2006-01-02 15:04:05")
+	rows := make([][]any, 0, len(users))
 	for _, u := range users {
-		_, err := db.Exec(`INSERT OR REPLACE INTO ghub_users(id, login, name, email, company, location, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			u.GetID(), u.GetLogin(), u.GetName(), u.GetEmail(), u.GetCompany(), u.GetLocation(),
-			now, now)
-		if err != nil {
-			return fmt.Errorf("failed to insert user %s: %w", u.GetLogin(), err)
-		}
+		rows = append(rows, []any{
+			u.GetID(),
+			u.GetLogin(),
+			u.GetName(),
+			u.GetEmail(),
+			u.GetCompany(),
+			u.GetLocation(),
+			now,
+			now,
+		})
+	}
+
+	columns := []string{"id", "login", "name", "email", "company", "location", "created_at", "updated_at"}
+	if err := insertOrReplaceBatch(db, "ghub_users", columns, rows); err != nil {
+		return fmt.Errorf("failed to insert users: %w", err)
 	}
 	return nil
 }
@@ -152,43 +215,65 @@ func StoreUsers(db *sql.DB, users []*github.User) error {
 // StoreUsersWithDetails stores GitHub users with detailed information
 // This function expects that detailed user information has already been fetched by the caller
 func StoreUsersWithDetails(db *sql.DB, users []*github.User) error {
-	now := time.Now().Format("2006-01-02 15:04:05")
-
-	for _, u := range users {
-		_, err := db.Exec(`INSERT OR REPLACE INTO ghub_users(id, login, name, email, company, location, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			u.GetID(), u.GetLogin(), u.GetName(), u.GetEmail(),
-			u.GetCompany(), u.GetLocation(), now, now)
-		if err != nil {
-			return fmt.Errorf("failed to insert user %s: %w", u.GetLogin(), err)
-		}
-	}
-	return nil
+	return StoreUsers(db, users)
 }
 
 // StoreTeams stores GitHub teams in the database
 func StoreTeams(db *sql.DB, teams []*github.Team) error {
+	if len(teams) == 0 {
+		return nil
+	}
+
 	now := time.Now().Format("2006-01-02 15:04:05")
+	rows := make([][]any, 0, len(teams))
 	for _, t := range teams {
-		_, err := db.Exec(`INSERT OR REPLACE INTO ghub_teams(id, name, slug, description, privacy, permission, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			t.GetID(), t.GetName(), t.GetSlug(), t.GetDescription(), t.GetPrivacy(), t.GetPermission(),
-			now, now)
-		if err != nil {
-			return fmt.Errorf("failed to insert team %s: %w", t.GetSlug(), err)
-		}
+		rows = append(rows, []any{
+			t.GetID(),
+			t.GetName(),
+			t.GetSlug(),
+			t.GetDescription(),
+			t.GetPrivacy(),
+			t.GetPermission(),
+			now,
+			now,
+		})
+	}
+
+	columns := []string{"id", "name", "slug", "description", "privacy", "permission", "created_at", "updated_at"}
+	if err := insertOrReplaceBatch(db, "ghub_teams", columns, rows); err != nil {
+		return fmt.Errorf("failed to insert teams: %w", err)
 	}
 	return nil
 }
 
 // StoreRepositories stores GitHub repositories in the database
 func StoreRepositories(db *sql.DB, repos []*github.Repository) error {
+	if len(repos) == 0 {
+		return nil
+	}
+
+	rows := make([][]any, 0, len(repos))
 	for _, r := range repos {
-		_, err := db.Exec(`INSERT OR REPLACE INTO ghub_repositories(id, name, full_name, description, private, language, size, stargazers_count, watchers_count, forks_count, created_at, updated_at, pushed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			r.GetID(), r.GetName(), r.GetFullName(), r.GetDescription(), r.GetPrivate(), r.GetLanguage(),
-			r.GetSize(), r.GetStargazersCount(), r.GetWatchersCount(), r.GetForksCount(),
-			formatTime(r.GetCreatedAt()), formatTime(r.GetUpdatedAt()), formatTime(r.GetPushedAt()))
-		if err != nil {
-			return fmt.Errorf("failed to insert repository %s: %w", r.GetName(), err)
-		}
+		rows = append(rows, []any{
+			r.GetID(),
+			r.GetName(),
+			r.GetFullName(),
+			r.GetDescription(),
+			r.GetPrivate(),
+			r.GetLanguage(),
+			r.GetSize(),
+			r.GetStargazersCount(),
+			r.GetWatchersCount(),
+			r.GetForksCount(),
+			formatTime(r.GetCreatedAt()),
+			formatTime(r.GetUpdatedAt()),
+			formatTime(r.GetPushedAt()),
+		})
+	}
+
+	columns := []string{"id", "name", "full_name", "description", "private", "language", "size", "stargazers_count", "watchers_count", "forks_count", "created_at", "updated_at", "pushed_at"}
+	if err := insertOrReplaceBatch(db, "ghub_repositories", columns, rows); err != nil {
+		return fmt.Errorf("failed to insert repositories: %w", err)
 	}
 	return nil
 }
@@ -202,12 +287,26 @@ func StoreTeamUsers(db *sql.DB, users []*github.User, teamSlug string) error {
 		return fmt.Errorf("failed to get team ID for slug %s: %w", teamSlug, err)
 	}
 
+	if len(users) == 0 {
+		return nil
+	}
+
+	now := time.Now().Format("2006-01-02 15:04:05")
+	rows := make([][]any, 0, len(users))
 	for _, u := range users {
-		_, err := db.Exec(`INSERT OR REPLACE INTO ghub_team_users(team_id, user_id, user_login, team_slug, role, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
-			teamID, u.GetID(), u.GetLogin(), teamSlug, "member", time.Now().Format("2006-01-02 15:04:05"))
-		if err != nil {
-			return fmt.Errorf("failed to insert team user %s for team %s: %w", u.GetLogin(), teamSlug, err)
-		}
+		rows = append(rows, []any{
+			teamID,
+			u.GetID(),
+			u.GetLogin(),
+			teamSlug,
+			"member",
+			now,
+		})
+	}
+
+	columns := []string{"team_id", "user_id", "user_login", "team_slug", "role", "created_at"}
+	if err := insertOrReplaceBatch(db, "ghub_team_users", columns, rows); err != nil {
+		return fmt.Errorf("failed to insert team users for %s: %w", teamSlug, err)
 	}
 	return nil
 }
@@ -276,14 +375,28 @@ func DeleteTeamUser(db *sql.DB, teamSlug, userLogin string) error {
 
 // StoreOutsideUsers stores GitHub outside collaborators in the database
 func StoreOutsideUsers(db *sql.DB, users []*github.User) error {
+	if len(users) == 0 {
+		return nil
+	}
+
 	now := time.Now().Format("2006-01-02 15:04:05")
+	rows := make([][]any, 0, len(users))
 	for _, u := range users {
-		_, err := db.Exec(`INSERT OR REPLACE INTO ghub_outside_users(id, login, name, email, company, location, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			u.GetID(), u.GetLogin(), u.GetName(), u.GetEmail(), u.GetCompany(), u.GetLocation(),
-			now, now)
-		if err != nil {
-			return fmt.Errorf("failed to store outside user %s: %w", u.GetLogin(), err)
-		}
+		rows = append(rows, []any{
+			u.GetID(),
+			u.GetLogin(),
+			u.GetName(),
+			u.GetEmail(),
+			u.GetCompany(),
+			u.GetLocation(),
+			now,
+			now,
+		})
+	}
+
+	columns := []string{"id", "login", "name", "email", "company", "location", "created_at", "updated_at"}
+	if err := insertOrReplaceBatch(db, "ghub_outside_users", columns, rows); err != nil {
+		return fmt.Errorf("failed to store outside users: %w", err)
 	}
 	return nil
 }
