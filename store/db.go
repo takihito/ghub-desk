@@ -25,6 +25,9 @@ func insertOrReplaceBatch(db *sql.DB, table string, columns []string, rows [][]a
 	if columnCount == 0 {
 		return fmt.Errorf("no columns provided for %s", table)
 	}
+	if columnCount > sqliteMaxVariables {
+		return fmt.Errorf("column count %d exceeds SQLite limit %d for %s", columnCount, sqliteMaxVariables, table)
+	}
 
 	plHolder := "(" + strings.TrimRight(strings.Repeat("?,", columnCount), ",") + ")"
 	batchSize := sqliteMaxVariables / columnCount
