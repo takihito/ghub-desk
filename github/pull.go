@@ -447,7 +447,7 @@ func fetchAndStore[T any](
 	intervalTime time.Duration,
 	store bool,
 ) ([]*T, error) {
-	allItems := make([]*T, 0)
+	allItems := make([]*T, 0, DefaultPerPage*50)
 	page := 1
 	count := 0
 
