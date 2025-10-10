@@ -97,6 +97,52 @@ func TestExecutePushAdd_InvalidTeamUserFormat(t *testing.T) {
 	}
 }
 
+func TestExecutePushRemove_InvalidOutsideUserFormat(t *testing.T) {
+	cfg := &config.Config{GitHubToken: "test-token"}
+	client, _ := InitClient(cfg)
+	org := "test-org"
+
+	err := ExecutePushRemove(context.Background(), client, org, "outside-user", "invalid-format")
+	if err == nil {
+		t.Fatal("Expected error for invalid outside-user format, got nil")
+	}
+	expected := "リポジトリ/ユーザー形式が正しくありません。{repository}/{user_name} の形式で指定してください"
+	if err.Error() != expected {
+		t.Fatalf("Expected error '%s', got '%s'", expected, err.Error())
+	}
+
+	err = ExecutePushRemove(context.Background(), client, org, "outside-user", "repo/user/extra")
+	if err == nil {
+		t.Fatal("Expected error for invalid outside-user format with extra parts, got nil")
+	}
+	if err.Error() != expected {
+		t.Fatalf("Expected error '%s', got '%s'", expected, err.Error())
+	}
+}
+
+func TestExecutePushAdd_InvalidOutsideUserFormat(t *testing.T) {
+	cfg := &config.Config{GitHubToken: "test-token"}
+	client, _ := InitClient(cfg)
+	org := "test-org"
+
+	err := ExecutePushAdd(context.Background(), client, org, "outside-user", "invalid-format")
+	if err == nil {
+		t.Fatal("Expected error for invalid outside-user format, got nil")
+	}
+	expected := "リポジトリ/ユーザー形式が正しくありません。{repository}/{user_name} の形式で指定してください"
+	if err.Error() != expected {
+		t.Fatalf("Expected error '%s', got '%s'", expected, err.Error())
+	}
+
+	err = ExecutePushAdd(context.Background(), client, org, "outside-user", "repo/user/extra")
+	if err == nil {
+		t.Fatal("Expected error for invalid outside-user format with extra parts, got nil")
+	}
+	if err.Error() != expected {
+		t.Fatalf("Expected error '%s', got '%s'", expected, err.Error())
+	}
+}
+
 // Note: We cannot easily test the actual API calls without mocking the GitHub client
 // or using integration tests with a real GitHub API (which would require valid tokens
 // and could have side effects). The tests above focus on input validation and error handling.

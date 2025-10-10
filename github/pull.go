@@ -23,6 +23,7 @@ const (
 type TargetRequest struct {
 	Kind     string
 	TeamSlug string
+	RepoName string
 }
 
 // PullOptions controls how data fetched from GitHub should be handled locally.
@@ -43,6 +44,11 @@ func HandlePullTarget(ctx context.Context, client *github.Client, db *sql.DB, or
 		return PullTeams(ctx, client, db, org, opts)
 	case "repos":
 		return PullRepositories(ctx, client, db, org, opts)
+	case "repo-users":
+		if req.RepoName == "" {
+			return fmt.Errorf("repository name must be specified when using repo-users target")
+		}
+		return PullRepoUsers(ctx, client, db, org, req.RepoName, opts)
 	case "all-teams-users":
 		return PullAllTeamsUsers(ctx, client, db, org, opts)
 	case "token-permission":
@@ -224,6 +230,47 @@ func PullRepositories(ctx context.Context, client *github.Client, db *sql.DB, or
 
 	if opts.Stdout {
 		if err := printJSON(repos); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// PullRepoUsers fetches direct repository collaborators and optionally stores them in database
+func PullRepoUsers(ctx context.Context, client *github.Client, db *sql.DB, org, repoName string, opts PullOptions) error {
+	if opts.Store {
+		if db == nil {
+			return fmt.Errorf("database connection is required to store repository users")
+		}
+		if _, err := db.Exec(`DELETE FROM repo_users WHERE repo_name = ?`, repoName); err != nil {
+			return fmt.Errorf("failed to clear repository users for %s: %w", repoName, err)
+		}
+	}
+
+	users, err := fetchAndStore(
+		ctx, client,
+		func(ctx context.Context, org string, optsList *github.ListOptions) ([]*github.User, *github.Response, error) {
+			collabOpts := &github.ListCollaboratorsOptions{
+				Affiliation: "direct",
+				ListOptions: *optsList,
+			}
+			return client.Repositories.ListCollaborators(ctx, org, repoName, collabOpts)
+		},
+		func(db *sql.DB, users []*github.User) error {
+			if db == nil {
+				return nil
+			}
+			return store.StoreRepoUsers(db, repoName, users)
+		},
+		db, org, opts.Interval, opts.Store,
+	)
+	if err != nil {
+		return err
+	}
+
+	if opts.Stdout {
+		if err := printJSON(users); err != nil {
 			return err
 		}
 	}

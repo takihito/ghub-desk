@@ -48,6 +48,7 @@ func TestHandleViewTarget(t *testing.T) {
 		{"repositories target", TargetRequest{Kind: "repositories"}, false},
 		{"token-permission target", TargetRequest{Kind: "token-permission"}, false},
 		{"outside-users target", TargetRequest{Kind: "outside-users"}, false},
+		{"repo users target", TargetRequest{Kind: "repo-users", RepoName: "test-repo"}, false},
 		{"team users target (slug)", TargetRequest{Kind: "team-user", TeamSlug: "test-team"}, false},
 		{"unknown target", TargetRequest{Kind: "invalid target"}, true},
 	}
@@ -144,6 +145,31 @@ func TestViewRepositories(t *testing.T) {
 	err = ViewRepositories(db)
 	if err != nil {
 		t.Errorf("ViewRepositories() error = %v", err)
+	}
+}
+
+func TestViewRepoUsers(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repoName := "test-repo"
+	users := []*github.User{
+		{
+			ID:    github.Int64(1),
+			Login: github.String("collab1"),
+		},
+		{
+			ID:    github.Int64(2),
+			Login: github.String("collab2"),
+		},
+	}
+
+	if err := StoreRepoUsers(db, repoName, users); err != nil {
+		t.Fatalf("Failed to store repo users: %v", err)
+	}
+
+	if err := ViewRepoUsers(db, repoName); err != nil {
+		t.Errorf("ViewRepoUsers() error = %v", err)
 	}
 }
 

@@ -14,17 +14,18 @@ GitHub Organization Management CLI & MCP Server
 ## 主な機能
 
 ### データ取得 (pull)
-- ターゲット: `users`, `detail-users`, `teams`, `repos`, `team-user`, `all-teams-users`, `outside-users`, `token-permission`
+- ターゲット: `users`, `detail-users`, `teams`, `repos`, `repo-users`, `team-user`, `all-teams-users`, `outside-users`, `token-permission`
 - `--no-store` でローカル DB への保存をスキップ、`--stdout` で API レスポンスを標準出力に表示
 - `--interval-time` で GitHub API 呼び出し間隔を調整
 
 ### データ表示 (view)
 - `pull` で保存した情報を SQLite から表示
 - `--team-user` や `{team-slug}/users` 引数で特定チームのユーザーを参照
+- `--repo-users` でリポジトリに直接追加されたユーザー一覧を確認
 - `--settings` でマスク済み設定値を確認
 
 ### データ操作 (push add/remove)
-- 組織・チームからのユーザー追加/削除、チーム削除に対応
+- 組織・チームからのユーザー追加/削除、チーム削除、外部コラボレーターの招待/削除に対応
 - デフォルトは DRYRUN (`--exec` 指定時のみ GitHub API を実行)
 - `--no-store` で成功後のローカル DB 同期を抑止可能
 
@@ -84,6 +85,11 @@ mcp:
   - 長さ: 1〜100 文字
 - チーム名(slug)/ユーザー名
   - 形式: `{team-slug}/{username}` を `--team-user` に渡してください
+- リポジトリ名
+  - 許可: 英数字・ピリオド・アンダースコア・ハイフンのみ
+  - 長さ: 1〜100 文字
+- リポジトリ/ユーザー指定
+  - 形式: `{repository}/{username}` を `--outside-user` に渡してください
 
 ## 基本的な使用例
 
@@ -99,6 +105,9 @@ mcp:
 # チーム一覧を取得。DB を更新せず API 結果のみ確認
 ./ghub-desk pull --teams --no-store
 
+# リポジトリに直接追加されたユーザーを取得
+./ghub-desk pull --repo-users repo-name
+
 # 全チームのメンバーを連続取得（リクエスト間隔は既定 3s）
 ./ghub-desk pull --all-teams-users
 ```
@@ -111,6 +120,9 @@ mcp:
 
 # チーム slug を指定してメンバーを表示
 ./ghub-desk view --team-user team-slug
+
+# リポジトリに直接追加されたユーザーを表示
+./ghub-desk view --repo-users repo-name
 
 # マスク済みの設定値を確認
 ./ghub-desk view --settings
@@ -127,6 +139,12 @@ mcp:
 
 # チームからユーザーを削除し、ローカル DB 更新は抑止
 ./ghub-desk push remove --team-user team-slug/username --exec --no-store
+
+# リポジトリの外部コラボレーターを招待（DRYRUN）
+./ghub-desk push add --outside-user repo-name/username
+
+# 外部コラボレーターを削除して DB を同期
+./ghub-desk push remove --outside-user repo-name/username --exec
 ```
 
 ### init / version

@@ -65,6 +65,7 @@ type CommonTargetOptions struct {
 	Teams           bool   `help:"Target: teams"`
 	Repos           bool   `help:"Target: repos"`
 	TeamUser        string `name:"team-user" aliases:"teams-users" help:"Target: team-user (provide team slug: 1–100 chars, lowercase alnum + hyphen)"`
+	RepoUsers       string `name:"repo-users" help:"Target: repo-users (provide repository name)"`
 	TokenPermission bool   `name:"token-permission" help:"Target: token-permission"`
 	OutsideUsers    bool   `name:"outside-users" help:"Target: outside-users"`
 }
@@ -86,6 +87,7 @@ func (c *CommonTargetOptions) GetTarget(extraTargets ...TargetFlag) (string, err
 		{c.Teams, "teams"},
 		{c.Repos, "repos"},
 		{c.TeamUser != "", "team-user"},
+		{c.RepoUsers != "", "repo-users"},
 		{c.TokenPermission, "token-permission"},
 		{c.OutsideUsers, "outside-users"},
 	}
@@ -140,18 +142,20 @@ type PushCmd struct {
 
 // RemoveCmd represents the remove subcommand structure
 type RemoveCmd struct {
-	Exec     bool   `help:"Execute the operation (without this flag, runs in DRYRUN mode)"`
-	Team     string `help:"Remove team from organization (team slug: 1–100 chars, lowercase alnum + hyphen)"`
-	User     string `help:"Remove user from organization (username: 1–39 chars, alnum + hyphen, no leading/trailing hyphen)"`
-	TeamUser string `name:"team-user" help:"Remove user from team (format: team-slug/username)"`
-	NoStore  bool   `name:"no-store" help:"Do not update local SQLite database after executing the operation"`
+	Exec        bool   `help:"Execute the operation (without this flag, runs in DRYRUN mode)"`
+	Team        string `help:"Remove team from organization (team slug: 1–100 chars, lowercase alnum + hyphen)"`
+	User        string `help:"Remove user from organization (username: 1–39 chars, alnum + hyphen, no leading/trailing hyphen)"`
+	TeamUser    string `name:"team-user" help:"Remove user from team (format: team-slug/username)"`
+	OutsideUser string `name:"outside-user" help:"Remove outside collaborator from repository (format: repo-name/username)"`
+	NoStore     bool   `name:"no-store" help:"Do not update local SQLite database after executing the operation"`
 }
 
 // AddCmd represents the add subcommand structure
 type AddCmd struct {
-	Exec     bool   `help:"Execute the operation (without this flag, runs in DRYRUN mode)"`
-	TeamUser string `name:"team-user" help:"Add user to team (format: team-slug/username)"`
-	NoStore  bool   `name:"no-store" help:"Do not update local SQLite database after executing the operation"`
+	Exec        bool   `help:"Execute the operation (without this flag, runs in DRYRUN mode)"`
+	TeamUser    string `name:"team-user" help:"Add user to team (format: team-slug/username)"`
+	OutsideUser string `name:"outside-user" help:"Invite outside collaborator to repository (format: repo-name/username)"`
+	NoStore     bool   `name:"no-store" help:"Do not update local SQLite database after executing the operation"`
 }
 
 // InitCmd represents the init command structure
@@ -224,11 +228,17 @@ func (p *PullCmd) Run(cli *CLI) error {
 	}
 
 	req := github.TargetRequest{Kind: target}
-	if target == "team-user" {
+	switch target {
+	case "team-user":
 		if err := validateTeamName(p.TeamUser); err != nil {
 			return err
 		}
 		req.TeamSlug = p.TeamUser
+	case "repo-users":
+		if err := validateRepoName(p.RepoUsers); err != nil {
+			return err
+		}
+		req.RepoName = p.RepoUsers
 	}
 	return github.HandlePullTarget(
 		ctx,
@@ -284,11 +294,17 @@ func (v *ViewCmd) Run(cli *CLI) error {
 	defer db.Close()
 
 	req := store.TargetRequest{Kind: target}
-	if target == "team-user" {
+	switch target {
+	case "team-user":
 		if err := validateTeamName(v.TeamUser); err != nil {
 			return err
 		}
 		req.TeamSlug = v.TeamUser
+	case "repo-users":
+		if err := validateRepoName(v.RepoUsers); err != nil {
+			return err
+		}
+		req.RepoName = v.RepoUsers
 	}
 
 	return store.HandleViewTarget(db, req)
@@ -375,6 +391,7 @@ func (r *RemoveCmd) getTarget() (string, string, error) {
 		{r.Team, "team"},
 		{r.User, "user"},
 		{r.TeamUser, "team-user"},
+		{r.OutsideUser, "outside-user"},
 	}
 
 	var selectedTarget, selectedValue string
@@ -389,7 +406,7 @@ func (r *RemoveCmd) getTarget() (string, string, error) {
 	}
 
 	if count == 0 {
-		return "", "", fmt.Errorf("target required: specify one of --team, --user, --team-user")
+		return "", "", fmt.Errorf("target required: specify one of --team, --user, --team-user, --outside-user")
 	}
 
 	if count > 1 {
@@ -408,6 +425,10 @@ func (r *RemoveCmd) getTarget() (string, string, error) {
 		}
 	case "team-user":
 		if _, _, err := validateTeamUserPair(selectedValue); err != nil {
+			return "", "", err
+		}
+	case "outside-user":
+		if _, _, err := validateRepoUserPair(selectedValue); err != nil {
 			return "", "", err
 		}
 	}
@@ -472,6 +493,7 @@ func (a *AddCmd) getTarget() (string, string, error) {
 		name  string
 	}{
 		{a.TeamUser, "team-user"},
+		{a.OutsideUser, "outside-user"},
 	}
 
 	var selectedTarget, selectedValue string
@@ -486,16 +508,22 @@ func (a *AddCmd) getTarget() (string, string, error) {
 	}
 
 	if count == 0 {
-		return "", "", fmt.Errorf("target required: specify --team-user")
+		return "", "", fmt.Errorf("target required: specify --team-user or --outside-user")
 	}
 
 	if count > 1 {
 		return "", "", fmt.Errorf("only one target can be specified at a time")
 	}
 
-	// Only team-user is supported for add; validate it
-	if _, _, err := validateTeamUserPair(selectedValue); err != nil {
-		return "", "", err
+	switch selectedTarget {
+	case "team-user":
+		if _, _, err := validateTeamUserPair(selectedValue); err != nil {
+			return "", "", err
+		}
+	case "outside-user":
+		if _, _, err := validateRepoUserPair(selectedValue); err != nil {
+			return "", "", err
+		}
 	}
 
 	return selectedTarget, selectedValue, nil

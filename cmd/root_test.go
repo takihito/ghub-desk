@@ -44,6 +44,12 @@ func TestPullCmdGetTarget(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "repo-users target",
+			cmd:         PullCmd{CommonTargetOptions: CommonTargetOptions{RepoUsers: "repo-name"}},
+			expected:    "repo-users",
+			expectError: false,
+		},
+		{
 			name:        "no target",
 			cmd:         PullCmd{},
 			expected:    "",

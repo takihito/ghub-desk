@@ -60,3 +60,41 @@ func TestValidateTeamUserPair(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateRepoName(t *testing.T) {
+	ok := []string{"repo", "Repo-Name", "repo_name", ".github", strings.Repeat("a", 100)}
+	ng := []string{"", "repo name", "repo/", strings.Repeat("b", 101)}
+
+	for _, s := range ok {
+		if err := validateRepoName(s); err != nil {
+			t.Errorf("want ok, got err for %q: %v", s, err)
+		}
+	}
+	for _, s := range ng {
+		if err := validateRepoName(s); err == nil {
+			t.Errorf("want err, got ok for %q", s)
+		}
+	}
+}
+
+func TestValidateRepoUserPair(t *testing.T) {
+	if repo, user, err := validateRepoUserPair("demo-repo/user-ok"); err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	} else if repo != "demo-repo" || user != "user-ok" {
+		t.Fatalf("unexpected parts: %s/%s", repo, user)
+	}
+
+	cases := []string{
+		"no-slash",
+		"/user",
+		"repo/",
+		"bad repo/user",
+		"repo/bad$user",
+		strings.Repeat("r", 101) + "/user",
+	}
+	for _, c := range cases {
+		if _, _, err := validateRepoUserPair(c); err == nil {
+			t.Errorf("want err for %q", c)
+		}
+	}
+}

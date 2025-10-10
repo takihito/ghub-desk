@@ -28,7 +28,7 @@ func TestInitDatabase(t *testing.T) {
 	}
 
 	// Verify tables were created
-	tables := []string{"ghub_users", "ghub_teams", "ghub_repositories", "ghub_team_users", "ghub_token_permissions", "ghub_outside_users"}
+	tables := []string{"ghub_users", "ghub_teams", "ghub_repositories", "ghub_team_users", "ghub_token_permissions", "ghub_outside_users", "repo_users"}
 	for _, table := range tables {
 		var tableName string
 		err := db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&tableName)
@@ -418,6 +418,69 @@ func TestStoreOutsideUsers(t *testing.T) {
 
 	if count != 2 {
 		t.Errorf("Expected 2 outside users, got %d", count)
+	}
+}
+
+func TestRepoUsersOperations(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open test database: %v", err)
+	}
+	defer db.Close()
+
+	if err := createTables(db); err != nil {
+		t.Fatalf("Failed to create tables: %v", err)
+	}
+
+	repoName := "test-repo"
+	users := []*github.User{
+		{
+			ID:    github.Int64(101),
+			Login: github.String("collab1"),
+		},
+		{
+			ID:    github.Int64(102),
+			Login: github.String("collab2"),
+		},
+	}
+
+	if err := StoreRepoUsers(db, repoName, users); err != nil {
+		t.Fatalf("StoreRepoUsers error: %v", err)
+	}
+
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM repo_users WHERE repo_name = ?", repoName).Scan(&count); err != nil {
+		t.Fatalf("Failed to count repo users: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("expected 2 repo users, got %d", count)
+	}
+
+	// Upsert a new collaborator
+	if err := UpsertRepoUser(db, repoName, &github.User{
+		ID:    github.Int64(103),
+		Login: github.String("collab3"),
+	}); err != nil {
+		t.Fatalf("UpsertRepoUser error: %v", err)
+	}
+
+	if err := db.QueryRow("SELECT COUNT(*) FROM repo_users WHERE repo_name = ?", repoName).Scan(&count); err != nil {
+		t.Fatalf("Failed to count repo users after upsert: %v", err)
+	}
+	if count != 3 {
+		t.Fatalf("expected 3 repo users after upsert, got %d", count)
+	}
+
+	// Delete one collaborator
+	if err := DeleteRepoUser(db, repoName, "collab1"); err != nil {
+		t.Fatalf("DeleteRepoUser error: %v", err)
+	}
+
+	if err := db.QueryRow("SELECT COUNT(*) FROM repo_users WHERE repo_name = ?", repoName).Scan(&count); err != nil {
+		t.Fatalf("Failed to count repo users after delete: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("expected 2 repo users after delete, got %d", count)
 	}
 }
 
