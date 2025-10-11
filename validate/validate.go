@@ -11,7 +11,7 @@ import (
 const (
 	UserNamePattern = "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$"
 	TeamSlugPattern = "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
-	RepoNamePattern = "^[A-Za-z0-9._-]{1,100}$"
+	RepoNamePattern = "^[A-Za-z0-9_][A-Za-z0-9_-]{0,99}$"
 
 	UserNameMin = 1
 	UserNameMax = 39
@@ -74,11 +74,11 @@ func ParseTeamUserPair(s string) (team string, user string, err error) {
 	return team, user, nil
 }
 
-// ValidateRepoName checks repository name rule: 1-100 chars, alnum, dot, underscore, or hyphen.
+// ValidateRepoName checks repository name rule: 1-100 chars, alnum, underscore, or hyphen.
 func ValidateRepoName(s string) error {
 	s = strings.TrimSpace(s)
 	if len(s) < RepoNameMin || len(s) > RepoNameMax || !reRepo.MatchString(s) {
-		return fmt.Errorf("%w: %d-%d chars, alnum, dot, underscore, or hyphen only", ErrInvalidRepoName, RepoNameMin, RepoNameMax)
+		return fmt.Errorf("%w: %d-%d chars, alnum, underscore, or hyphen only, and cannot start with hyphen", ErrInvalidRepoName, RepoNameMin, RepoNameMax)
 	}
 	return nil
 }

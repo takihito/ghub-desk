@@ -88,7 +88,8 @@ mcp:
 - Team slug with username
   - Use the `{team-slug}/{username}` format when passing to `--team-user`
 - Repository names
-  - Allowed characters: alphanumeric, dot (`.`), underscore (`_`), and hyphen
+  - Allowed characters: alphanumeric, underscore (`_`), and hyphen (dot is not allowed)
+  - Cannot start with a hyphen
   - Length: 1 to 100 characters
 - Repository with username
   - Use the `{repository}/{username}` format when passing to `--outside-user`

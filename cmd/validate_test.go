@@ -62,8 +62,8 @@ func TestValidateTeamUserPair(t *testing.T) {
 }
 
 func TestValidateRepoName(t *testing.T) {
-	ok := []string{"repo", "Repo-Name", "repo_name", ".github", strings.Repeat("a", 100)}
-	ng := []string{"", "repo name", "repo/", strings.Repeat("b", 101)}
+	ok := []string{"repo", "Repo-Name", "repo_name", "Repo123", strings.Repeat("a", 100)}
+	ng := []string{"", "repo name", "repo/", strings.Repeat("b", 101), ".github", "-repo"}
 
 	for _, s := range ok {
 		if err := validateRepoName(s); err != nil {
