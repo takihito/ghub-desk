@@ -246,6 +246,7 @@ func PullRepoUsers(ctx context.Context, client *github.Client, db *sql.DB, org, 
 		if _, err := db.Exec(`DELETE FROM repo_users WHERE repo_name = ?`, repoName); err != nil {
 			return fmt.Errorf("failed to clear repository users for %s: %w", repoName, err)
 		}
+		// TODO: replace with upsert-based synchronization to avoid full delete for large repositories.
 	}
 
 	users, err := fetchAndStore(
