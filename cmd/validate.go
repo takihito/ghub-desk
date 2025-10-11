@@ -44,3 +44,20 @@ func validateRepoUserPair(s string) (repo string, user string, err error) {
 	}
 	return repo, user, nil
 }
+
+func validateOutsidePermission(s string) (string, error) {
+	trimmed := strings.TrimSpace(s)
+	if trimmed == "" {
+		return "", nil
+	}
+	switch val := strings.ToLower(trimmed); val {
+	case "pull", "push", "admin":
+		return val, nil
+	case "read":
+		return "pull", nil
+	case "write":
+		return "push", nil
+	default:
+		return "", fmt.Errorf("外部コラボレーターの権限が不正です: pull, push, admin（エイリアス: read, write）から選択してください")
+	}
+}

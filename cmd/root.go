@@ -155,6 +155,7 @@ type AddCmd struct {
 	Exec        bool   `help:"Execute the operation (without this flag, runs in DRYRUN mode)"`
 	TeamUser    string `name:"team-user" help:"Add user to team (format: team-slug/username)"`
 	OutsideUser string `name:"outside-user" help:"Invite outside collaborator to repository (format: repo-name/username)"`
+	Permission  string `name:"permission" help:"Permission for outside collaborator (pull|push|admin, aliases: read→pull, write→push)."`
 	NoStore     bool   `name:"no-store" help:"Do not update local SQLite database after executing the operation"`
 }
 
@@ -439,13 +440,17 @@ func (r *RemoveCmd) getTarget() (string, string, error) {
 // Run implements the add subcommand execution
 func (a *AddCmd) Run(cli *CLI) error {
 	// Determine target from flags
-	target, targetValue, err := a.getTarget()
+	target, targetValue, permission, err := a.getTarget()
 	if err != nil {
 		return err
 	}
 
 	if cli.Debug {
-		fmt.Printf("DEBUG: Push/Add target='%s', value='%s', exec=%v\n", target, targetValue, a.Exec)
+		if permission != "" {
+			fmt.Printf("DEBUG: Push/Add target='%s', value='%s', permission='%s', exec=%v\n", target, targetValue, permission, a.Exec)
+		} else {
+			fmt.Printf("DEBUG: Push/Add target='%s', value='%s', exec=%v\n", target, targetValue, a.Exec)
+		}
 	}
 
 	// Load configuration once via CLI helper
@@ -462,8 +467,12 @@ func (a *AddCmd) Run(cli *CLI) error {
 	ctx := context.Background()
 
 	if a.Exec {
-		fmt.Printf("Executing: Add %s '%s' to organization %s\n", target, targetValue, cfg.Organization)
-		err := github.ExecutePushAdd(ctx, client, cfg.Organization, target, targetValue)
+		if permission != "" {
+			fmt.Printf("Executing: Add %s '%s' (permission=%s) to organization %s\n", target, targetValue, permission, cfg.Organization)
+		} else {
+			fmt.Printf("Executing: Add %s '%s' to organization %s\n", target, targetValue, cfg.Organization)
+		}
+		err := github.ExecutePushAdd(ctx, client, cfg.Organization, target, targetValue, permission)
 		if err != nil {
 			return fmt.Errorf("failed to execute add: %w", err)
 		}
@@ -479,7 +488,11 @@ func (a *AddCmd) Run(cli *CLI) error {
 			}
 		}
 	} else {
-		fmt.Printf("DRYRUN: Would add %s '%s' to organization %s\n", target, targetValue, cfg.Organization)
+		if permission != "" {
+			fmt.Printf("DRYRUN: Would add %s '%s' (permission=%s) to organization %s\n", target, targetValue, permission, cfg.Organization)
+		} else {
+			fmt.Printf("DRYRUN: Would add %s '%s' to organization %s\n", target, targetValue, cfg.Organization)
+		}
 		fmt.Println("To execute, add the --exec flag.")
 	}
 
@@ -487,7 +500,7 @@ func (a *AddCmd) Run(cli *CLI) error {
 }
 
 // getTarget returns the target and value based on the flags set for add command
-func (a *AddCmd) getTarget() (string, string, error) {
+func (a *AddCmd) getTarget() (string, string, string, error) {
 	targets := []struct {
 		value string
 		name  string
@@ -497,6 +510,7 @@ func (a *AddCmd) getTarget() (string, string, error) {
 	}
 
 	var selectedTarget, selectedValue string
+	var selectedPermission string
 	var count int
 
 	for _, t := range targets {
@@ -508,25 +522,33 @@ func (a *AddCmd) getTarget() (string, string, error) {
 	}
 
 	if count == 0 {
-		return "", "", fmt.Errorf("target required: specify --team-user or --outside-user")
+		return "", "", "", fmt.Errorf("target required: specify --team-user or --outside-user")
 	}
 
 	if count > 1 {
-		return "", "", fmt.Errorf("only one target can be specified at a time")
+		return "", "", "", fmt.Errorf("only one target can be specified at a time")
 	}
 
 	switch selectedTarget {
 	case "team-user":
+		if a.Permission != "" {
+			return "", "", "", fmt.Errorf("--permission can only be used with --outside-user")
+		}
 		if _, _, err := validateTeamUserPair(selectedValue); err != nil {
-			return "", "", err
+			return "", "", "", err
 		}
 	case "outside-user":
 		if _, _, err := validateRepoUserPair(selectedValue); err != nil {
-			return "", "", err
+			return "", "", "", err
 		}
+		perm, err := validateOutsidePermission(a.Permission)
+		if err != nil {
+			return "", "", "", err
+		}
+		selectedPermission = perm
 	}
 
-	return selectedTarget, selectedValue, nil
+	return selectedTarget, selectedValue, selectedPermission, nil
 }
 
 // Run implements the init command execution

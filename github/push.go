@@ -65,7 +65,7 @@ func ExecutePushRemove(ctx context.Context, client *github.Client, org, target, 
 }
 
 // ExecutePushAdd executes the actual add operation via GitHub API
-func ExecutePushAdd(ctx context.Context, client *github.Client, org, target, resourceName string) error {
+func ExecutePushAdd(ctx context.Context, client *github.Client, org, target, resourceName, permission string) error {
 	switch target {
 	case "team-user":
 		// Parse team/user format
@@ -92,7 +92,7 @@ func ExecutePushAdd(ctx context.Context, client *github.Client, org, target, res
 		if err != nil {
 			return fmt.Errorf("リポジトリ/ユーザー形式が正しくありません。{repository}/{user_name} の形式で指定してください")
 		}
-		if err := PushAddOutsideCollaborator(ctx, client, org, repoName, username); err != nil {
+		if err := PushAddOutsideCollaborator(ctx, client, org, repoName, username, permission); err != nil {
 			return err
 		}
 		return nil
@@ -103,8 +103,12 @@ func ExecutePushAdd(ctx context.Context, client *github.Client, org, target, res
 }
 
 // PushAddOutsideCollaborator adds an outside collaborator to a repository.
-func PushAddOutsideCollaborator(ctx context.Context, client *github.Client, org, repoName, username string) error {
-	_, resp, err := client.Repositories.AddCollaborator(ctx, org, repoName, username, nil)
+func PushAddOutsideCollaborator(ctx context.Context, client *github.Client, org, repoName, username, permission string) error {
+	var opts *github.RepositoryAddCollaboratorOptions
+	if permission != "" {
+		opts = &github.RepositoryAddCollaboratorOptions{Permission: permission}
+	}
+	_, resp, err := client.Repositories.AddCollaborator(ctx, org, repoName, username, opts)
 	scopePermission := FormatScopePermission(resp)
 	if err != nil {
 		return fmt.Errorf("リポジトリへのユーザー追加エラー: %v, Required permission scope: %s", err, scopePermission)

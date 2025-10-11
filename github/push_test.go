@@ -59,7 +59,7 @@ func TestExecutePushAdd_InvalidTarget(t *testing.T) {
 	org := "test-org"
 
 	// Test with invalid target
-	err := ExecutePushAdd(context.Background(), client, org, "invalid-target", "resource-name")
+	err := ExecutePushAdd(context.Background(), client, org, "invalid-target", "resource-name", "")
 	if err == nil {
 		t.Error("Expected error for invalid target, got nil")
 	}
@@ -76,7 +76,7 @@ func TestExecutePushAdd_InvalidTeamUserFormat(t *testing.T) {
 	org := "test-org"
 
 	// Test with invalid team-user format (no slash)
-	err := ExecutePushAdd(context.Background(), client, org, "team-user", "invalid-format")
+	err := ExecutePushAdd(context.Background(), client, org, "team-user", "invalid-format", "")
 	if err == nil {
 		t.Error("Expected error for invalid team-user format, got nil")
 	}
@@ -87,7 +87,7 @@ func TestExecutePushAdd_InvalidTeamUserFormat(t *testing.T) {
 	}
 
 	// Test with invalid team-user format (too many parts)
-	err = ExecutePushAdd(context.Background(), client, org, "team-user", "team/user/extra")
+	err = ExecutePushAdd(context.Background(), client, org, "team-user", "team/user/extra", "")
 	if err == nil {
 		t.Error("Expected error for invalid team-user format with extra parts, got nil")
 	}
@@ -125,7 +125,7 @@ func TestExecutePushAdd_InvalidOutsideUserFormat(t *testing.T) {
 	client, _ := InitClient(cfg)
 	org := "test-org"
 
-	err := ExecutePushAdd(context.Background(), client, org, "outside-user", "invalid-format")
+	err := ExecutePushAdd(context.Background(), client, org, "outside-user", "invalid-format", "")
 	if err == nil {
 		t.Fatal("Expected error for invalid outside-user format, got nil")
 	}
@@ -134,7 +134,7 @@ func TestExecutePushAdd_InvalidOutsideUserFormat(t *testing.T) {
 		t.Fatalf("Expected error '%s', got '%s'", expected, err.Error())
 	}
 
-	err = ExecutePushAdd(context.Background(), client, org, "outside-user", "repo/user/extra")
+	err = ExecutePushAdd(context.Background(), client, org, "outside-user", "repo/user/extra", "")
 	if err == nil {
 		t.Fatal("Expected error for invalid outside-user format with extra parts, got nil")
 	}

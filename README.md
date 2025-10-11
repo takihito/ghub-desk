@@ -27,7 +27,7 @@ GitHub Organization Management CLI & MCP Server
 - Use `--settings` to review masked configuration values
 
 ### Data mutations (push add/remove)
-- Add or remove users from the organization and its teams, delete teams, or manage outside collaborators on repositories
+- Add or remove users from the organization and its teams, delete teams, or manage outside collaborators on repositories (optional `--permission` to set `pull`, `push`, or `admin`; aliases: `read`→`pull`, `write`→`push`)
 - Runs in DRYRUN mode by default; apply changes with `--exec`
 - Use `--no-store` to skip syncing the local DB after successful operations
 
@@ -145,6 +145,9 @@ mcp:
 
 # Invite an outside collaborator to a repository (DRYRUN)
 ./ghub-desk push add --outside-user repo-name/username
+
+# Invite with explicit permission (e.g., read-only access)
+./ghub-desk push add --outside-user repo-name/username --permission read
 
 # Remove an outside collaborator from a repository and sync the DB
 ./ghub-desk push remove --outside-user repo-name/username --exec

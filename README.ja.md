@@ -25,7 +25,7 @@ GitHub Organization Management CLI & MCP Server
 - `--settings` でマスク済み設定値を確認
 
 ### データ操作 (push add/remove)
-- 組織・チームからのユーザー追加/削除、チーム削除、外部コラボレーターの招待/削除に対応
+- 組織・チームからのユーザー追加/削除、チーム削除、外部コラボレーターの招待/削除に対応（`--permission` で `pull` / `push` / `admin` を指定可能。エイリアス: `read`→`pull`, `write`→`push`）
 - デフォルトは DRYRUN (`--exec` 指定時のみ GitHub API を実行)
 - `--no-store` で成功後のローカル DB 同期を抑止可能
 
@@ -143,6 +143,9 @@ mcp:
 
 # リポジトリの外部コラボレーターを招待（DRYRUN）
 ./ghub-desk push add --outside-user repo-name/username
+
+# 読み取り専用など権限を指定して招待
+./ghub-desk push add --outside-user repo-name/username --permission read
 
 # 外部コラボレーターを削除して DB を同期
 ./ghub-desk push remove --outside-user repo-name/username --exec

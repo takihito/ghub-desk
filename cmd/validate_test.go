@@ -98,3 +98,37 @@ func TestValidateRepoUserPair(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateOutsidePermission(t *testing.T) {
+	cases := []struct {
+		input string
+		want  string
+		ok    bool
+	}{
+		{"", "", true},
+		{"pull", "pull", true},
+		{"push", "push", true},
+		{"admin", "admin", true},
+		{" push ", "push", true},
+		{"read", "pull", true},
+		{"write", "push", true},
+		{"WRITE", "push", true},
+		{"maintain", "", false},
+	}
+
+	for _, tc := range cases {
+		got, err := validateOutsidePermission(tc.input)
+		if tc.ok {
+			if err != nil {
+				t.Fatalf("%q: unexpected error %v", tc.input, err)
+			}
+			if got != tc.want {
+				t.Fatalf("%q: want %q, got %q", tc.input, tc.want, got)
+			}
+		} else {
+			if err == nil {
+				t.Fatalf("%q: expected error", tc.input)
+			}
+		}
+	}
+}
