@@ -482,6 +482,17 @@ func TestRepoUsersOperations(t *testing.T) {
 	if count != 2 {
 		t.Fatalf("expected 2 repo users after delete, got %d", count)
 	}
+
+	var created, updated sql.NullString
+	if err := db.QueryRow("SELECT created_at, updated_at FROM repo_users WHERE repo_name = ? AND user_login = ?", repoName, "collab2").Scan(&created, &updated); err != nil {
+		t.Fatalf("failed to fetch timestamps: %v", err)
+	}
+	if !created.Valid || created.String == "" {
+		t.Fatalf("expected created_at to be set")
+	}
+	if !updated.Valid || updated.String == "" {
+		t.Fatalf("expected updated_at to be set")
+	}
 }
 
 func TestUpsertAndDeleteTeamUser(t *testing.T) {

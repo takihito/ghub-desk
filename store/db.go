@@ -171,11 +171,13 @@ func createTables(db *sql.DB) error {
 			updated_at TEXT
 		)`,
 		`CREATE TABLE IF NOT EXISTS repo_users (
-			repo_name TEXT,
-			user_login TEXT,
-			user_id INTEGER,
-			PRIMARY KEY (repo_name, user_login)
-		)`,
+		repo_name TEXT,
+		user_login TEXT,
+		user_id INTEGER,
+		created_at TEXT,
+		updated_at TEXT,
+		PRIMARY KEY (repo_name, user_login)
+	)`,
 	}
 
 	for _, query := range tables {
@@ -426,16 +428,19 @@ func StoreRepoUsers(db *sql.DB, repoName string, users []*github.User) error {
 		return nil
 	}
 
+	now := time.Now().Format("2006-01-02 15:04:05")
 	rows := make([][]any, 0, len(users))
 	for _, u := range users {
 		rows = append(rows, []any{
 			repoName,
 			u.GetLogin(),
 			u.GetID(),
+			now,
+			now,
 		})
 	}
 
-	columns := []string{"repo_name", "user_login", "user_id"}
+	columns := []string{"repo_name", "user_login", "user_id", "created_at", "updated_at"}
 	if err := insertOrReplaceBatch(db, "repo_users", columns, rows); err != nil {
 		return fmt.Errorf("failed to store repository users for %s: %w", repoName, err)
 	}
@@ -453,8 +458,9 @@ func UpsertRepoUser(db *sql.DB, repoName string, user *github.User) error {
 	if user == nil {
 		return fmt.Errorf("user information is required to upsert repository user")
 	}
-	_, err := db.Exec(`INSERT OR REPLACE INTO repo_users(repo_name, user_login, user_id) VALUES (?, ?, ?)`,
-		repoName, user.GetLogin(), user.GetID())
+	now := time.Now().Format("2006-01-02 15:04:05")
+	_, err := db.Exec(`INSERT OR REPLACE INTO repo_users(repo_name, user_login, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
+		repoName, user.GetLogin(), user.GetID(), now, now)
 	if err != nil {
 		return fmt.Errorf("failed to upsert repository user %s for repo %s: %w", user.GetLogin(), repoName, err)
 	}
