@@ -189,6 +189,8 @@ func createTables(db *sql.DB) error {
 	// indexes
 	indexes := []string{
 		`CREATE INDEX IF NOT EXISTS idx_token_permissions_created_at ON ghub_token_permissions(created_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_repo_users_repo_name ON repo_users(repo_name)`,
+		`CREATE INDEX IF NOT EXISTS idx_repo_users_user_login ON repo_users(user_login)`,
 	}
 	for _, idx := range indexes {
 		if _, err := db.Exec(idx); err != nil {
