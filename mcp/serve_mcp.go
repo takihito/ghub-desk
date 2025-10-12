@@ -677,7 +677,7 @@ func doPushAdd(ctx context.Context, cfg *appcfg.Config, target, value string, st
 	if err != nil {
 		return fmt.Errorf("github client init: %w", err)
 	}
-	if err := gh.ExecutePushAdd(ctx, client, cfg.Organization, target, value); err != nil {
+	if err := gh.ExecutePushAdd(ctx, client, cfg.Organization, target, value, ""); err != nil {
 		return err
 	}
 	if !storeResult {

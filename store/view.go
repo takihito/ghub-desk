@@ -11,6 +11,7 @@ import (
 type TargetRequest struct {
 	Kind     string
 	TeamSlug string
+	RepoName string
 }
 
 // HandleViewTarget processes different types of view targets
@@ -26,6 +27,14 @@ func HandleViewTarget(db *sql.DB, req TargetRequest) error {
 		return ViewTokenPermission(db)
 	case "outside-users":
 		return ViewOutsideUsers(db)
+	case "repo-users":
+		if req.RepoName == "" {
+			return fmt.Errorf("repository name must be specified when using repo-users target")
+		}
+		if err := validate.ValidateRepoName(req.RepoName); err != nil {
+			return fmt.Errorf("invalid repository name: %w", err)
+		}
+		return ViewRepoUsers(db, req.RepoName)
 	case "team-user":
 		if req.TeamSlug == "" {
 			return fmt.Errorf("team slug must be specified when using team-user target")
@@ -132,6 +141,33 @@ func ViewRepositories(db *sql.DB) error {
 			language.String,
 			stars,
 		)
+	}
+	return nil
+}
+
+// ViewRepoUsers displays direct repository collaborators from the database
+func ViewRepoUsers(db *sql.DB, repoName string) error {
+	rows, err := db.Query(`
+		SELECT user_id, user_login
+		FROM repo_users
+		WHERE repo_name = ?
+		ORDER BY user_login`, repoName)
+	if err != nil {
+		return fmt.Errorf("failed to query repository users: %w", err)
+	}
+	defer rows.Close()
+
+	fmt.Printf("Repository: %s\n", repoName)
+	fmt.Println("User ID\tLogin")
+	fmt.Println("-------\t-----")
+
+	for rows.Next() {
+		var userID sql.NullInt64
+		var login sql.NullString
+		if err := rows.Scan(&userID, &login); err != nil {
+			return fmt.Errorf("failed to scan repository user row: %w", err)
+		}
+		fmt.Printf("%d\t%s\n", userID.Int64, login.String)
 	}
 	return nil
 }

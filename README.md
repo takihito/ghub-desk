@@ -16,17 +16,18 @@ GitHub Organization Management CLI & MCP Server
 ## Core Commands
 
 ### Data collection (pull)
-- Targets: `users`, `detail-users`, `teams`, `repos`, `team-user`, `all-teams-users`, `outside-users`, `token-permission`
+- Targets: `users`, `detail-users`, `teams`, `repos`, `repo-users`, `team-user`, `all-teams-users`, `outside-users`, `token-permission`
 - Use `--no-store` to skip writing to the local DB, `--stdout` to stream API responses to stdout
 - Use `--interval-time` to throttle GitHub API calls
 
 ### Data inspection (view)
 - Display the data stored by `pull` from SQLite
 - Use `--team-user` or `team-slug/users` arguments to inspect specific teams
+- Use `--repo-users` to review direct collaborators added to a repository
 - Use `--settings` to review masked configuration values
 
 ### Data mutations (push add/remove)
-- Add or remove users from the organization and its teams, or delete teams
+- Add or remove users from the organization and its teams, delete teams, or manage outside collaborators on repositories (optional `--permission` to set `pull`, `push`, or `admin`; aliases: `read`→`pull`, `write`→`push`)
 - Runs in DRYRUN mode by default; apply changes with `--exec`
 - Use `--no-store` to skip syncing the local DB after successful operations
 
@@ -86,6 +87,12 @@ mcp:
   - Length: 1 to 100 characters
 - Team slug with username
   - Use the `{team-slug}/{username}` format when passing to `--team-user`
+- Repository names
+  - Allowed characters: alphanumeric, underscore (`_`), and hyphen (dot is not allowed)
+  - Cannot start with a hyphen
+  - Length: 1 to 100 characters
+- Repository with username
+  - Use the `{repository}/{username}` format when passing to `--outside-user`
 
 ## Usage
 
@@ -101,6 +108,9 @@ mcp:
 # Retrieve the team list without updating the DB
 ./ghub-desk pull --teams --no-store
 
+# Fetch direct collaborators for a repository
+./ghub-desk pull --repo-users repo-name
+
 # Fetch members for every team (default interval: 3s)
 ./ghub-desk pull --all-teams-users
 ```
@@ -113,6 +123,9 @@ mcp:
 
 # Inspect members of a specific team slug
 ./ghub-desk view --team-user team-slug
+
+# Inspect direct collaborators for a repository
+./ghub-desk view --repo-users repo-name
 
 # Review masked configuration values
 ./ghub-desk view --settings
@@ -129,6 +142,15 @@ mcp:
 
 # Remove a user from a team while skipping the DB sync
 ./ghub-desk push remove --team-user team-slug/username --exec --no-store
+
+# Invite an outside collaborator to a repository (DRYRUN)
+./ghub-desk push add --outside-user repo-name/username
+
+# Invite with explicit permission (e.g., read-only access)
+./ghub-desk push add --outside-user repo-name/username --permission read
+
+# Remove an outside collaborator from a repository and sync the DB
+./ghub-desk push remove --outside-user repo-name/username --exec
 ```
 
 ### init / version

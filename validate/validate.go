@@ -11,24 +11,30 @@ import (
 const (
 	UserNamePattern = "^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$"
 	TeamSlugPattern = "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
+	RepoNamePattern = "^[A-Za-z0-9_][A-Za-z0-9_-]{0,99}$"
 
 	UserNameMin = 1
 	UserNameMax = 39
 
 	TeamSlugMin = 1
 	TeamSlugMax = 100
+	RepoNameMin = 1
+	RepoNameMax = 100
 )
 
 var (
 	reUser = regexp.MustCompile(UserNamePattern)
 	reTeam = regexp.MustCompile(TeamSlugPattern)
+	reRepo = regexp.MustCompile(RepoNamePattern)
 )
 
 // Sentinel errors for classification by callers.
 var (
-	ErrInvalidUserName = errors.New("invalid username")
-	ErrInvalidTeamSlug = errors.New("invalid team slug")
-	ErrInvalidPair     = errors.New("invalid team/user pair")
+	ErrInvalidUserName     = errors.New("invalid username")
+	ErrInvalidTeamSlug     = errors.New("invalid team slug")
+	ErrInvalidPair         = errors.New("invalid team/user pair")
+	ErrInvalidRepoName     = errors.New("invalid repository name")
+	ErrInvalidRepoUserPair = errors.New("invalid repository/user pair")
 )
 
 // ValidateUserName checks GitHub username rule: 1-39 chars, alnum or hyphen,
@@ -66,4 +72,30 @@ func ParseTeamUserPair(s string) (team string, user string, err error) {
 		return "", "", fmt.Errorf("%w: user name invalid: %w", ErrInvalidPair, err)
 	}
 	return team, user, nil
+}
+
+// ValidateRepoName checks repository name rule: 1-100 chars, alnum, underscore, or hyphen.
+func ValidateRepoName(s string) error {
+	s = strings.TrimSpace(s)
+	if len(s) < RepoNameMin || len(s) > RepoNameMax || !reRepo.MatchString(s) {
+		return fmt.Errorf("%w: %d-%d chars, alnum, underscore, or hyphen only, and cannot start with hyphen", ErrInvalidRepoName, RepoNameMin, RepoNameMax)
+	}
+	return nil
+}
+
+// ParseRepoUserPair parses "{repository}/{user_name}" and validates both parts.
+func ParseRepoUserPair(s string) (repo string, user string, err error) {
+	parts := strings.Split(s, "/")
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("%w: expected {repository}/{user_name}", ErrInvalidRepoUserPair)
+	}
+	repo = strings.TrimSpace(parts[0])
+	user = strings.TrimSpace(parts[1])
+	if err := ValidateRepoName(repo); err != nil {
+		return "", "", fmt.Errorf("%w: repository invalid: %w", ErrInvalidRepoUserPair, err)
+	}
+	if err := ValidateUserName(user); err != nil {
+		return "", "", fmt.Errorf("%w: user name invalid: %w", ErrInvalidRepoUserPair, err)
+	}
+	return repo, user, nil
 }

@@ -60,3 +60,75 @@ func TestValidateTeamUserPair(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateRepoName(t *testing.T) {
+	ok := []string{"repo", "Repo-Name", "repo_name", "Repo123", strings.Repeat("a", 100)}
+	ng := []string{"", "repo name", "repo/", strings.Repeat("b", 101), ".github", "-repo"}
+
+	for _, s := range ok {
+		if err := validateRepoName(s); err != nil {
+			t.Errorf("want ok, got err for %q: %v", s, err)
+		}
+	}
+	for _, s := range ng {
+		if err := validateRepoName(s); err == nil {
+			t.Errorf("want err, got ok for %q", s)
+		}
+	}
+}
+
+func TestValidateRepoUserPair(t *testing.T) {
+	if repo, user, err := validateRepoUserPair("demo-repo/user-ok"); err != nil {
+		t.Fatalf("unexpected err: %v", err)
+	} else if repo != "demo-repo" || user != "user-ok" {
+		t.Fatalf("unexpected parts: %s/%s", repo, user)
+	}
+
+	cases := []string{
+		"no-slash",
+		"/user",
+		"repo/",
+		"bad repo/user",
+		"repo/bad$user",
+		strings.Repeat("r", 101) + "/user",
+	}
+	for _, c := range cases {
+		if _, _, err := validateRepoUserPair(c); err == nil {
+			t.Errorf("want err for %q", c)
+		}
+	}
+}
+
+func TestValidateOutsidePermission(t *testing.T) {
+	cases := []struct {
+		input string
+		want  string
+		ok    bool
+	}{
+		{"", "", true},
+		{"pull", "pull", true},
+		{"push", "push", true},
+		{"admin", "admin", true},
+		{" push ", "push", true},
+		{"read", "pull", true},
+		{"write", "push", true},
+		{"WRITE", "push", true},
+		{"maintain", "", false},
+	}
+
+	for _, tc := range cases {
+		got, err := validateOutsidePermission(tc.input)
+		if tc.ok {
+			if err != nil {
+				t.Fatalf("%q: unexpected error %v", tc.input, err)
+			}
+			if got != tc.want {
+				t.Fatalf("%q: want %q, got %q", tc.input, tc.want, got)
+			}
+		} else {
+			if err == nil {
+				t.Fatalf("%q: expected error", tc.input)
+			}
+		}
+	}
+}

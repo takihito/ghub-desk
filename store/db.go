@@ -170,6 +170,14 @@ func createTables(db *sql.DB) error {
 			created_at TEXT,
 			updated_at TEXT
 		)`,
+		`CREATE TABLE IF NOT EXISTS repo_users (
+		repo_name TEXT,
+		user_login TEXT,
+		user_id INTEGER,
+		created_at TEXT,
+		updated_at TEXT,
+		PRIMARY KEY (repo_name, user_login)
+	)`,
 	}
 
 	for _, query := range tables {
@@ -181,6 +189,8 @@ func createTables(db *sql.DB) error {
 	// indexes
 	indexes := []string{
 		`CREATE INDEX IF NOT EXISTS idx_token_permissions_created_at ON ghub_token_permissions(created_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_repo_users_repo_name ON repo_users(repo_name)`,
+		`CREATE INDEX IF NOT EXISTS idx_repo_users_user_login ON repo_users(user_login)`,
 	}
 	for _, idx := range indexes {
 		if _, err := db.Exec(idx); err != nil {
@@ -404,6 +414,71 @@ func StoreOutsideUsers(db *sql.DB, users []*github.User) error {
 	columns := []string{"id", "login", "name", "email", "company", "location", "created_at", "updated_at"}
 	if err := insertOrReplaceBatch(db, "ghub_outside_users", columns, rows); err != nil {
 		return fmt.Errorf("failed to store outside users: %w", err)
+	}
+	return nil
+}
+
+// StoreRepoUsers stores collaborators for a specific repository in the database.
+func StoreRepoUsers(db *sql.DB, repoName string, users []*github.User) error {
+	if db == nil {
+		return fmt.Errorf("database connection is required to store repository users")
+	}
+	if repoName == "" {
+		return fmt.Errorf("repository name is required to store repository users")
+	}
+	if len(users) == 0 {
+		return nil
+	}
+
+	now := time.Now().Format("2006-01-02 15:04:05")
+	rows := make([][]any, 0, len(users))
+	for _, u := range users {
+		rows = append(rows, []any{
+			repoName,
+			u.GetLogin(),
+			u.GetID(),
+			now,
+			now,
+		})
+	}
+
+	columns := []string{"repo_name", "user_login", "user_id", "created_at", "updated_at"}
+	if err := insertOrReplaceBatch(db, "repo_users", columns, rows); err != nil {
+		return fmt.Errorf("failed to store repository users for %s: %w", repoName, err)
+	}
+	return nil
+}
+
+// UpsertRepoUser adds or updates a single repository collaborator entry.
+func UpsertRepoUser(db *sql.DB, repoName string, user *github.User) error {
+	if db == nil {
+		return fmt.Errorf("database connection is required to upsert repository user")
+	}
+	if repoName == "" {
+		return fmt.Errorf("repository name is required to upsert repository user")
+	}
+	if user == nil {
+		return fmt.Errorf("user information is required to upsert repository user")
+	}
+	now := time.Now().Format("2006-01-02 15:04:05")
+	_, err := db.Exec(`INSERT OR REPLACE INTO repo_users(repo_name, user_login, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
+		repoName, user.GetLogin(), user.GetID(), now, now)
+	if err != nil {
+		return fmt.Errorf("failed to upsert repository user %s for repo %s: %w", user.GetLogin(), repoName, err)
+	}
+	return nil
+}
+
+// DeleteRepoUser removes a repository collaborator entry from the database.
+func DeleteRepoUser(db *sql.DB, repoName, userLogin string) error {
+	if db == nil {
+		return fmt.Errorf("database connection is required to delete repository user")
+	}
+	if repoName == "" || userLogin == "" {
+		return fmt.Errorf("repository name and user login are required to delete repository user")
+	}
+	if _, err := db.Exec(`DELETE FROM repo_users WHERE repo_name = ? AND user_login = ?`, repoName, userLogin); err != nil {
+		return fmt.Errorf("failed to delete repository user %s for repo %s: %w", userLogin, repoName, err)
 	}
 	return nil
 }
