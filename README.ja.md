@@ -14,14 +14,14 @@ GitHub Organization Management CLI & MCP Server
 ## 主な機能
 
 ### データ取得 (pull)
-- ターゲット: `users`, `detail-users`, `teams`, `repos`, `repo-users`, `team-user`, `all-teams-users`, `outside-users`, `token-permission`
+- ターゲット: `users`, `detail-users`, `teams`, `repos`, `repos-users`, `team-user`, `all-teams-users`, `outside-users`, `token-permission`
 - `--no-store` でローカル DB への保存をスキップ、`--stdout` で API レスポンスを標準出力に表示
 - `--interval-time` で GitHub API 呼び出し間隔を調整
 
 ### データ表示 (view)
 - `pull` で保存した情報を SQLite から表示
 - `--team-user` や `{team-slug}/users` 引数で特定チームのユーザーを参照
-- `--repo-users` でリポジトリに直接追加されたユーザー一覧を確認
+- `--repos-users` でリポジトリに直接追加されたユーザー一覧を確認
 - `--settings` でマスク済み設定値を確認
 
 ### データ操作 (push add/remove)
@@ -107,7 +107,7 @@ mcp:
 ./ghub-desk pull --teams --no-store
 
 # リポジトリに直接追加されたユーザーを取得
-./ghub-desk pull --repo-users repo-name
+./ghub-desk pull --repos-users repo-name
 
 # 全チームのメンバーを連続取得（リクエスト間隔は既定 3s）
 ./ghub-desk pull --all-teams-users
@@ -123,7 +123,7 @@ mcp:
 ./ghub-desk view --team-user team-slug
 
 # リポジトリに直接追加されたユーザーを表示
-./ghub-desk view --repo-users repo-name
+./ghub-desk view --repos-users repo-name
 
 # マスク済みの設定値を確認
 ./ghub-desk view --settings

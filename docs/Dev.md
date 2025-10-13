@@ -90,13 +90,13 @@ $ ghub-desk view --teams
 
 ````
 # SQLiteには保存する
-$ ghub-desk pull --teams-users {team_slug}
+$ ghub-desk pull --team-users {team_slug}
 
 # SQLiteには保存せず
-$ ghub-desk pull --teams-users {team_slug} --no-store
+$ ghub-desk pull --team-users {team_slug} --no-store
 
 # SQLiteをソースとして表示する 
-$ ghub-desk view --teams-users {team_slug}
+$ ghub-desk view --team-users {team_slug}
 ````
 
 ````
@@ -246,7 +246,7 @@ ghub-desk report --user-distribution
 「データ分析・レポート機能」
 # 時系列分析
 ghub-desk analyze --team-growth --period 6months
-ghub-desk export --format csv --teams-users
+ghub-desk export --format csv --team-users
 
 
 

@@ -64,8 +64,9 @@ type CommonTargetOptions struct {
 	DetailUsers     bool   `name:"detail-users" help:"Target: detail-users"`
 	Teams           bool   `help:"Target: teams"`
 	Repos           bool   `help:"Target: repos"`
-	TeamUser        string `name:"team-user" aliases:"teams-users" help:"Target: team-user (provide team slug: 1–100 chars, lowercase alnum + hyphen)"`
-	RepoUsers       string `name:"repo-users" help:"Target: repo-users (provide repository name)"`
+	TeamUser        string `name:"team-user" aliases:"team-users" help:"Target: team-user (provide team slug: 1–100 chars, lowercase alnum + hyphen)"`
+	RepoUsers       string `name:"repos-users" help:"Target: repos-users (provide repository name)"`
+	RepoTeams       string `name:"repos-teams" help:"Target: repos-teams (provide repository name)"`
 	TokenPermission bool   `name:"token-permission" help:"Target: token-permission"`
 	OutsideUsers    bool   `name:"outside-users" help:"Target: outside-users"`
 }
@@ -87,7 +88,8 @@ func (c *CommonTargetOptions) GetTarget(extraTargets ...TargetFlag) (string, err
 		{c.Teams, "teams"},
 		{c.Repos, "repos"},
 		{c.TeamUser != "", "team-user"},
-		{c.RepoUsers != "", "repo-users"},
+		{c.RepoUsers != "", "repos-users"},
+		{c.RepoTeams != "", "repos-teams"},
 		{c.TokenPermission, "token-permission"},
 		{c.OutsideUsers, "outside-users"},
 	}
@@ -235,11 +237,16 @@ func (p *PullCmd) Run(cli *CLI) error {
 			return err
 		}
 		req.TeamSlug = p.TeamUser
-	case "repo-users":
+	case "repos-users":
 		if err := validateRepoName(p.RepoUsers); err != nil {
 			return err
 		}
 		req.RepoName = p.RepoUsers
+	case "repos-teams":
+		if err := validateRepoName(p.RepoTeams); err != nil {
+			return err
+		}
+		req.RepoName = p.RepoTeams
 	}
 	return github.HandlePullTarget(
 		ctx,
@@ -301,11 +308,16 @@ func (v *ViewCmd) Run(cli *CLI) error {
 			return err
 		}
 		req.TeamSlug = v.TeamUser
-	case "repo-users":
+	case "repos-users":
 		if err := validateRepoName(v.RepoUsers); err != nil {
 			return err
 		}
 		req.RepoName = v.RepoUsers
+	case "repos-teams":
+		if err := validateRepoName(v.RepoTeams); err != nil {
+			return err
+		}
+		req.RepoName = v.RepoTeams
 	}
 
 	return store.HandleViewTarget(db, req)

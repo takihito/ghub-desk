@@ -27,14 +27,22 @@ func HandleViewTarget(db *sql.DB, req TargetRequest) error {
 		return ViewTokenPermission(db)
 	case "outside-users":
 		return ViewOutsideUsers(db)
-	case "repo-users":
+	case "repos-users":
 		if req.RepoName == "" {
-			return fmt.Errorf("repository name must be specified when using repo-users target")
+			return fmt.Errorf("repository name must be specified when using repos-users target")
 		}
 		if err := validate.ValidateRepoName(req.RepoName); err != nil {
 			return fmt.Errorf("invalid repository name: %w", err)
 		}
 		return ViewRepoUsers(db, req.RepoName)
+	case "repos-teams":
+		if req.RepoName == "" {
+			return fmt.Errorf("repository name must be specified when using repos-teams target")
+		}
+		if err := validate.ValidateRepoName(req.RepoName); err != nil {
+			return fmt.Errorf("invalid repository name: %w", err)
+		}
+		return ViewRepoTeams(db, req.RepoName)
 	case "team-user":
 		if req.TeamSlug == "" {
 			return fmt.Errorf("team slug must be specified when using team-user target")
@@ -168,6 +176,41 @@ func ViewRepoUsers(db *sql.DB, repoName string) error {
 			return fmt.Errorf("failed to scan repository user row: %w", err)
 		}
 		fmt.Printf("%d\t%s\n", userID.Int64, login.String)
+	}
+	return nil
+}
+
+// ViewRepoTeams displays repository teams from the database
+func ViewRepoTeams(db *sql.DB, repoName string) error {
+	rows, err := db.Query(`
+		SELECT id, team_name, team_slug, description, privacy, permission
+		FROM repo_teams
+		WHERE repo_name = ?
+		ORDER BY team_slug`, repoName)
+	if err != nil {
+		return fmt.Errorf("failed to query repository teams: %w", err)
+	}
+	defer rows.Close()
+
+	fmt.Printf("Repository: %s\n", repoName)
+	fmt.Println("Team ID\tSlug\tName\tPermission\tPrivacy\tDescription")
+	fmt.Println("-------\t----\t----\t----------\t-------\t-----------")
+
+	for rows.Next() {
+		var id sql.NullInt64
+		var name, slug, description, privacy, permission sql.NullString
+		if err := rows.Scan(&id, &name, &slug, &description, &privacy, &permission); err != nil {
+			return fmt.Errorf("failed to scan repository team row: %w", err)
+		}
+
+		fmt.Printf("%d\t%s\t%s\t%s\t%s\t%s\n",
+			id.Int64,
+			slug.String,
+			name.String,
+			permission.String,
+			privacy.String,
+			description.String,
+		)
 	}
 	return nil
 }

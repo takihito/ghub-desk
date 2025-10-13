@@ -495,6 +495,82 @@ func TestRepoUsersOperations(t *testing.T) {
 	}
 }
 
+func TestStoreRepoTeams(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open test database: %v", err)
+	}
+	defer db.Close()
+
+	if err := createTables(db); err != nil {
+		t.Fatalf("Failed to create tables: %v", err)
+	}
+
+	repoName := "test-repo"
+	teams := []*github.Team{
+		{
+			ID:          github.Int64(11),
+			Name:        github.String("Team Alpha"),
+			Slug:        github.String("team-alpha"),
+			Description: github.String("First team"),
+			Privacy:     github.String("closed"),
+			Permission:  github.String("push"),
+		},
+		{
+			ID:          github.Int64(12),
+			Name:        github.String("Team Beta"),
+			Slug:        github.String("team-beta"),
+			Description: github.String("Second team"),
+			Privacy:     github.String("secret"),
+			Permission:  github.String("admin"),
+		},
+	}
+
+	if err := StoreRepoTeams(db, repoName, teams); err != nil {
+		t.Fatalf("StoreRepoTeams error: %v", err)
+	}
+
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM repo_teams WHERE repo_name = ?", repoName).Scan(&count); err != nil {
+		t.Fatalf("Failed to count repo teams: %v", err)
+	}
+	if count != len(teams) {
+		t.Fatalf("expected %d repo teams, got %d", len(teams), count)
+	}
+
+	updatedDesc := "Updated first team"
+	updatedTeams := []*github.Team{
+		{
+			ID:          github.Int64(11),
+			Name:        github.String("Team Alpha"),
+			Slug:        github.String("team-alpha"),
+			Description: github.String(updatedDesc),
+			Privacy:     github.String("closed"),
+			Permission:  github.String("maintain"),
+		},
+		{
+			ID:          github.Int64(12),
+			Name:        github.String("Team Beta"),
+			Slug:        github.String("team-beta"),
+			Description: github.String("Second team"),
+			Privacy:     github.String("secret"),
+			Permission:  github.String("admin"),
+		},
+	}
+
+	if err := StoreRepoTeams(db, repoName, updatedTeams); err != nil {
+		t.Fatalf("StoreRepoTeams second call error: %v", err)
+	}
+
+	var description sql.NullString
+	if err := db.QueryRow("SELECT description FROM repo_teams WHERE repo_name = ? AND id = ?", repoName, 11).Scan(&description); err != nil {
+		t.Fatalf("failed to fetch updated description: %v", err)
+	}
+	if description.String != updatedDesc {
+		t.Fatalf("expected updated description %q, got %q", updatedDesc, description.String)
+	}
+}
+
 func TestUpsertAndDeleteTeamUser(t *testing.T) {
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
