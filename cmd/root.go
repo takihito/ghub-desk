@@ -64,7 +64,7 @@ type CommonTargetOptions struct {
 	DetailUsers     bool   `name:"detail-users" help:"Target: detail-users"`
 	Teams           bool   `help:"Target: teams"`
 	Repos           bool   `help:"Target: repos"`
-	TeamUser        string `name:"team-user" aliases:"teams-users" help:"Target: team-user (provide team slug: 1–100 chars, lowercase alnum + hyphen)"`
+	TeamUser        string `name:"team-user" aliases:"team-users" help:"Target: team-user (provide team slug: 1–100 chars, lowercase alnum + hyphen)"`
 	RepoUsers       string `name:"repos-users" help:"Target: repos-users (provide repository name)"`
 	RepoTeams       string `name:"repos-teams" help:"Target: repos-teams (provide repository name)"`
 	TokenPermission bool   `name:"token-permission" help:"Target: token-permission"`
