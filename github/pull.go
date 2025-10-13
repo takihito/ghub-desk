@@ -355,7 +355,7 @@ func pullTeamUsers(ctx context.Context, client *github.Client, db *sql.DB, org, 
 		if _, err := db.Exec(`DELETE FROM ghub_team_users WHERE team_slug = ?`, teamSlug); err != nil {
 			return nil, fmt.Errorf("failed to clear team_users table: %w", err)
 		}
-		// TOOD ? : check store.StoreTeams(db, []*github.Team{team});
+		// TODO ? : check store.StoreTeams(db, []*github.Team{team});
 	}
 
 	users, err := fetchAndStore(
