@@ -356,6 +356,7 @@ func pullTeamUsers(ctx context.Context, client *github.Client, db *sql.DB, org, 
 			return nil, fmt.Errorf("failed to clear team_users table: %w", err)
 		}
 		// TODO ? : check store.StoreTeams(db, []*github.Team{team});
+		// TODO DBを正規化して一度に組織を取得する手順(pull --all-organization-data? --cmd-list "--teams,--team-users a-team,")を考える
 	}
 
 	users, err := fetchAndStore(

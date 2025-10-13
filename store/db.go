@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -314,6 +315,10 @@ func StoreTeamUsers(db *sql.DB, users []*github.User, teamSlug string) error {
 	var teamID int64
 	err := db.QueryRow(`SELECT id FROM ghub_teams WHERE slug = ?`, teamSlug).Scan(&teamID)
 	if err != nil {
+		// TODO あとでまとめて取得する方法を考える
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("チーム %s のデータが見つかりませんでした。先に `ghub-desk pull --teams` を実行してチーム情報を取得してください: %w", teamSlug, err)
+		}
 		return fmt.Errorf("failed to get team ID for slug %s: %w", teamSlug, err)
 	}
 
