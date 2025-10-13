@@ -171,13 +171,25 @@ func createTables(db *sql.DB) error {
 			updated_at TEXT
 		)`,
 		`CREATE TABLE IF NOT EXISTS repo_users (
-		repo_name TEXT,
-		user_login TEXT,
-		user_id INTEGER,
-		created_at TEXT,
-		updated_at TEXT,
-		PRIMARY KEY (repo_name, user_login)
-	)`,
+			repo_name TEXT,
+			user_login TEXT,
+			user_id INTEGER,
+			created_at TEXT,
+			updated_at TEXT,
+			PRIMARY KEY (repo_name, user_login)
+		)`,
+		`CREATE TABLE IF NOT EXISTS repo_teams (
+			repo_name TEXT NOT NULL,
+			id INTEGER NOT NULL,
+			team_name TEXT NOT NULL,
+			team_slug TEXT NOT NULL,
+			description TEXT,
+			privacy TEXT,
+			permission TEXT,
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL,
+			PRIMARY KEY (repo_name, id)
+		)`,
 	}
 
 	for _, query := range tables {
@@ -191,6 +203,7 @@ func createTables(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_token_permissions_created_at ON ghub_token_permissions(created_at)`,
 		`CREATE INDEX IF NOT EXISTS idx_repo_users_repo_name ON repo_users(repo_name)`,
 		`CREATE INDEX IF NOT EXISTS idx_repo_users_user_login ON repo_users(user_login)`,
+		`CREATE INDEX IF NOT EXISTS idx_repo_teams_repo_name ON repo_teams(repo_name)`,
 	}
 	for _, idx := range indexes {
 		if _, err := db.Exec(idx); err != nil {
@@ -445,6 +458,42 @@ func StoreRepoUsers(db *sql.DB, repoName string, users []*github.User) error {
 	columns := []string{"repo_name", "user_login", "user_id", "created_at", "updated_at"}
 	if err := insertOrReplaceBatch(db, "repo_users", columns, rows); err != nil {
 		return fmt.Errorf("failed to store repository users for %s: %w", repoName, err)
+	}
+	return nil
+}
+
+// StoreRepoTeams stores repository teams in the database.
+func StoreRepoTeams(db *sql.DB, repoName string, teams []*github.Team) error {
+	if db == nil {
+		return fmt.Errorf("database connection is required to store repository teams")
+	}
+	if repoName == "" {
+		return fmt.Errorf("repository name is required to store repository teams")
+	}
+
+	if len(teams) == 0 {
+		return nil
+	}
+
+	now := time.Now().Format("2006-01-02 15:04:05")
+	rows := make([][]any, 0, len(teams))
+	for _, t := range teams {
+		rows = append(rows, []any{
+			repoName,
+			t.GetID(),
+			t.GetName(),
+			t.GetSlug(),
+			t.GetDescription(),
+			t.GetPrivacy(),
+			t.GetPermission(),
+			now,
+			now,
+		})
+	}
+
+	columns := []string{"repo_name", "id", "team_name", "team_slug", "description", "privacy", "permission", "created_at", "updated_at"}
+	if err := insertOrReplaceBatch(db, "repo_teams", columns, rows); err != nil {
+		return fmt.Errorf("failed to store repository teams for %s: %w", repoName, err)
 	}
 	return nil
 }

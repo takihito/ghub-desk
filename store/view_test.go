@@ -48,7 +48,8 @@ func TestHandleViewTarget(t *testing.T) {
 		{"repositories target", TargetRequest{Kind: "repositories"}, false},
 		{"token-permission target", TargetRequest{Kind: "token-permission"}, false},
 		{"outside-users target", TargetRequest{Kind: "outside-users"}, false},
-		{"repo users target", TargetRequest{Kind: "repo-users", RepoName: "test-repo"}, false},
+		{"repos users target", TargetRequest{Kind: "repos-users", RepoName: "test-repo"}, false},
+		{"repo teams target", TargetRequest{Kind: "repos-teams", RepoName: "test-repo"}, false},
 		{"team users target (slug)", TargetRequest{Kind: "team-user", TeamSlug: "test-team"}, false},
 		{"unknown target", TargetRequest{Kind: "invalid target"}, true},
 	}
@@ -170,6 +171,39 @@ func TestViewRepoUsers(t *testing.T) {
 
 	if err := ViewRepoUsers(db, repoName); err != nil {
 		t.Errorf("ViewRepoUsers() error = %v", err)
+	}
+}
+
+func TestViewRepoTeams(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repoName := "test-repo"
+	teams := []*github.Team{
+		{
+			ID:          github.Int64(1),
+			Name:        github.String("Team One"),
+			Slug:        github.String("team-one"),
+			Description: github.String("first team"),
+			Privacy:     github.String("closed"),
+			Permission:  github.String("push"),
+		},
+		{
+			ID:          github.Int64(2),
+			Name:        github.String("Team Two"),
+			Slug:        github.String("team-two"),
+			Description: github.String("second team"),
+			Privacy:     github.String("secret"),
+			Permission:  github.String("maintain"),
+		},
+	}
+
+	if err := StoreRepoTeams(db, repoName, teams); err != nil {
+		t.Fatalf("Failed to store repo teams: %v", err)
+	}
+
+	if err := ViewRepoTeams(db, repoName); err != nil {
+		t.Errorf("ViewRepoTeams() error = %v", err)
 	}
 }
 

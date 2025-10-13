@@ -44,11 +44,19 @@ func HandlePullTarget(ctx context.Context, client *github.Client, db *sql.DB, or
 		return PullTeams(ctx, client, db, org, opts)
 	case "repos":
 		return PullRepositories(ctx, client, db, org, opts)
-	case "repo-users":
+	case "repos-users":
 		if req.RepoName == "" {
-			return fmt.Errorf("repository name must be specified when using repo-users target")
+			return fmt.Errorf("repository name must be specified when using repos-users target")
 		}
 		return PullRepoUsers(ctx, client, db, org, req.RepoName, opts)
+	case "repos-teams":
+		if req.RepoName == "" {
+			return fmt.Errorf("repository name must be specified when using repos-teams target")
+		}
+		if err := validate.ValidateRepoName(req.RepoName); err != nil {
+			return fmt.Errorf("invalid repository name: %w", err)
+		}
+		return PullRepoTeams(ctx, client, db, org, req.RepoName, opts)
 	case "all-teams-users":
 		return PullAllTeamsUsers(ctx, client, db, org, opts)
 	case "token-permission":
@@ -272,6 +280,43 @@ func PullRepoUsers(ctx context.Context, client *github.Client, db *sql.DB, org, 
 
 	if opts.Stdout {
 		if err := printJSON(users); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// PullRepoTeams fetches repository teams and optionally stores them in database
+func PullRepoTeams(ctx context.Context, client *github.Client, db *sql.DB, org, repoName string, opts PullOptions) error {
+	if opts.Store {
+		if db == nil {
+			return fmt.Errorf("database connection is required to store repository teams")
+		}
+		if _, err := db.Exec(`DELETE FROM repo_teams WHERE repo_name = ?`, repoName); err != nil {
+			return fmt.Errorf("failed to clear repository teams for %s: %w", repoName, err)
+		}
+	}
+
+	teams, err := fetchAndStore(
+		ctx, client,
+		func(ctx context.Context, org string, optsList *github.ListOptions) ([]*github.Team, *github.Response, error) {
+			return client.Repositories.ListTeams(ctx, org, repoName, optsList)
+		},
+		func(db *sql.DB, teams []*github.Team) error {
+			if db == nil {
+				return nil
+			}
+			return store.StoreRepoTeams(db, repoName, teams)
+		},
+		db, org, opts.Interval, opts.Store,
+	)
+	if err != nil {
+		return err
+	}
+
+	if opts.Stdout {
+		if err := printJSON(teams); err != nil {
 			return err
 		}
 	}

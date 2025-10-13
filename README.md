@@ -16,14 +16,14 @@ GitHub Organization Management CLI & MCP Server
 ## Core Commands
 
 ### Data collection (pull)
-- Targets: `users`, `detail-users`, `teams`, `repos`, `repo-users`, `team-user`, `all-teams-users`, `outside-users`, `token-permission`
+- Targets: `users`, `detail-users`, `teams`, `repos`, `repos-users`, `team-user`, `all-teams-users`, `outside-users`, `token-permission`
 - Use `--no-store` to skip writing to the local DB, `--stdout` to stream API responses to stdout
 - Use `--interval-time` to throttle GitHub API calls
 
 ### Data inspection (view)
 - Display the data stored by `pull` from SQLite
 - Use `--team-user` or `team-slug/users` arguments to inspect specific teams
-- Use `--repo-users` to review direct collaborators added to a repository
+- Use `--repos-users` to review direct collaborators added to a repository
 - Use `--settings` to review masked configuration values
 
 ### Data mutations (push add/remove)
@@ -109,7 +109,7 @@ mcp:
 ./ghub-desk pull --teams --no-store
 
 # Fetch direct collaborators for a repository
-./ghub-desk pull --repo-users repo-name
+./ghub-desk pull --repos-users repo-name
 
 # Fetch members for every team (default interval: 3s)
 ./ghub-desk pull --all-teams-users
@@ -125,7 +125,7 @@ mcp:
 ./ghub-desk view --team-user team-slug
 
 # Inspect direct collaborators for a repository
-./ghub-desk view --repo-users repo-name
+./ghub-desk view --repos-users repo-name
 
 # Review masked configuration values
 ./ghub-desk view --settings
