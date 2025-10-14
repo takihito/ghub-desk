@@ -524,61 +524,6 @@ func TestRepoUsersOperations(t *testing.T) {
 	}
 }
 
-func TestEnsureRepoUsersPermissionColumn(t *testing.T) {
-	db, err := sql.Open("sqlite", ":memory:")
-	if err != nil {
-		t.Fatalf("failed to open test database: %v", err)
-	}
-	defer db.Close()
-
-	_, err = db.Exec(`CREATE TABLE repo_users (
-		repo_name TEXT,
-		user_login TEXT,
-		user_id INTEGER,
-		created_at TEXT,
-		updated_at TEXT,
-		PRIMARY KEY (repo_name, user_login)
-	)`)
-	if err != nil {
-		t.Fatalf("failed to create legacy repo_users table: %v", err)
-	}
-
-	if err := ensureRepoUsersPermissionColumn(db); err != nil {
-		t.Fatalf("ensureRepoUsersPermissionColumn error: %v", err)
-	}
-
-	rows, err := db.Query(`PRAGMA table_info(repo_users)`)
-	if err != nil {
-		t.Fatalf("failed to inspect schema: %v", err)
-	}
-	defer rows.Close()
-
-	found := false
-	for rows.Next() {
-		var name string
-		var meta struct {
-			cid     int
-			ctype   string
-			notnull int
-			dflt    any
-			pk      int
-		}
-		if err := rows.Scan(&meta.cid, &name, &meta.ctype, &meta.notnull, &meta.dflt, &meta.pk); err != nil {
-			t.Fatalf("failed to scan schema: %v", err)
-		}
-		if name == "permission" {
-			found = true
-			break
-		}
-	}
-	if err := rows.Err(); err != nil {
-		t.Fatalf("schema iteration error: %v", err)
-	}
-	if !found {
-		t.Fatalf("permission column was not added")
-	}
-}
-
 func TestSelectHighestPermission(t *testing.T) {
 	cases := []struct {
 		name string

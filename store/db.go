@@ -200,10 +200,6 @@ func createTables(db *sql.DB) error {
 		}
 	}
 
-	if err := ensureRepoUsersPermissionColumn(db); err != nil {
-		return fmt.Errorf("failed to ensure repo_users.permission column: %w", err)
-	}
-
 	// indexes
 	indexes := []string{
 		`CREATE INDEX IF NOT EXISTS idx_token_permissions_created_at ON ghub_token_permissions(created_at)`,
@@ -217,43 +213,6 @@ func createTables(db *sql.DB) error {
 		}
 	}
 
-	return nil
-}
-
-func ensureRepoUsersPermissionColumn(db *sql.DB) error {
-	rows, err := db.Query(`PRAGMA table_info(repo_users)`)
-	if err != nil {
-		return fmt.Errorf("failed to inspect repo_users schema: %w", err)
-	}
-	defer rows.Close()
-
-	hasPermission := false
-	for rows.Next() {
-		var name string
-		var meta struct {
-			cid     int
-			ctype   string
-			notnull int
-			dflt    any
-			pk      int
-		}
-		if err := rows.Scan(&meta.cid, &name, &meta.ctype, &meta.notnull, &meta.dflt, &meta.pk); err != nil {
-			return fmt.Errorf("failed to scan repo_users schema: %w", err)
-		}
-		if name == "permission" {
-			hasPermission = true
-			break
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("repo_users schema iteration failed: %w", err)
-	}
-
-	if !hasPermission {
-		if _, err := db.Exec(`ALTER TABLE repo_users ADD COLUMN permission TEXT`); err != nil {
-			return fmt.Errorf("failed to add permission column to repo_users: %w", err)
-		}
-	}
 	return nil
 }
 
