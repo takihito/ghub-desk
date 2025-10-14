@@ -218,6 +218,7 @@ func createTables(db *sql.DB) error {
 
 var permissionPriority = []string{"admin", "maintain", "push", "triage", "pull"}
 
+// selectHighestPermission returns the most privileged permission that is true in the GitHub permissions map.
 func selectHighestPermission(perms map[string]bool) string {
 	if len(perms) == 0 {
 		return ""
@@ -230,10 +231,21 @@ func selectHighestPermission(perms map[string]bool) string {
 	return ""
 }
 
+// normalizePermissionValue trims surrounding whitespace and lowercases the permission string for consistent storage.
 func normalizePermissionValue(p string) string {
 	return strings.ToLower(strings.TrimSpace(p))
 }
 
+// resolvedCollaboratorPermission extracts and normalizes the highest permission for a repository collaborator.
+func resolvedCollaboratorPermission(u *github.User) string {
+	if u == nil {
+		return ""
+	}
+	highest := selectHighestPermission(u.Permissions)
+	return normalizePermissionValue(highest)
+}
+
+// permissionRank reports the priority index of a permission; unknown values are ranked lowest.
 func permissionRank(p string) int {
 	for idx, key := range permissionPriority {
 		if p == key {
@@ -495,11 +507,12 @@ func StoreRepoUsers(db *sql.DB, repoName string, users []*github.User) error {
 	now := time.Now().Format("2006-01-02 15:04:05")
 	rows := make([][]any, 0, len(users))
 	for _, u := range users {
+		resolvedPermission := resolvedCollaboratorPermission(u)
 		rows = append(rows, []any{
 			repoName,
 			u.GetLogin(),
 			u.GetID(),
-			normalizePermissionValue(selectHighestPermission(u.Permissions)),
+			resolvedPermission,
 			now,
 			now,
 		})
@@ -560,8 +573,9 @@ func UpsertRepoUser(db *sql.DB, repoName string, user *github.User) error {
 		return fmt.Errorf("user information is required to upsert repository user")
 	}
 	now := time.Now().Format("2006-01-02 15:04:05")
+	resolvedPermission := resolvedCollaboratorPermission(user)
 	_, err := db.Exec(`INSERT OR REPLACE INTO repo_users(repo_name, user_login, user_id, permission, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
-		repoName, user.GetLogin(), user.GetID(), normalizePermissionValue(selectHighestPermission(user.Permissions)), now, now)
+		repoName, user.GetLogin(), user.GetID(), resolvedPermission, now, now)
 	if err != nil {
 		return fmt.Errorf("failed to upsert repository user %s for repo %s: %w", user.GetLogin(), repoName, err)
 	}
