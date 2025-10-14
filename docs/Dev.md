@@ -125,6 +125,13 @@ $ ghub-desk pull --repos --no-store
 $ ghub-desk view --repos
 ````
 
+* ユーザーがアクセスできるリポジトリと権限の確認
+
+````
+# 事前に pull --repos-users, pull --repos-teams, pull --team-users を実行してDBを更新してください
+$ ghub-desk view --user-repos {user_login}
+````
+
 
 
 * チームを組織から削除（{team_slug} はチームの slug を指定）

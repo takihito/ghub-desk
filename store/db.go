@@ -175,6 +175,7 @@ func createTables(db *sql.DB) error {
 			repo_name TEXT,
 			user_login TEXT,
 			user_id INTEGER,
+			permission TEXT,
 			created_at TEXT,
 			updated_at TEXT,
 			PRIMARY KEY (repo_name, user_login)
@@ -199,6 +200,10 @@ func createTables(db *sql.DB) error {
 		}
 	}
 
+	if err := ensureRepoUsersPermissionColumn(db); err != nil {
+		return fmt.Errorf("failed to ensure repo_users.permission column: %w", err)
+	}
+
 	// indexes
 	indexes := []string{
 		`CREATE INDEX IF NOT EXISTS idx_token_permissions_created_at ON ghub_token_permissions(created_at)`,
@@ -213,6 +218,86 @@ func createTables(db *sql.DB) error {
 	}
 
 	return nil
+}
+
+func ensureRepoUsersPermissionColumn(db *sql.DB) error {
+	rows, err := db.Query(`PRAGMA table_info(repo_users)`)
+	if err != nil {
+		return fmt.Errorf("failed to inspect repo_users schema: %w", err)
+	}
+	defer rows.Close()
+
+	hasPermission := false
+	for rows.Next() {
+		var name string
+		var meta struct {
+			cid     int
+			ctype   string
+			notnull int
+			dflt    any
+			pk      int
+		}
+		if err := rows.Scan(&meta.cid, &name, &meta.ctype, &meta.notnull, &meta.dflt, &meta.pk); err != nil {
+			return fmt.Errorf("failed to scan repo_users schema: %w", err)
+		}
+		if name == "permission" {
+			hasPermission = true
+			break
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("repo_users schema iteration failed: %w", err)
+	}
+
+	if !hasPermission {
+		if _, err := db.Exec(`ALTER TABLE repo_users ADD COLUMN permission TEXT`); err != nil {
+			return fmt.Errorf("failed to add permission column to repo_users: %w", err)
+		}
+	}
+	return nil
+}
+
+var permissionPriority = []string{"admin", "maintain", "push", "triage", "pull"}
+
+func selectHighestPermission(perms map[string]bool) string {
+	if len(perms) == 0 {
+		return ""
+	}
+	for _, key := range permissionPriority {
+		if perms[key] {
+			return key
+		}
+	}
+	return ""
+}
+
+func normalizePermissionValue(p string) string {
+	return strings.ToLower(strings.TrimSpace(p))
+}
+
+func permissionRank(p string) int {
+	for idx, key := range permissionPriority {
+		if p == key {
+			return idx
+		}
+	}
+	return len(permissionPriority)
+}
+
+func maxPermission(current, candidate string) string {
+	currentNorm := normalizePermissionValue(current)
+	candidateNorm := normalizePermissionValue(candidate)
+
+	if candidateNorm == "" {
+		return currentNorm
+	}
+	if currentNorm == "" {
+		return candidateNorm
+	}
+	if permissionRank(candidateNorm) < permissionRank(currentNorm) {
+		return candidateNorm
+	}
+	return currentNorm
 }
 
 // StoreUsers stores GitHub users in the database
@@ -455,12 +540,13 @@ func StoreRepoUsers(db *sql.DB, repoName string, users []*github.User) error {
 			repoName,
 			u.GetLogin(),
 			u.GetID(),
+			normalizePermissionValue(selectHighestPermission(u.Permissions)),
 			now,
 			now,
 		})
 	}
 
-	columns := []string{"repo_name", "user_login", "user_id", "created_at", "updated_at"}
+	columns := []string{"repo_name", "user_login", "user_id", "permission", "created_at", "updated_at"}
 	if err := insertOrReplaceBatch(db, "repo_users", columns, rows); err != nil {
 		return fmt.Errorf("failed to store repository users for %s: %w", repoName, err)
 	}
@@ -515,8 +601,8 @@ func UpsertRepoUser(db *sql.DB, repoName string, user *github.User) error {
 		return fmt.Errorf("user information is required to upsert repository user")
 	}
 	now := time.Now().Format("2006-01-02 15:04:05")
-	_, err := db.Exec(`INSERT OR REPLACE INTO repo_users(repo_name, user_login, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
-		repoName, user.GetLogin(), user.GetID(), now, now)
+	_, err := db.Exec(`INSERT OR REPLACE INTO repo_users(repo_name, user_login, user_id, permission, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		repoName, user.GetLogin(), user.GetID(), normalizePermissionValue(selectHighestPermission(user.Permissions)), now, now)
 	if err != nil {
 		return fmt.Errorf("failed to upsert repository user %s for repo %s: %w", user.GetLogin(), repoName, err)
 	}

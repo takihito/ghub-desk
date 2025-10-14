@@ -21,9 +21,10 @@ const (
 
 // TargetRequest represents the requested pull target including optional metadata.
 type TargetRequest struct {
-	Kind     string
-	TeamSlug string
-	RepoName string
+	Kind      string
+	TeamSlug  string
+	RepoName  string
+	UserLogin string
 }
 
 // PullOptions controls how data fetched from GitHub should be handled locally.

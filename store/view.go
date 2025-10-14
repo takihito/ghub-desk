@@ -3,15 +3,18 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"sort"
+	"strings"
 
 	"ghub-desk/validate"
 )
 
 // TargetRequest represents the requested view target including optional metadata.
 type TargetRequest struct {
-	Kind     string
-	TeamSlug string
-	RepoName string
+	Kind      string
+	TeamSlug  string
+	RepoName  string
+	UserLogin string
 }
 
 // HandleViewTarget processes different types of view targets
@@ -43,6 +46,14 @@ func HandleViewTarget(db *sql.DB, req TargetRequest) error {
 			return fmt.Errorf("invalid repository name: %w", err)
 		}
 		return ViewRepoTeams(db, req.RepoName)
+	case "user-repos":
+		if req.UserLogin == "" {
+			return fmt.Errorf("user login must be specified when using user-repos target")
+		}
+		if err := validate.ValidateUserName(req.UserLogin); err != nil {
+			return fmt.Errorf("invalid user login: %w", err)
+		}
+		return ViewUserRepositories(db, req.UserLogin)
 	case "team-user":
 		if req.TeamSlug == "" {
 			return fmt.Errorf("team slug must be specified when using team-user target")
@@ -212,6 +223,169 @@ func ViewRepoTeams(db *sql.DB, repoName string) error {
 			description.String,
 		)
 	}
+	return nil
+}
+
+// ViewUserRepositories displays repositories a user can access along with access path and permission.
+func ViewUserRepositories(db *sql.DB, userLogin string) error {
+	if db == nil {
+		return fmt.Errorf("database connection is required to view user repositories")
+	}
+	cleanLogin := strings.TrimSpace(userLogin)
+	if cleanLogin == "" {
+		return fmt.Errorf("user login is required to view repositories")
+	}
+
+	type repoAccessEntry struct {
+		repoName string
+		highest  string
+		sources  []string
+		seen     map[string]struct{}
+	}
+
+	accessByRepoName := make(map[string]*repoAccessEntry)
+	mergeRepoAccess := func(repoName, sourceLabel, permission string) {
+		name := strings.TrimSpace(repoName)
+		if name == "" {
+			return
+		}
+		entry, ok := accessByRepoName[name]
+		if !ok {
+			entry = &repoAccessEntry{
+				repoName: name,
+				highest:  "",
+				sources:  make([]string, 0, 2),
+				seen:     make(map[string]struct{}),
+			}
+			accessByRepoName[name] = entry
+		}
+		entry.highest = maxPermission(entry.highest, permission)
+
+		displayPerm := normalizePermissionValue(permission)
+		display := sourceLabel
+		if displayPerm != "" {
+			display = fmt.Sprintf("%s [%s]", sourceLabel, displayPerm)
+		}
+		if _, exists := entry.seen[display]; !exists {
+			entry.sources = append(entry.sources, display)
+			entry.seen[display] = struct{}{}
+		}
+	}
+
+	directRows, err := db.Query(`
+		SELECT COALESCE(r.name, ru.repo_name) AS repo_name,
+		       COALESCE(ru.permission, ''),
+		       ru.repo_name
+		FROM repo_users ru
+		LEFT JOIN ghub_repositories r ON r.name = ru.repo_name
+		WHERE ru.user_login = ?
+	`, cleanLogin)
+	if err != nil {
+		return fmt.Errorf("failed to query direct repository access: %w", err)
+	}
+	defer directRows.Close()
+
+	for directRows.Next() {
+		var repoName, permission, fallback sql.NullString
+		if err := directRows.Scan(&repoName, &permission, &fallback); err != nil {
+			return fmt.Errorf("failed to scan direct access row: %w", err)
+		}
+		name := repoName.String
+		if strings.TrimSpace(name) == "" {
+			name = fallback.String
+		}
+		mergeRepoAccess(name, "Direct", permission.String)
+	}
+	if err := directRows.Err(); err != nil {
+		return fmt.Errorf("failed to iterate direct access rows: %w", err)
+	}
+
+	teamRows, err := db.Query(`
+		SELECT COALESCE(r.name, rt.repo_name) AS repo_name,
+		       rt.team_slug,
+		       COALESCE(rt.team_name, ''),
+		       COALESCE(rt.permission, ''),
+		       rt.repo_name
+		FROM ghub_team_users tu
+		JOIN repo_teams rt ON rt.team_slug = tu.team_slug
+		LEFT JOIN ghub_repositories r ON r.name = rt.repo_name
+		WHERE tu.user_login = ?
+	`, cleanLogin)
+	if err != nil {
+		return fmt.Errorf("failed to query team-derived repository access: %w", err)
+	}
+	defer teamRows.Close()
+
+	for teamRows.Next() {
+		var repoName, teamSlug, teamName, permission, fallback sql.NullString
+		if err := teamRows.Scan(&repoName, &teamSlug, &teamName, &permission, &fallback); err != nil {
+			return fmt.Errorf("failed to scan team access row: %w", err)
+		}
+		name := repoName.String
+		if strings.TrimSpace(name) == "" {
+			name = fallback.String
+		}
+		if strings.TrimSpace(name) == "" {
+			continue
+		}
+
+		slug := strings.TrimSpace(teamSlug.String)
+		if slug == "" {
+			continue
+		}
+		label := fmt.Sprintf("Team:%s", slug)
+		if displayName := strings.TrimSpace(teamName.String); displayName != "" {
+			label = fmt.Sprintf("%s (%s)", label, displayName)
+		}
+		mergeRepoAccess(name, label, permission.String)
+	}
+	if err := teamRows.Err(); err != nil {
+		return fmt.Errorf("failed to iterate team access rows: %w", err)
+	}
+
+	if len(accessByRepoName) == 0 {
+		fmt.Printf("No repository access data found for user %s.\n", cleanLogin)
+		fmt.Println("Run 'ghub-desk pull --repos-users', 'ghub-desk pull --repos-teams', and 'ghub-desk pull --team-users <team-slug>' to populate the database.")
+		return nil
+	}
+
+	entries := make([]*repoAccessEntry, 0, len(accessByRepoName))
+	for _, entry := range accessByRepoName {
+		// Ensure stable output with direct access first, followed by alphabetical labels.
+		sort.Slice(entry.sources, func(i, j int) bool {
+			si := entry.sources[i]
+			sj := entry.sources[j]
+			isDirect := strings.HasPrefix(si, "Direct")
+			jsDirect := strings.HasPrefix(sj, "Direct")
+			if isDirect != jsDirect {
+				return isDirect
+			}
+			return si < sj
+		})
+		entries = append(entries, entry)
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		li := strings.ToLower(entries[i].repoName)
+		lj := strings.ToLower(entries[j].repoName)
+		if li == lj {
+			return entries[i].repoName < entries[j].repoName
+		}
+		return li < lj
+	})
+
+	fmt.Printf("User: %s\n", cleanLogin)
+	fmt.Println("Repository\tAccess From\tPermission")
+	fmt.Println("----------\t-----------\t----------")
+
+	for _, entry := range entries {
+		perm := entry.highest
+		if perm == "" {
+			perm = "-"
+		}
+		fmt.Printf("%s\t%s\t%s\n", entry.repoName, strings.Join(entry.sources, ", "), perm)
+	}
+
 	return nil
 }
 

@@ -24,6 +24,7 @@ GitHub Organization Management CLI & MCP Server
 - Display the data stored by `pull` from SQLite
 - Use `--team-user` or `team-slug/users` arguments to inspect specific teams
 - Use `--repos-users` to review direct collaborators added to a repository
+- Use `--user-repos <login>` to list repositories a user can access along with direct/team routes and permissions (requires `pull --repos-users`, `pull --repos-teams`, and `pull --team-users`)
 - Use `--settings` to review masked configuration values
 
 ### Data mutations (push add/remove)
@@ -126,6 +127,9 @@ mcp:
 
 # Inspect direct collaborators for a repository
 ./ghub-desk view --repos-users repo-name
+
+# List repositories a user can access (run pull --repos-users, --repos-teams, and --team-users beforehand)
+./ghub-desk view --user-repos user-login
 
 # Review masked configuration values
 ./ghub-desk view --settings

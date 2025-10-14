@@ -22,6 +22,7 @@ GitHub Organization Management CLI & MCP Server
 - `pull` で保存した情報を SQLite から表示
 - `--team-user` や `{team-slug}/users` 引数で特定チームのユーザーを参照
 - `--repos-users` でリポジトリに直接追加されたユーザー一覧を確認
+- `--user-repos <login>` でユーザーがアクセスできるリポジトリと権限を表示（事前に `pull --repos-users`, `pull --repos-teams`, `pull --team-users` を実行）
 - `--settings` でマスク済み設定値を確認
 
 ### データ操作 (push add/remove)
@@ -124,6 +125,9 @@ mcp:
 
 # リポジトリに直接追加されたユーザーを表示
 ./ghub-desk view --repos-users repo-name
+
+# ユーザーがアクセスできるリポジトリと権限を表示（事前に pull --repos-users, --repos-teams, --team-users を実行）
+./ghub-desk view --user-repos user-login
 
 # マスク済みの設定値を確認
 ./ghub-desk view --settings

@@ -50,6 +50,12 @@ func TestPullCmdGetTarget(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "user-repos target",
+			cmd:         PullCmd{CommonTargetOptions: CommonTargetOptions{UserRepos: "octocat"}},
+			expected:    "user-repos",
+			expectError: false,
+		},
+		{
 			name:        "no target",
 			cmd:         PullCmd{},
 			expected:    "",

@@ -1,7 +1,11 @@
 package store
 
 import (
+	"bytes"
 	"database/sql"
+	"io"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/google/go-github/v55/github"
@@ -32,6 +36,33 @@ func setupTestDB(t *testing.T) *sql.DB {
 	return db
 }
 
+func captureOutput(t *testing.T, fn func() error) (string, error) {
+	t.Helper()
+	old := os.Stdout
+	pr, pw, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("failed to create pipe: %v", err)
+	}
+	os.Stdout = pw
+	defer pr.Close()
+	defer func() {
+		os.Stdout = old
+	}()
+
+	var buf bytes.Buffer
+	done := make(chan struct{})
+	go func() {
+		_, _ = io.Copy(&buf, pr)
+		close(done)
+	}()
+
+	callErr := fn()
+	pw.Close()
+	<-done
+
+	return buf.String(), callErr
+}
+
 func TestHandleViewTarget(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
@@ -50,6 +81,7 @@ func TestHandleViewTarget(t *testing.T) {
 		{"outside-users target", TargetRequest{Kind: "outside-users"}, false},
 		{"repos users target", TargetRequest{Kind: "repos-users", RepoName: "test-repo"}, false},
 		{"repo teams target", TargetRequest{Kind: "repos-teams", RepoName: "test-repo"}, false},
+		{"user repos target", TargetRequest{Kind: "user-repos", UserLogin: "octocat"}, false},
 		{"team users target (slug)", TargetRequest{Kind: "team-user", TeamSlug: "test-team"}, false},
 		{"unknown target", TargetRequest{Kind: "invalid target"}, true},
 	}
@@ -204,6 +236,104 @@ func TestViewRepoTeams(t *testing.T) {
 
 	if err := ViewRepoTeams(db, repoName); err != nil {
 		t.Errorf("ViewRepoTeams() error = %v", err)
+	}
+}
+
+func TestViewUserRepositories(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repo := &github.Repository{
+		ID:   github.Int64(101),
+		Name: github.String("demo-repo"),
+	}
+	if err := StoreRepositories(db, []*github.Repository{repo}); err != nil {
+		t.Fatalf("failed to store repo: %v", err)
+	}
+
+	user := &github.User{
+		ID:    github.Int64(201),
+		Login: github.String("alice"),
+		Permissions: map[string]bool{
+			"admin": true,
+			"push":  true,
+		},
+	}
+	if err := StoreRepoUsers(db, repo.GetName(), []*github.User{user}); err != nil {
+		t.Fatalf("failed to store repo users: %v", err)
+	}
+
+	team := &github.Team{
+		ID:          github.Int64(301),
+		Name:        github.String("Dev Team"),
+		Slug:        github.String("dev-team"),
+		Description: github.String("development"),
+	}
+	if err := StoreTeams(db, []*github.Team{team}); err != nil {
+		t.Fatalf("failed to store team: %v", err)
+	}
+
+	repoTeam := &github.Team{
+		ID:          team.ID,
+		Name:        team.Name,
+		Slug:        team.Slug,
+		Description: team.Description,
+		Permission:  github.String("maintain"),
+	}
+	if err := StoreRepoTeams(db, repo.GetName(), []*github.Team{repoTeam}); err != nil {
+		t.Fatalf("failed to store repo team: %v", err)
+	}
+
+	if err := StoreTeamUsers(db, []*github.User{{
+		ID:    user.ID,
+		Login: user.Login,
+	}}, team.GetSlug()); err != nil {
+		t.Fatalf("failed to store team users: %v", err)
+	}
+
+	output, err := captureOutput(t, func() error {
+		return ViewUserRepositories(db, "alice")
+	})
+	if err != nil {
+		t.Fatalf("ViewUserRepositories returned error: %v", err)
+	}
+
+	if !strings.Contains(output, "User: alice") {
+		t.Fatalf("output missing user header: %s", output)
+	}
+	if !strings.Contains(output, "demo-repo") {
+		t.Fatalf("output missing repository row: %s", output)
+	}
+	if !strings.Contains(output, "Direct [admin]") {
+		t.Fatalf("output missing direct access entry: %s", output)
+	}
+	if !strings.Contains(output, "Team:dev-team") {
+		t.Fatalf("output missing team access entry: %s", output)
+	}
+	if !strings.Contains(output, "maintain") {
+		t.Fatalf("output missing team permission: %s", output)
+	}
+	if !strings.Contains(output, "admin") {
+		t.Fatalf("output missing highest permission: %s", output)
+	}
+}
+
+func TestViewUserRepositories_NoData(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	output, err := captureOutput(t, func() error {
+		return ViewUserRepositories(db, "nobody")
+	})
+	if err != nil {
+		t.Fatalf("ViewUserRepositories returned error: %v", err)
+	}
+
+	if !strings.Contains(output, "No repository access data found for user nobody.") {
+		t.Fatalf("expected guidance message, got: %s", output)
+	}
+	if !strings.Contains(output, "pull --repos-users") {
+		t.Fatalf("expected pull guidance, got: %s", output)
 	}
 }
 
