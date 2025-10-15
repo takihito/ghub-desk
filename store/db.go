@@ -245,6 +245,33 @@ func resolvedCollaboratorPermission(u *github.User) string {
 	return normalizePermissionValue(highest)
 }
 
+// ListRepositoryNames returns repository names stored in ghub_repositories ordered alphabetically.
+func ListRepositoryNames(db *sql.DB) ([]string, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database connection is required to list repositories")
+	}
+	rows, err := db.Query(`SELECT name FROM ghub_repositories ORDER BY name`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query repositories: %w", err)
+	}
+	defer rows.Close()
+
+	names := make([]string, 0)
+	for rows.Next() {
+		var name sql.NullString
+		if err := rows.Scan(&name); err != nil {
+			return nil, fmt.Errorf("failed to scan repository name: %w", err)
+		}
+		if trimmed := strings.TrimSpace(name.String); trimmed != "" {
+			names = append(names, trimmed)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("repository iteration failed: %w", err)
+	}
+	return names, nil
+}
+
 // permissionRank reports the priority index of a permission; unknown values are ranked lowest.
 func permissionRank(p string) int {
 	for idx, key := range permissionPriority {

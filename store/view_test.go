@@ -81,6 +81,7 @@ func TestHandleViewTarget(t *testing.T) {
 		{"outside-users target", TargetRequest{Kind: "outside-users"}, false},
 		{"repos users target", TargetRequest{Kind: "repos-users", RepoName: "test-repo"}, false},
 		{"repo teams target", TargetRequest{Kind: "repos-teams", RepoName: "test-repo"}, false},
+		{"all repo teams target", TargetRequest{Kind: "all-repos-teams"}, false},
 		{"user repos target", TargetRequest{Kind: "user-repos", UserLogin: "octocat"}, false},
 		{"team users target (slug)", TargetRequest{Kind: "team-user", TeamSlug: "test-team"}, false},
 		{"unknown target", TargetRequest{Kind: "invalid target"}, true},
@@ -236,6 +237,45 @@ func TestViewRepoTeams(t *testing.T) {
 
 	if err := ViewRepoTeams(db, repoName); err != nil {
 		t.Errorf("ViewRepoTeams() error = %v", err)
+	}
+}
+
+func TestViewAllRepoTeams(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repos := []*github.Repository{
+		{ID: github.Int64(1), Name: github.String("alpha")},
+		{ID: github.Int64(2), Name: github.String("beta")},
+	}
+	if err := StoreRepositories(db, repos); err != nil {
+		t.Fatalf("failed to store repos: %v", err)
+	}
+
+	repoTeams := []*github.Team{
+		{ID: github.Int64(1), Name: github.String("Alpha Maintainers"), Slug: github.String("alpha-maint"), Permission: github.String("maintain")},
+	}
+	if err := StoreRepoTeams(db, "alpha", repoTeams); err != nil {
+		t.Fatalf("failed to store alpha teams: %v", err)
+	}
+	tRepoTeams := []*github.Team{
+		{ID: github.Int64(2), Name: github.String("Beta Core"), Slug: github.String("beta-core"), Permission: github.String("push")},
+	}
+	if err := StoreRepoTeams(db, "beta", tRepoTeams); err != nil {
+		t.Fatalf("failed to store beta teams: %v", err)
+	}
+
+	output, err := captureOutput(t, func() error {
+		return ViewAllRepoTeams(db)
+	})
+	if err != nil {
+		t.Fatalf("ViewAllRepoTeams returned error: %v", err)
+	}
+
+	for _, marker := range []string{"Repository: alpha", "Repository: beta", "Alpha Maintainers", "Beta Core"} {
+		if !strings.Contains(output, marker) {
+			t.Fatalf("expected %q in output: %s", marker, output)
+		}
 	}
 }
 

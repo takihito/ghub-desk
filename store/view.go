@@ -46,6 +46,8 @@ func HandleViewTarget(db *sql.DB, req TargetRequest) error {
 			return fmt.Errorf("invalid repository name: %w", err)
 		}
 		return ViewRepoTeams(db, req.RepoName)
+	case "all-repos-teams":
+		return ViewAllRepoTeams(db)
 	case "user-repos":
 		if req.UserLogin == "" {
 			return fmt.Errorf("user login must be specified when using user-repos target")
@@ -223,6 +225,62 @@ func ViewRepoTeams(db *sql.DB, repoName string) error {
 			description.String,
 		)
 	}
+	return nil
+}
+
+// ViewAllRepoTeams displays all repository team assignments from the database.
+func ViewAllRepoTeams(db *sql.DB) error {
+	rows, err := db.Query(`
+		SELECT repo_name, id, team_slug, team_name, permission, privacy, description
+		FROM repo_teams
+		ORDER BY repo_name, team_slug`)
+	if err != nil {
+		return fmt.Errorf("failed to query repository teams: %w", err)
+	}
+	defer rows.Close()
+
+	currentRepo := ""
+	repoCount := 0
+
+	for rows.Next() {
+		var repoName sql.NullString
+		var id sql.NullInt64
+		var slug, name, permission, privacy, description sql.NullString
+		if err := rows.Scan(&repoName, &id, &slug, &name, &permission, &privacy, &description); err != nil {
+			return fmt.Errorf("failed to scan repository team row: %w", err)
+		}
+
+		repo := repoName.String
+		if repo != currentRepo {
+			if currentRepo != "" {
+				fmt.Println()
+			}
+			fmt.Printf("Repository: %s\n", repo)
+			fmt.Println("Team ID\tSlug\tName\tPermission\tPrivacy\tDescription")
+			fmt.Println("-------\t----\t----\t----------\t-------\t-----------")
+			currentRepo = repo
+			repoCount++
+		}
+
+		fmt.Printf("%d\t%s\t%s\t%s\t%s\t%s\n",
+			id.Int64,
+			slug.String,
+			name.String,
+			permission.String,
+			privacy.String,
+			description.String,
+		)
+	}
+
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("failed to iterate repository team rows: %w", err)
+	}
+
+	if repoCount == 0 {
+		fmt.Println("No repository team data found in database.")
+		fmt.Println("Run 'ghub-desk pull --all-repos-teams' or 'ghub-desk pull --repos-teams <repo>' first.")
+	}
+
 	return nil
 }
 

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"ghub-desk/store"
@@ -58,6 +59,8 @@ func HandlePullTarget(ctx context.Context, client *github.Client, db *sql.DB, or
 			return fmt.Errorf("invalid repository name: %w", err)
 		}
 		return PullRepoTeams(ctx, client, db, org, req.RepoName, opts)
+	case "all-repos-teams":
+		return PullAllReposTeams(ctx, client, db, org, opts)
 	case "all-teams-users":
 		return PullAllTeamsUsers(ctx, client, db, org, opts)
 	case "token-permission":
@@ -318,6 +321,114 @@ func PullRepoTeams(ctx context.Context, client *github.Client, db *sql.DB, org, 
 
 	if opts.Stdout {
 		if err := printJSON(teams); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// PullAllReposTeams iterates all repositories and fetches their team assignments.
+func PullAllReposTeams(ctx context.Context, client *github.Client, db *sql.DB, org string, opts PullOptions) error {
+	repoNames := make([]string, 0)
+	if db != nil {
+		names, err := store.ListRepositoryNames(db)
+		if err != nil {
+			return fmt.Errorf("failed to load repositories from database: %w", err)
+		}
+		repoNames = append(repoNames, names...)
+	}
+
+	if len(repoNames) == 0 {
+		fmt.Println("Repository list not found in local database. Fetching from GitHub API...")
+		repos, err := fetchAndStore(
+			ctx, client,
+			func(ctx context.Context, org string, optsList *github.ListOptions) ([]*github.Repository, *github.Response, error) {
+				repoOpts := &github.RepositoryListByOrgOptions{ListOptions: *optsList}
+				return client.Repositories.ListByOrg(ctx, org, repoOpts)
+			},
+			func(db *sql.DB, repos []*github.Repository) error {
+				if !opts.Store || db == nil {
+					return nil
+				}
+				return store.StoreRepositories(db, repos)
+			},
+			db, org, opts.Interval, opts.Store,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to fetch repositories: %w", err)
+		}
+		for _, repo := range repos {
+			if name := strings.TrimSpace(repo.GetName()); name != "" {
+				repoNames = append(repoNames, name)
+			}
+		}
+	}
+
+	if len(repoNames) == 0 {
+		return fmt.Errorf("no repositories available. Run 'ghub-desk pull --repos' first")
+	}
+
+	stdoutPayload := make([]struct {
+		Repo  string         `json:"repo"`
+		Teams []*github.Team `json:"teams"`
+	}, 0, len(repoNames))
+
+	seen := make(map[string]struct{}, len(repoNames))
+	uniqueRepos := make([]string, 0, len(repoNames))
+	for _, name := range repoNames {
+		trimmed := strings.TrimSpace(name)
+		if trimmed == "" {
+			continue
+		}
+		if _, ok := seen[trimmed]; ok {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		uniqueRepos = append(uniqueRepos, trimmed)
+	}
+
+	for idx, repoName := range uniqueRepos {
+		fmt.Printf("Fetching teams for repository %d/%d: %s\n", idx+1, len(uniqueRepos), repoName)
+		if opts.Store {
+			if db == nil {
+				return fmt.Errorf("database connection is required to store repository teams")
+			}
+			if _, err := db.Exec(`DELETE FROM repo_teams WHERE repo_name = ?`, repoName); err != nil {
+				return fmt.Errorf("failed to clear repository teams for %s: %w", repoName, err)
+			}
+		}
+
+		teams, err := fetchAndStore(
+			ctx, client,
+			func(ctx context.Context, org string, optsList *github.ListOptions) ([]*github.Team, *github.Response, error) {
+				return client.Repositories.ListTeams(ctx, org, repoName, optsList)
+			},
+			func(db *sql.DB, teams []*github.Team) error {
+				if db == nil {
+					return nil
+				}
+				return store.StoreRepoTeams(db, repoName, teams)
+			},
+			db, org, opts.Interval, opts.Store,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to fetch repository teams for %s: %w", repoName, err)
+		}
+
+		if opts.Stdout {
+			stdoutPayload = append(stdoutPayload, struct {
+				Repo  string         `json:"repo"`
+				Teams []*github.Team `json:"teams"`
+			}{
+				Repo:  repoName,
+				Teams: teams,
+			})
+		}
+	}
+
+	if opts.Stdout {
+		if err := printJSON(stdoutPayload); err != nil {
 			return err
 		}
 	}

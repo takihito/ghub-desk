@@ -67,6 +67,7 @@ type CommonTargetOptions struct {
 	TeamUser        string `name:"team-user" aliases:"team-users" help:"Target: team-user (provide team slug: 1–100 chars, lowercase alnum + hyphen)"`
 	RepoUsers       string `name:"repos-users" help:"Target: repos-users (provide repository name)"`
 	RepoTeams       string `name:"repos-teams" help:"Target: repos-teams (provide repository name)"`
+	AllReposTeams   bool   `name:"all-repos-teams" help:"Target: all-repos-teams"`
 	UserRepos       string `name:"user-repos" help:"Target: user-repos (provide user login)"`
 	TokenPermission bool   `name:"token-permission" help:"Target: token-permission"`
 	OutsideUsers    bool   `name:"outside-users" help:"Target: outside-users"`
@@ -91,6 +92,7 @@ func (c *CommonTargetOptions) GetTarget(extraTargets ...TargetFlag) (string, err
 		{c.TeamUser != "", "team-user"},
 		{c.RepoUsers != "", "repos-users"},
 		{c.RepoTeams != "", "repos-teams"},
+		{c.AllReposTeams, "all-repos-teams"},
 		{c.UserRepos != "", "user-repos"},
 		{c.TokenPermission, "token-permission"},
 		{c.OutsideUsers, "outside-users"},
@@ -224,7 +226,7 @@ func (p *PullCmd) Run(cli *CLI) error {
 	ctx := context.Background()
 
 	var db *sql.DB
-	if storeData || target == "all-teams-users" {
+	if storeData || target == "all-teams-users" || target == "all-repos-teams" {
 		db, err = store.InitDatabase()
 		if err != nil {
 			return fmt.Errorf("failed to initialize database: %w", err)

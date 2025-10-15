@@ -524,6 +524,42 @@ func TestRepoUsersOperations(t *testing.T) {
 	}
 }
 
+func TestListRepositoryNames(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open test database: %v", err)
+	}
+	defer db.Close()
+
+	if err := createTables(db); err != nil {
+		t.Fatalf("Failed to create tables: %v", err)
+	}
+
+	repos := []*github.Repository{
+		{ID: github.Int64(1), Name: github.String("alpha")},
+		{ID: github.Int64(2), Name: github.String("zeta")},
+		{ID: github.Int64(3), Name: github.String("beta")},
+	}
+	if err := StoreRepositories(db, repos); err != nil {
+		t.Fatalf("StoreRepositories error: %v", err)
+	}
+
+	names, err := ListRepositoryNames(db)
+	if err != nil {
+		t.Fatalf("ListRepositoryNames error: %v", err)
+	}
+
+	want := []string{"alpha", "beta", "zeta"}
+	if len(names) != len(want) {
+		t.Fatalf("unexpected names length: %d", len(names))
+	}
+	for i, expected := range want {
+		if names[i] != expected {
+			t.Fatalf("expected %s at index %d, got %s", expected, i, names[i])
+		}
+	}
+}
+
 func TestSelectHighestPermission(t *testing.T) {
 	cases := []struct {
 		name string
