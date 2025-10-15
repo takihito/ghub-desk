@@ -64,6 +64,7 @@ type CommonTargetOptions struct {
 	DetailUsers     bool   `name:"detail-users" help:"Target: detail-users"`
 	Teams           bool   `help:"Target: teams"`
 	Repos           bool   `help:"Target: repos"`
+	AllTeamsUsers   bool   `name:"all-teams-users" help:"Target: all-teams-users"`
 	TeamUser        string `name:"team-user" aliases:"team-users" help:"Target: team-user (provide team slug: 1–100 chars, lowercase alnum + hyphen)"`
 	RepoUsers       string `name:"repos-users" help:"Target: repos-users (provide repository name)"`
 	RepoTeams       string `name:"repos-teams" help:"Target: repos-teams (provide repository name)"`
@@ -89,6 +90,7 @@ func (c *CommonTargetOptions) GetTarget(extraTargets ...TargetFlag) (string, err
 		{c.DetailUsers, "detail-users"},
 		{c.Teams, "teams"},
 		{c.Repos, "repos"},
+		{c.AllTeamsUsers, "all-teams-users"},
 		{c.TeamUser != "", "team-user"},
 		{c.RepoUsers != "", "repos-users"},
 		{c.RepoTeams != "", "repos-teams"},
@@ -125,7 +127,6 @@ func (c *CommonTargetOptions) GetTarget(extraTargets ...TargetFlag) (string, err
 // PullCmd represents the pull command structure
 type PullCmd struct {
 	CommonTargetOptions `embed:""`
-	AllTeamsUsers       bool `name:"all-teams-users" help:"Target: all-teams-users"`
 
 	// Options
 	NoStore      bool          `name:"no-store" help:"Do not save to local SQLite database"`
@@ -199,7 +200,7 @@ func Execute() error {
 // Run implements the pull command execution
 func (p *PullCmd) Run(cli *CLI) error {
 	// Determine target from flags
-	target, err := p.CommonTargetOptions.GetTarget(TargetFlag{Enabled: p.AllTeamsUsers, Name: "all-teams-users"})
+	target, err := p.CommonTargetOptions.GetTarget()
 	if err != nil {
 		return err
 	}

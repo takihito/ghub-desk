@@ -125,6 +125,19 @@ $ ghub-desk pull --repos --no-store
 $ ghub-desk view --repos
 ````
 
+* 全リポジトリのチーム一覧の取得
+
+````
+# SQLiteには保存する
+$ ghub-desk pull --all-repos-teams
+
+# SQLiteには保存せず
+$ ghub-desk pull --all-repos-teams --no-store
+
+# SQLiteをソースとして表示する
+$ ghub-desk view --all-repos-teams
+````
+
 * ユーザーがアクセスできるリポジトリと権限の確認
 
 ````

@@ -16,7 +16,7 @@ GitHub Organization Management CLI & MCP Server
 ## Core Commands
 
 ### Data collection (pull)
-- Targets: `users`, `detail-users`, `teams`, `repos`, `repos-users`, `team-user`, `all-teams-users`, `outside-users`, `token-permission`
+- Targets: `users`, `detail-users`, `teams`, `repos`, `repos-users`, `repos-teams`, `all-repos-teams`, `team-user`, `all-teams-users`, `outside-users`, `token-permission`
 - Use `--no-store` to skip writing to the local DB, `--stdout` to stream API responses to stdout
 - Use `--interval-time` to throttle GitHub API calls
 
@@ -112,6 +112,9 @@ mcp:
 # Fetch direct collaborators for a repository
 ./ghub-desk pull --repos-users repo-name
 
+# Fetch teams for every repository stored in GitHub
+./ghub-desk pull --all-repos-teams
+
 # Fetch members for every team (default interval: 3s)
 ./ghub-desk pull --all-teams-users
 ```
@@ -127,6 +130,9 @@ mcp:
 
 # Inspect direct collaborators for a repository
 ./ghub-desk view --repos-users repo-name
+
+# Inspect repository teams across every repository in the database
+./ghub-desk view --all-repos-teams
 
 # List repositories a user can access (run pull --repos-users, --repos-teams, and --team-users beforehand)
 ./ghub-desk view --user-repos user-login

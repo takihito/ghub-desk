@@ -82,6 +82,7 @@ func TestHandleViewTarget(t *testing.T) {
 		{"repos users target", TargetRequest{Kind: "repos-users", RepoName: "test-repo"}, false},
 		{"repo teams target", TargetRequest{Kind: "repos-teams", RepoName: "test-repo"}, false},
 		{"all repo teams target", TargetRequest{Kind: "all-repos-teams"}, false},
+		{"all teams users target", TargetRequest{Kind: "all-teams-users"}, false},
 		{"user repos target", TargetRequest{Kind: "user-repos", UserLogin: "octocat"}, false},
 		{"team users target (slug)", TargetRequest{Kind: "team-user", TeamSlug: "test-team"}, false},
 		{"unknown target", TargetRequest{Kind: "invalid target"}, true},
@@ -240,13 +241,13 @@ func TestViewRepoTeams(t *testing.T) {
 	}
 }
 
-func TestViewAllRepoTeams(t *testing.T) {
+func TestViewAllRepositoriesTeams(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
 
 	repos := []*github.Repository{
-		{ID: github.Int64(1), Name: github.String("alpha")},
-		{ID: github.Int64(2), Name: github.String("beta")},
+		{ID: github.Int64(1), Name: github.String("alpha"), FullName: github.String("org/alpha")},
+		{ID: github.Int64(2), Name: github.String("beta"), FullName: github.String("org/beta")},
 	}
 	if err := StoreRepositories(db, repos); err != nil {
 		t.Fatalf("failed to store repos: %v", err)
@@ -266,13 +267,69 @@ func TestViewAllRepoTeams(t *testing.T) {
 	}
 
 	output, err := captureOutput(t, func() error {
-		return ViewAllRepoTeams(db)
+		return ViewAllRepositoriesTeams(db)
 	})
 	if err != nil {
-		t.Fatalf("ViewAllRepoTeams returned error: %v", err)
+		t.Fatalf("ViewAllRepositoriesTeams returned error: %v", err)
 	}
 
-	for _, marker := range []string{"Repository: alpha", "Repository: beta", "Alpha Maintainers", "Beta Core"} {
+	expectMarkers := []string{
+		"Repo\tFull Name\tTeam Slug\tTeam Name\tPermission\tPrivacy\tDescription",
+		"alpha\torg/alpha\talpha-maint\tAlpha Maintainers\tmaintain\t-\t-",
+		"beta\torg/beta\tbeta-core\tBeta Core\tpush\t-\t-",
+	}
+	for _, marker := range expectMarkers {
+		if !strings.Contains(output, marker) {
+			t.Fatalf("expected %q in output: %s", marker, output)
+		}
+	}
+}
+
+func TestViewAllTeamsUsers(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	team := &github.Team{
+		ID:   github.Int64(11),
+		Name: github.String("Core Team"),
+		Slug: github.String("core"),
+	}
+	if err := StoreTeams(db, []*github.Team{team}); err != nil {
+		t.Fatalf("failed to store team: %v", err)
+	}
+
+	users := []*github.User{
+		{
+			ID:    github.Int64(21),
+			Login: github.String("alice"),
+			Name:  github.String("Alice"),
+		},
+		{
+			ID:    github.Int64(22),
+			Login: github.String("bob"),
+			Name:  github.String("Bob B."),
+		},
+	}
+	if err := StoreUsers(db, users); err != nil {
+		t.Fatalf("failed to store users: %v", err)
+	}
+	if err := StoreTeamUsers(db, users, team.GetSlug()); err != nil {
+		t.Fatalf("failed to store team users: %v", err)
+	}
+
+	output, err := captureOutput(t, func() error {
+		return ViewAllTeamsUsers(db)
+	})
+	if err != nil {
+		t.Fatalf("ViewAllTeamsUsers returned error: %v", err)
+	}
+
+	expectMarkers := []string{
+		"Team Slug\tTeam Name\tUser Login\tUser Name\tRole",
+		"core\tCore Team\talice\tAlice\tmember",
+		"core\tCore Team\tbob\tBob B.\tmember",
+	}
+	for _, marker := range expectMarkers {
 		if !strings.Contains(output, marker) {
 			t.Fatalf("expected %q in output: %s", marker, output)
 		}
