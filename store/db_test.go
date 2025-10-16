@@ -437,10 +437,18 @@ func TestRepoUsersOperations(t *testing.T) {
 		{
 			ID:    github.Int64(101),
 			Login: github.String("collab1"),
+			Permissions: map[string]bool{
+				"admin": true,
+				"push":  true,
+			},
 		},
 		{
 			ID:    github.Int64(102),
 			Login: github.String("collab2"),
+			Permissions: map[string]bool{
+				"push": true,
+				"pull": true,
+			},
 		},
 	}
 
@@ -456,6 +464,20 @@ func TestRepoUsersOperations(t *testing.T) {
 		t.Fatalf("expected 2 repo users, got %d", count)
 	}
 
+	var perm sql.NullString
+	if err := db.QueryRow("SELECT permission FROM repo_users WHERE repo_name = ? AND user_login = ?", repoName, "collab1").Scan(&perm); err != nil {
+		t.Fatalf("failed to fetch permission: %v", err)
+	}
+	if perm.String != "admin" {
+		t.Fatalf("expected collab1 permission admin, got %q", perm.String)
+	}
+	if err := db.QueryRow("SELECT permission FROM repo_users WHERE repo_name = ? AND user_login = ?", repoName, "collab2").Scan(&perm); err != nil {
+		t.Fatalf("failed to fetch permission: %v", err)
+	}
+	if perm.String != "push" {
+		t.Fatalf("expected collab2 permission push, got %q", perm.String)
+	}
+
 	// Upsert a new collaborator
 	if err := UpsertRepoUser(db, repoName, &github.User{
 		ID:    github.Int64(103),
@@ -469,6 +491,13 @@ func TestRepoUsersOperations(t *testing.T) {
 	}
 	if count != 3 {
 		t.Fatalf("expected 3 repo users after upsert, got %d", count)
+	}
+
+	if err := db.QueryRow("SELECT permission FROM repo_users WHERE repo_name = ? AND user_login = ?", repoName, "collab3").Scan(&perm); err != nil {
+		t.Fatalf("failed to fetch permission after upsert: %v", err)
+	}
+	if perm.Valid && perm.String != "" {
+		t.Fatalf("expected empty permission for collab3, got %q", perm.String)
 	}
 
 	// Delete one collaborator
@@ -492,6 +521,86 @@ func TestRepoUsersOperations(t *testing.T) {
 	}
 	if !updated.Valid || updated.String == "" {
 		t.Fatalf("expected updated_at to be set")
+	}
+}
+
+func TestListRepositoryNames(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open test database: %v", err)
+	}
+	defer db.Close()
+
+	if err := createTables(db); err != nil {
+		t.Fatalf("Failed to create tables: %v", err)
+	}
+
+	repos := []*github.Repository{
+		{ID: github.Int64(1), Name: github.String("alpha")},
+		{ID: github.Int64(2), Name: github.String("zeta")},
+		{ID: github.Int64(3), Name: github.String("beta")},
+	}
+	if err := StoreRepositories(db, repos); err != nil {
+		t.Fatalf("StoreRepositories error: %v", err)
+	}
+
+	names, err := ListRepositoryNames(db)
+	if err != nil {
+		t.Fatalf("ListRepositoryNames error: %v", err)
+	}
+
+	want := []string{"alpha", "beta", "zeta"}
+	if len(names) != len(want) {
+		t.Fatalf("unexpected names length: %d", len(names))
+	}
+	for i, expected := range want {
+		if names[i] != expected {
+			t.Fatalf("expected %s at index %d, got %s", expected, i, names[i])
+		}
+	}
+}
+
+func TestSelectHighestPermission(t *testing.T) {
+	cases := []struct {
+		name string
+		in   map[string]bool
+		out  string
+	}{
+		{"nil map", nil, ""},
+		{"empty map", map[string]bool{}, ""},
+		{"admin wins", map[string]bool{"pull": true, "admin": true}, "admin"},
+		{"maintain over push", map[string]bool{"push": true, "maintain": true}, "maintain"},
+		{"triage fallback", map[string]bool{"triage": true}, "triage"},
+		{"pull only false", map[string]bool{"pull": false, "push": true}, "push"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := selectHighestPermission(tc.in); got != tc.out {
+				t.Fatalf("want %q, got %q", tc.out, got)
+			}
+		})
+	}
+}
+
+func TestMaxPermission(t *testing.T) {
+	cases := []struct {
+		name      string
+		current   string
+		candidate string
+		want      string
+	}{
+		{"empty current", "", "push", "push"},
+		{"candidate empty", "admin", "", "admin"},
+		{"candidate higher", "push", "admin", "admin"},
+		{"current higher", "maintain", "push", "maintain"},
+		{"whitespace retains higher", " push ", " TRIAGE ", "push"},
+		{"uppercase candidate", "pull", " ADMIN ", "admin"},
+	}
+	for _, tc := range cases {
+		got := maxPermission(tc.current, tc.candidate)
+		if got != tc.want {
+			t.Fatalf("%s: want %q, got %q", tc.name, tc.want, got)
+		}
 	}
 }
 

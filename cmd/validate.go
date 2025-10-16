@@ -14,6 +14,10 @@ func validateUserName(s string) error {
 	return nil
 }
 
+func validateUserLogin(s string) error {
+	return validateUserName(strings.TrimSpace(s))
+}
+
 func validateTeamName(s string) error { // team slug
 	if err := v.ValidateTeamSlug(s); err != nil {
 		return fmt.Errorf("チーム名(スラグ)が不正です: (%w)", err)

@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -174,6 +175,7 @@ func createTables(db *sql.DB) error {
 			repo_name TEXT,
 			user_login TEXT,
 			user_id INTEGER,
+			permission TEXT,
 			created_at TEXT,
 			updated_at TEXT,
 			PRIMARY KEY (repo_name, user_login)
@@ -212,6 +214,88 @@ func createTables(db *sql.DB) error {
 	}
 
 	return nil
+}
+
+var permissionPriority = []string{"admin", "maintain", "push", "triage", "pull"}
+
+// selectHighestPermission returns the most privileged permission that is true in the GitHub permissions map.
+func selectHighestPermission(perms map[string]bool) string {
+	if len(perms) == 0 {
+		return ""
+	}
+	for _, key := range permissionPriority {
+		if perms[key] {
+			return key
+		}
+	}
+	return ""
+}
+
+// normalizePermissionValue trims surrounding whitespace and lowercases the permission string for consistent storage.
+func normalizePermissionValue(p string) string {
+	return strings.ToLower(strings.TrimSpace(p))
+}
+
+// resolvedCollaboratorPermission extracts and normalizes the highest permission for a repository collaborator.
+func resolvedCollaboratorPermission(u *github.User) string {
+	if u == nil {
+		return ""
+	}
+	highest := selectHighestPermission(u.Permissions)
+	return normalizePermissionValue(highest)
+}
+
+// ListRepositoryNames returns repository names stored in ghub_repositories ordered alphabetically.
+func ListRepositoryNames(db *sql.DB) ([]string, error) {
+	if db == nil {
+		return nil, fmt.Errorf("database connection is required to list repositories")
+	}
+	rows, err := db.Query(`SELECT name FROM ghub_repositories ORDER BY name`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query repositories: %w", err)
+	}
+	defer rows.Close()
+
+	names := make([]string, 0)
+	for rows.Next() {
+		var name sql.NullString
+		if err := rows.Scan(&name); err != nil {
+			return nil, fmt.Errorf("failed to scan repository name: %w", err)
+		}
+		if trimmed := strings.TrimSpace(name.String); trimmed != "" {
+			names = append(names, trimmed)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("repository iteration failed: %w", err)
+	}
+	return names, nil
+}
+
+// permissionRank reports the priority index of a permission; unknown values are ranked lowest.
+func permissionRank(p string) int {
+	for idx, key := range permissionPriority {
+		if p == key {
+			return idx
+		}
+	}
+	return len(permissionPriority)
+}
+
+func maxPermission(current, candidate string) string {
+	currentNorm := normalizePermissionValue(current)
+	candidateNorm := normalizePermissionValue(candidate)
+
+	if candidateNorm == "" {
+		return currentNorm
+	}
+	if currentNorm == "" {
+		return candidateNorm
+	}
+	if permissionRank(candidateNorm) < permissionRank(currentNorm) {
+		return candidateNorm
+	}
+	return currentNorm
 }
 
 // StoreUsers stores GitHub users in the database
@@ -314,6 +398,10 @@ func StoreTeamUsers(db *sql.DB, users []*github.User, teamSlug string) error {
 	var teamID int64
 	err := db.QueryRow(`SELECT id FROM ghub_teams WHERE slug = ?`, teamSlug).Scan(&teamID)
 	if err != nil {
+		// TODO あとでまとめて取得する方法を考える
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("チーム %s のデータが見つかりませんでした。先に `ghub-desk pull --teams` を実行してチーム情報を取得してください: %w", teamSlug, err)
+		}
 		return fmt.Errorf("failed to get team ID for slug %s: %w", teamSlug, err)
 	}
 
@@ -446,16 +534,18 @@ func StoreRepoUsers(db *sql.DB, repoName string, users []*github.User) error {
 	now := time.Now().Format("2006-01-02 15:04:05")
 	rows := make([][]any, 0, len(users))
 	for _, u := range users {
+		resolvedPermission := resolvedCollaboratorPermission(u)
 		rows = append(rows, []any{
 			repoName,
 			u.GetLogin(),
 			u.GetID(),
+			resolvedPermission,
 			now,
 			now,
 		})
 	}
 
-	columns := []string{"repo_name", "user_login", "user_id", "created_at", "updated_at"}
+	columns := []string{"repo_name", "user_login", "user_id", "permission", "created_at", "updated_at"}
 	if err := insertOrReplaceBatch(db, "repo_users", columns, rows); err != nil {
 		return fmt.Errorf("failed to store repository users for %s: %w", repoName, err)
 	}
@@ -510,8 +600,9 @@ func UpsertRepoUser(db *sql.DB, repoName string, user *github.User) error {
 		return fmt.Errorf("user information is required to upsert repository user")
 	}
 	now := time.Now().Format("2006-01-02 15:04:05")
-	_, err := db.Exec(`INSERT OR REPLACE INTO repo_users(repo_name, user_login, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
-		repoName, user.GetLogin(), user.GetID(), now, now)
+	resolvedPermission := resolvedCollaboratorPermission(user)
+	_, err := db.Exec(`INSERT OR REPLACE INTO repo_users(repo_name, user_login, user_id, permission, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		repoName, user.GetLogin(), user.GetID(), resolvedPermission, now, now)
 	if err != nil {
 		return fmt.Errorf("failed to upsert repository user %s for repo %s: %w", user.GetLogin(), repoName, err)
 	}

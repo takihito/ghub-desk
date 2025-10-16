@@ -21,6 +21,15 @@ func TestValidateUserName(t *testing.T) {
 	}
 }
 
+func TestValidateUserLogin(t *testing.T) {
+	if err := validateUserLogin(" login-ok "); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if err := validateUserLogin("bad login"); err == nil {
+		t.Fatalf("expected error for invalid login")
+	}
+}
+
 func TestValidateTeamName(t *testing.T) {
 	ok := []string{"a", "team123", "team-name", strings.Repeat("a", 50), strings.Repeat("a", 100)}
 	ng := []string{"bad team", "bad$team", strings.Repeat("Z", 3), "Team", "-abc", "abc-", "team_name", strings.Repeat("a", 101)}

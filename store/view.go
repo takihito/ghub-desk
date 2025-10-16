@@ -3,15 +3,18 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"sort"
+	"strings"
 
 	"ghub-desk/validate"
 )
 
 // TargetRequest represents the requested view target including optional metadata.
 type TargetRequest struct {
-	Kind     string
-	TeamSlug string
-	RepoName string
+	Kind      string
+	TeamSlug  string
+	RepoName  string
+	UserLogin string
 }
 
 // HandleViewTarget processes different types of view targets
@@ -43,6 +46,18 @@ func HandleViewTarget(db *sql.DB, req TargetRequest) error {
 			return fmt.Errorf("invalid repository name: %w", err)
 		}
 		return ViewRepoTeams(db, req.RepoName)
+	case "all-repos-teams":
+		return ViewAllRepositoriesTeams(db)
+	case "all-teams-users":
+		return ViewAllTeamsUsers(db)
+	case "user-repos":
+		if req.UserLogin == "" {
+			return fmt.Errorf("user login must be specified when using user-repos target")
+		}
+		if err := validate.ValidateUserName(req.UserLogin); err != nil {
+			return fmt.Errorf("invalid user login: %w", err)
+		}
+		return ViewUserRepositories(db, req.UserLogin)
 	case "team-user":
 		if req.TeamSlug == "" {
 			return fmt.Errorf("team slug must be specified when using team-user target")
@@ -212,6 +227,358 @@ func ViewRepoTeams(db *sql.DB, repoName string) error {
 			description.String,
 		)
 	}
+	return nil
+}
+
+// ViewAllRepositoriesTeams displays all repository team assignments alongside repository metadata.
+func ViewAllRepositoriesTeams(db *sql.DB) error {
+	rows, err := db.Query(`
+		SELECT 
+			COALESCE(r.name, rt.repo_name) AS repo_name,
+			COALESCE(r.full_name, '') AS repo_full_name,
+			rt.team_slug,
+			COALESCE(rt.team_name, '') AS team_name,
+			COALESCE(rt.permission, '') AS permission,
+			COALESCE(rt.privacy, '') AS privacy,
+			COALESCE(rt.description, '') AS description
+		FROM repo_teams rt
+		LEFT JOIN ghub_repositories r ON r.name = rt.repo_name
+		ORDER BY LOWER(repo_name), LOWER(rt.team_slug)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to query repository teams: %w", err)
+	}
+	defer rows.Close()
+
+	type repoTeamEntry struct {
+		repoName    string
+		fullName    string
+		teamSlug    string
+		teamName    string
+		permission  string
+		privacy     string
+		description string
+	}
+
+	var entries []repoTeamEntry
+	for rows.Next() {
+		var repoName, fullName, teamSlug, teamName, permission, privacy, description sql.NullString
+		if err := rows.Scan(&repoName, &fullName, &teamSlug, &teamName, &permission, &privacy, &description); err != nil {
+			return fmt.Errorf("failed to scan repository team row: %w", err)
+		}
+		entry := repoTeamEntry{
+			repoName:    strings.TrimSpace(repoName.String),
+			fullName:    strings.TrimSpace(fullName.String),
+			teamSlug:    strings.TrimSpace(teamSlug.String),
+			teamName:    strings.TrimSpace(teamName.String),
+			permission:  strings.TrimSpace(permission.String),
+			privacy:     strings.TrimSpace(privacy.String),
+			description: strings.TrimSpace(description.String),
+		}
+		entries = append(entries, entry)
+	}
+
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("failed to iterate repository team rows: %w", err)
+	}
+
+	if len(entries) == 0 {
+		fmt.Println("No repository team data found in database.")
+		fmt.Println("Run 'ghub-desk pull --all-repos-teams' or 'ghub-desk pull --repos-teams <repo>' first.")
+		return nil
+	}
+
+	fmt.Println("Repo\tFull Name\tTeam Slug\tTeam Name\tPermission\tPrivacy\tDescription")
+	fmt.Println("----\t---------\t---------\t---------\t----------\t-------\t-----------")
+
+	for _, entry := range entries {
+		repo := entry.repoName
+		if repo == "" {
+			repo = "-"
+		}
+		fullName := entry.fullName
+		if fullName == "" {
+			fullName = "-"
+		}
+		teamSlug := entry.teamSlug
+		if teamSlug == "" {
+			teamSlug = "-"
+		}
+		teamName := entry.teamName
+		if teamName == "" {
+			teamName = "-"
+		}
+		permission := entry.permission
+		if permission == "" {
+			permission = "-"
+		}
+		privacy := entry.privacy
+		if privacy == "" {
+			privacy = "-"
+		}
+		description := entry.description
+		if description == "" {
+			description = "-"
+		}
+
+		fmt.Printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			repo,
+			fullName,
+			teamSlug,
+			teamName,
+			permission,
+			privacy,
+			description,
+		)
+	}
+
+	return nil
+}
+
+// ViewAllTeamsUsers displays all team membership entries from the database.
+func ViewAllTeamsUsers(db *sql.DB) error {
+	rows, err := db.Query(`
+		SELECT 
+			tu.team_slug,
+			COALESCE(t.name, '') AS team_name,
+			tu.user_login,
+			COALESCE(u.name, '') AS user_name,
+			COALESCE(tu.role, '') AS role
+		FROM ghub_team_users tu
+		LEFT JOIN ghub_teams t ON t.slug = tu.team_slug
+		LEFT JOIN ghub_users u ON u.login = tu.user_login
+		ORDER BY LOWER(tu.team_slug), LOWER(tu.user_login)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to query team users: %w", err)
+	}
+	defer rows.Close()
+
+	type teamUserEntry struct {
+		teamSlug string
+		teamName string
+		login    string
+		userName string
+		role     string
+	}
+
+	var entries []teamUserEntry
+	for rows.Next() {
+		var teamSlug, teamName, login, userName, role sql.NullString
+		if err := rows.Scan(&teamSlug, &teamName, &login, &userName, &role); err != nil {
+			return fmt.Errorf("failed to scan team user row: %w", err)
+		}
+		entry := teamUserEntry{
+			teamSlug: strings.TrimSpace(teamSlug.String),
+			teamName: strings.TrimSpace(teamName.String),
+			login:    strings.TrimSpace(login.String),
+			userName: strings.TrimSpace(userName.String),
+			role:     strings.TrimSpace(role.String),
+		}
+		entries = append(entries, entry)
+	}
+
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("failed to iterate team user rows: %w", err)
+	}
+
+	if len(entries) == 0 {
+		fmt.Println("No team membership data found in database.")
+		fmt.Println("Run 'ghub-desk pull --all-teams-users' or 'ghub-desk pull --team-user <team-slug>' first.")
+		return nil
+	}
+
+	fmt.Println("Team Slug\tTeam Name\tUser Login\tUser Name\tRole")
+	fmt.Println("---------\t---------\t----------\t---------\t----")
+
+	for _, entry := range entries {
+		slug := entry.teamSlug
+		if slug == "" {
+			slug = "-"
+		}
+		name := entry.teamName
+		if name == "" {
+			name = "-"
+		}
+		login := entry.login
+		if login == "" {
+			login = "-"
+		}
+		fullName := entry.userName
+		if fullName == "" {
+			fullName = "-"
+		}
+		role := entry.role
+		if role == "" {
+			role = "-"
+		}
+
+		fmt.Printf("%s\t%s\t%s\t%s\t%s\n", slug, name, login, fullName, role)
+	}
+
+	return nil
+}
+
+// ViewUserRepositories displays repositories a user can access along with access path and permission.
+func ViewUserRepositories(db *sql.DB, userLogin string) error {
+	if db == nil {
+		return fmt.Errorf("database connection is required to view user repositories")
+	}
+	cleanLogin := strings.TrimSpace(userLogin)
+	if cleanLogin == "" {
+		return fmt.Errorf("user login is required to view repositories")
+	}
+
+	type repoAccessEntry struct {
+		repoName string
+		highest  string
+		sources  []string
+		seen     map[string]struct{}
+	}
+
+	accessByRepoName := make(map[string]*repoAccessEntry)
+	mergeRepoAccess := func(repoName, sourceLabel, permission string) {
+		name := strings.TrimSpace(repoName)
+		if name == "" {
+			return
+		}
+		entry, ok := accessByRepoName[name]
+		if !ok {
+			entry = &repoAccessEntry{
+				repoName: name,
+				highest:  "",
+				sources:  make([]string, 0, 2),
+				seen:     make(map[string]struct{}),
+			}
+			accessByRepoName[name] = entry
+		}
+		entry.highest = maxPermission(entry.highest, permission)
+
+		displayPerm := normalizePermissionValue(permission)
+		display := sourceLabel
+		if displayPerm != "" {
+			display = fmt.Sprintf("%s [%s]", sourceLabel, displayPerm)
+		}
+		if _, exists := entry.seen[display]; !exists {
+			entry.sources = append(entry.sources, display)
+			entry.seen[display] = struct{}{}
+		}
+	}
+
+	directRows, err := db.Query(`
+		SELECT COALESCE(r.name, ru.repo_name) AS repo_name,
+		       COALESCE(ru.permission, ''),
+		       ru.repo_name
+		FROM repo_users ru
+		LEFT JOIN ghub_repositories r ON r.name = ru.repo_name
+		WHERE ru.user_login = ?
+	`, cleanLogin)
+	if err != nil {
+		return fmt.Errorf("failed to query direct repository access: %w", err)
+	}
+	defer directRows.Close()
+
+	for directRows.Next() {
+		var repoName, permission, fallback sql.NullString
+		if err := directRows.Scan(&repoName, &permission, &fallback); err != nil {
+			return fmt.Errorf("failed to scan direct access row: %w", err)
+		}
+		name := repoName.String
+		if strings.TrimSpace(name) == "" {
+			name = fallback.String
+		}
+		mergeRepoAccess(name, "Direct", permission.String)
+	}
+	if err := directRows.Err(); err != nil {
+		return fmt.Errorf("failed to iterate direct access rows: %w", err)
+	}
+
+	teamRows, err := db.Query(`
+		SELECT COALESCE(r.name, rt.repo_name) AS repo_name,
+		       rt.team_slug,
+		       COALESCE(rt.team_name, ''),
+		       COALESCE(rt.permission, ''),
+		       rt.repo_name
+		FROM ghub_team_users tu
+		JOIN repo_teams rt ON rt.team_slug = tu.team_slug
+		LEFT JOIN ghub_repositories r ON r.name = rt.repo_name
+		WHERE tu.user_login = ?
+	`, cleanLogin)
+	if err != nil {
+		return fmt.Errorf("failed to query team-derived repository access: %w", err)
+	}
+	defer teamRows.Close()
+
+	for teamRows.Next() {
+		var repoName, teamSlug, teamName, permission, fallback sql.NullString
+		if err := teamRows.Scan(&repoName, &teamSlug, &teamName, &permission, &fallback); err != nil {
+			return fmt.Errorf("failed to scan team access row: %w", err)
+		}
+		name := repoName.String
+		if strings.TrimSpace(name) == "" {
+			name = fallback.String
+		}
+		if strings.TrimSpace(name) == "" {
+			continue
+		}
+
+		slug := strings.TrimSpace(teamSlug.String)
+		if slug == "" {
+			continue
+		}
+		label := fmt.Sprintf("Team:%s", slug)
+		if displayName := strings.TrimSpace(teamName.String); displayName != "" {
+			label = fmt.Sprintf("%s (%s)", label, displayName)
+		}
+		mergeRepoAccess(name, label, permission.String)
+	}
+	if err := teamRows.Err(); err != nil {
+		return fmt.Errorf("failed to iterate team access rows: %w", err)
+	}
+
+	if len(accessByRepoName) == 0 {
+		fmt.Printf("No repository access data found for user %s.\n", cleanLogin)
+		fmt.Println("Run 'ghub-desk pull --repos-users', 'ghub-desk pull --repos-teams', and 'ghub-desk pull --team-users <team-slug>' to populate the database.")
+		return nil
+	}
+
+	entries := make([]*repoAccessEntry, 0, len(accessByRepoName))
+	for _, entry := range accessByRepoName {
+		// Ensure stable output with direct access first, followed by alphabetical labels.
+		sort.Slice(entry.sources, func(i, j int) bool {
+			si := entry.sources[i]
+			sj := entry.sources[j]
+			isDirect := strings.HasPrefix(si, "Direct")
+			jsDirect := strings.HasPrefix(sj, "Direct")
+			if isDirect != jsDirect {
+				return isDirect
+			}
+			return si < sj
+		})
+		entries = append(entries, entry)
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		li := strings.ToLower(entries[i].repoName)
+		lj := strings.ToLower(entries[j].repoName)
+		if li == lj {
+			return entries[i].repoName < entries[j].repoName
+		}
+		return li < lj
+	})
+
+	fmt.Printf("User: %s\n", cleanLogin)
+	fmt.Println("Repository\tAccess From\tPermission")
+	fmt.Println("----------\t-----------\t----------")
+
+	for _, entry := range entries {
+		perm := entry.highest
+		if perm == "" {
+			perm = "-"
+		}
+		fmt.Printf("%s\t%s\t%s\n", entry.repoName, strings.Join(entry.sources, ", "), perm)
+	}
+
 	return nil
 }
 

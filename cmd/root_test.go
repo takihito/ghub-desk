@@ -50,6 +50,24 @@ func TestPullCmdGetTarget(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "user-repos target",
+			cmd:         PullCmd{CommonTargetOptions: CommonTargetOptions{UserRepos: "octocat"}},
+			expected:    "user-repos",
+			expectError: false,
+		},
+		{
+			name:        "all-repos-teams target",
+			cmd:         PullCmd{CommonTargetOptions: CommonTargetOptions{AllReposTeams: true}},
+			expected:    "all-repos-teams",
+			expectError: false,
+		},
+		{
+			name:        "all-teams-users target",
+			cmd:         PullCmd{CommonTargetOptions: CommonTargetOptions{AllTeamsUsers: true}},
+			expected:    "all-teams-users",
+			expectError: false,
+		},
+		{
 			name:        "no target",
 			cmd:         PullCmd{},
 			expected:    "",
@@ -63,20 +81,11 @@ func TestPullCmdGetTarget(t *testing.T) {
 			expected:    "",
 			expectError: true,
 		},
-		{
-			name: "all-teams-users target",
-			cmd: PullCmd{
-				AllTeamsUsers: true,
-			},
-			expected:    "all-teams-users",
-			expectError: false,
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Pass extra target via named TargetFlag for clarity
-			result, err := tt.cmd.CommonTargetOptions.GetTarget(TargetFlag{Enabled: tt.cmd.AllTeamsUsers, Name: "all-teams-users"})
+			result, err := tt.cmd.CommonTargetOptions.GetTarget()
 
 			if tt.expectError {
 				if err == nil {
