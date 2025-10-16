@@ -138,6 +138,7 @@ type PullCmd struct {
 type ViewCmd struct {
 	CommonTargetOptions `embed:""`
 	Settings            bool   `name:"settings" help:"Show application settings (masked)"`
+	Format              string `name:"format" default:"table" help:"Output format (table|json|yaml)"`
 	TargetPath          string `arg:"" optional:"" help:"Target path (e.g. team-slug/users)."`
 }
 
@@ -292,8 +293,13 @@ func (v *ViewCmd) Run(cli *CLI) error {
 		return err
 	}
 
+	selectedFormat, err := store.ParseOutputFormat(v.Format)
+	if err != nil {
+		return err
+	}
+
 	if cli.Debug {
-		fmt.Printf("DEBUG: Viewing target='%s'\n", target)
+		fmt.Printf("DEBUG: Viewing target='%s', format='%s'\n", target, selectedFormat)
 	}
 
 	if target == "settings" {
@@ -335,7 +341,7 @@ func (v *ViewCmd) Run(cli *CLI) error {
 		req.UserLogin = v.UserRepos
 	}
 
-	return store.HandleViewTarget(db, req)
+	return store.HandleViewTarget(db, req, store.ViewOptions{Format: selectedFormat})
 }
 
 func parseTeamUsersPath(path string) (string, error) {

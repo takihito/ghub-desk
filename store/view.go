@@ -18,18 +18,20 @@ type TargetRequest struct {
 }
 
 // HandleViewTarget processes different types of view targets
-func HandleViewTarget(db *sql.DB, req TargetRequest) error {
+func HandleViewTarget(db *sql.DB, req TargetRequest, opts ViewOptions) error {
+	format := opts.formatOrDefault()
+
 	switch req.Kind {
 	case "users", "detail-users":
-		return ViewUsers(db)
+		return ViewUsers(db, format)
 	case "teams":
-		return ViewTeams(db)
+		return ViewTeams(db, format)
 	case "repos", "repositories":
-		return ViewRepositories(db)
+		return ViewRepositories(db, format)
 	case "token-permission":
-		return ViewTokenPermission(db)
+		return ViewTokenPermission(db, format)
 	case "outside-users":
-		return ViewOutsideUsers(db)
+		return ViewOutsideUsers(db, format)
 	case "repos-users":
 		if req.RepoName == "" {
 			return fmt.Errorf("repository name must be specified when using repos-users target")
@@ -37,7 +39,7 @@ func HandleViewTarget(db *sql.DB, req TargetRequest) error {
 		if err := validate.ValidateRepoName(req.RepoName); err != nil {
 			return fmt.Errorf("invalid repository name: %w", err)
 		}
-		return ViewRepoUsers(db, req.RepoName)
+		return ViewRepoUsers(db, req.RepoName, format)
 	case "repos-teams":
 		if req.RepoName == "" {
 			return fmt.Errorf("repository name must be specified when using repos-teams target")
@@ -45,11 +47,11 @@ func HandleViewTarget(db *sql.DB, req TargetRequest) error {
 		if err := validate.ValidateRepoName(req.RepoName); err != nil {
 			return fmt.Errorf("invalid repository name: %w", err)
 		}
-		return ViewRepoTeams(db, req.RepoName)
+		return ViewRepoTeams(db, req.RepoName, format)
 	case "all-repos-teams":
-		return ViewAllRepositoriesTeams(db)
+		return ViewAllRepositoriesTeams(db, format)
 	case "all-teams-users":
-		return ViewAllTeamsUsers(db)
+		return ViewAllTeamsUsers(db, format)
 	case "user-repos":
 		if req.UserLogin == "" {
 			return fmt.Errorf("user login must be specified when using user-repos target")
@@ -57,7 +59,7 @@ func HandleViewTarget(db *sql.DB, req TargetRequest) error {
 		if err := validate.ValidateUserName(req.UserLogin); err != nil {
 			return fmt.Errorf("invalid user login: %w", err)
 		}
-		return ViewUserRepositories(db, req.UserLogin)
+		return ViewUserRepositories(db, req.UserLogin, format)
 	case "team-user":
 		if req.TeamSlug == "" {
 			return fmt.Errorf("team slug must be specified when using team-user target")
@@ -65,23 +67,30 @@ func HandleViewTarget(db *sql.DB, req TargetRequest) error {
 		if err := validate.ValidateTeamSlug(req.TeamSlug); err != nil {
 			return fmt.Errorf("invalid team slug: %w", err)
 		}
-		return ViewTeamUsers(db, req.TeamSlug)
+		return ViewTeamUsers(db, req.TeamSlug, format)
 	default:
 		return fmt.Errorf("unknown target: %s", req.Kind)
 	}
 }
 
 // ViewUsers displays users from the database
-func ViewUsers(db *sql.DB) error {
+func ViewUsers(db *sql.DB, format OutputFormat) error {
 	rows, err := db.Query(`SELECT id, login, name, email, company, location FROM ghub_users ORDER BY login`)
 	if err != nil {
 		return fmt.Errorf("failed to query users: %w", err)
 	}
 	defer rows.Close()
 
-	fmt.Println("ID\tLogin\tName\tEmail\tCompany\tLocation")
-	fmt.Println("--\t-----\t----\t-----\t-------\t--------")
+	type userRecord struct {
+		ID       int64  `json:"id" yaml:"id"`
+		Login    string `json:"login" yaml:"login"`
+		Name     string `json:"name" yaml:"name"`
+		Email    string `json:"email" yaml:"email"`
+		Company  string `json:"company" yaml:"company"`
+		Location string `json:"location" yaml:"location"`
+	}
 
+	var records []userRecord
 	for rows.Next() {
 		var id int64
 		var login, name, email, company, location sql.NullString
@@ -90,29 +99,57 @@ func ViewUsers(db *sql.DB) error {
 			return fmt.Errorf("failed to scan user row: %w", err)
 		}
 
-		fmt.Printf("%d\t%s\t%s\t%s\t%s\t%s\n",
-			id,
-			login.String,
-			name.String,
-			email.String,
-			company.String,
-			location.String,
-		)
+		record := userRecord{
+			ID:       id,
+			Login:    login.String,
+			Name:     name.String,
+			Email:    email.String,
+			Company:  company.String,
+			Location: location.String,
+		}
+		records = append(records, record)
 	}
-	return nil
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("failed to iterate user rows: %w", err)
+	}
+
+	tableFn := func() error {
+		fmt.Println("ID\tLogin\tName\tEmail\tCompany\tLocation")
+		fmt.Println("--\t-----\t----\t-----\t-------\t--------")
+
+		for _, record := range records {
+			fmt.Printf("%d\t%s\t%s\t%s\t%s\t%s\n",
+				record.ID,
+				record.Login,
+				record.Name,
+				record.Email,
+				record.Company,
+				record.Location,
+			)
+		}
+		return nil
+	}
+
+	return renderByFormat(format, tableFn, records)
 }
 
 // ViewTeams displays teams from the database
-func ViewTeams(db *sql.DB) error {
+func ViewTeams(db *sql.DB, format OutputFormat) error {
 	rows, err := db.Query(`SELECT id, slug, name, description, privacy FROM ghub_teams ORDER BY slug`)
 	if err != nil {
 		return fmt.Errorf("failed to query teams: %w", err)
 	}
 	defer rows.Close()
 
-	fmt.Println("ID\tSlug\tName\tDescription\tPrivacy")
-	fmt.Println("--\t----\t----\t-----------\t-------")
+	type teamRecord struct {
+		ID          int64  `json:"id" yaml:"id"`
+		Slug        string `json:"slug" yaml:"slug"`
+		Name        string `json:"name" yaml:"name"`
+		Description string `json:"description" yaml:"description"`
+		Privacy     string `json:"privacy" yaml:"privacy"`
+	}
 
+	var records []teamRecord
 	for rows.Next() {
 		var id int64
 		var slug, name, description, privacy sql.NullString
@@ -121,19 +158,40 @@ func ViewTeams(db *sql.DB) error {
 			return fmt.Errorf("failed to scan team row: %w", err)
 		}
 
-		fmt.Printf("%d\t%s\t%s\t%s\t%s\n",
-			id,
-			slug.String,
-			name.String,
-			description.String,
-			privacy.String,
-		)
+		record := teamRecord{
+			ID:          id,
+			Slug:        slug.String,
+			Name:        name.String,
+			Description: description.String,
+			Privacy:     privacy.String,
+		}
+		records = append(records, record)
 	}
-	return nil
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("failed to iterate team rows: %w", err)
+	}
+
+	tableFn := func() error {
+		fmt.Println("ID\tSlug\tName\tDescription\tPrivacy")
+		fmt.Println("--\t----\t----\t-----------\t-------")
+
+		for _, record := range records {
+			fmt.Printf("%d\t%s\t%s\t%s\t%s\n",
+				record.ID,
+				record.Slug,
+				record.Name,
+				record.Description,
+				record.Privacy,
+			)
+		}
+		return nil
+	}
+
+	return renderByFormat(format, tableFn, records)
 }
 
 // ViewRepositories displays repositories from the database
-func ViewRepositories(db *sql.DB) error {
+func ViewRepositories(db *sql.DB, format OutputFormat) error {
 	rows, err := db.Query(`
 		SELECT id, name, full_name, description, private, language, stargazers_count 
 		FROM ghub_repositories ORDER BY name`)
@@ -142,9 +200,17 @@ func ViewRepositories(db *sql.DB) error {
 	}
 	defer rows.Close()
 
-	fmt.Println("ID\tName\tFull Name\tDescription\tPrivate\tLanguage\tStars")
-	fmt.Println("--\t----\t---------\t-----------\t-------\t--------\t-----")
+	type repositoryRecord struct {
+		ID          int64  `json:"id" yaml:"id"`
+		Name        string `json:"name" yaml:"name"`
+		FullName    string `json:"full_name" yaml:"full_name"`
+		Description string `json:"description" yaml:"description"`
+		Private     bool   `json:"private" yaml:"private"`
+		Language    string `json:"language" yaml:"language"`
+		Stars       int    `json:"stargazers_count" yaml:"stargazers_count"`
+	}
 
+	var records []repositoryRecord
 	for rows.Next() {
 		var id int64
 		var private bool
@@ -155,21 +221,44 @@ func ViewRepositories(db *sql.DB) error {
 			return fmt.Errorf("failed to scan repository row: %w", err)
 		}
 
-		fmt.Printf("%d\t%s\t%s\t%s\t%t\t%s\t%d\n",
-			id,
-			name.String,
-			fullName.String,
-			description.String,
-			private,
-			language.String,
-			stars,
-		)
+		record := repositoryRecord{
+			ID:          id,
+			Name:        name.String,
+			FullName:    fullName.String,
+			Description: description.String,
+			Private:     private,
+			Language:    language.String,
+			Stars:       stars,
+		}
+		records = append(records, record)
 	}
-	return nil
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("failed to iterate repository rows: %w", err)
+	}
+
+	tableFn := func() error {
+		fmt.Println("ID\tName\tFull Name\tDescription\tPrivate\tLanguage\tStars")
+		fmt.Println("--\t----\t---------\t-----------\t-------\t--------\t-----")
+
+		for _, record := range records {
+			fmt.Printf("%d\t%s\t%s\t%s\t%t\t%s\t%d\n",
+				record.ID,
+				record.Name,
+				record.FullName,
+				record.Description,
+				record.Private,
+				record.Language,
+				record.Stars,
+			)
+		}
+		return nil
+	}
+
+	return renderByFormat(format, tableFn, records)
 }
 
 // ViewRepoUsers displays direct repository collaborators from the database
-func ViewRepoUsers(db *sql.DB, repoName string) error {
+func ViewRepoUsers(db *sql.DB, repoName string, format OutputFormat) error {
 	rows, err := db.Query(`
 		SELECT user_id, user_login
 		FROM repo_users
@@ -180,23 +269,52 @@ func ViewRepoUsers(db *sql.DB, repoName string) error {
 	}
 	defer rows.Close()
 
-	fmt.Printf("Repository: %s\n", repoName)
-	fmt.Println("User ID\tLogin")
-	fmt.Println("-------\t-----")
+	type repoUserRecord struct {
+		UserID int64  `json:"user_id" yaml:"user_id"`
+		Login  string `json:"login" yaml:"login"`
+	}
 
+	var records []repoUserRecord
 	for rows.Next() {
 		var userID sql.NullInt64
 		var login sql.NullString
 		if err := rows.Scan(&userID, &login); err != nil {
 			return fmt.Errorf("failed to scan repository user row: %w", err)
 		}
-		fmt.Printf("%d\t%s\n", userID.Int64, login.String)
+		record := repoUserRecord{
+			UserID: userID.Int64,
+			Login:  login.String,
+		}
+		records = append(records, record)
 	}
-	return nil
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("failed to iterate repository user rows: %w", err)
+	}
+
+	tableFn := func() error {
+		fmt.Printf("Repository: %s\n", repoName)
+		fmt.Println("User ID\tLogin")
+		fmt.Println("-------\t-----")
+
+		for _, record := range records {
+			fmt.Printf("%d\t%s\n", record.UserID, record.Login)
+		}
+		return nil
+	}
+
+	payload := struct {
+		Repository string           `json:"repository" yaml:"repository"`
+		Users      []repoUserRecord `json:"users" yaml:"users"`
+	}{
+		Repository: repoName,
+		Users:      records,
+	}
+
+	return renderByFormat(format, tableFn, payload)
 }
 
 // ViewRepoTeams displays repository teams from the database
-func ViewRepoTeams(db *sql.DB, repoName string) error {
+func ViewRepoTeams(db *sql.DB, repoName string, format OutputFormat) error {
 	rows, err := db.Query(`
 		SELECT id, team_name, team_slug, description, privacy, permission
 		FROM repo_teams
@@ -207,10 +325,16 @@ func ViewRepoTeams(db *sql.DB, repoName string) error {
 	}
 	defer rows.Close()
 
-	fmt.Printf("Repository: %s\n", repoName)
-	fmt.Println("Team ID\tSlug\tName\tPermission\tPrivacy\tDescription")
-	fmt.Println("-------\t----\t----\t----------\t-------\t-----------")
+	type repoTeamRecord struct {
+		ID          int64  `json:"id" yaml:"id"`
+		Slug        string `json:"team_slug" yaml:"team_slug"`
+		Name        string `json:"team_name" yaml:"team_name"`
+		Permission  string `json:"permission" yaml:"permission"`
+		Privacy     string `json:"privacy" yaml:"privacy"`
+		Description string `json:"description" yaml:"description"`
+	}
 
+	var records []repoTeamRecord
 	for rows.Next() {
 		var id sql.NullInt64
 		var name, slug, description, privacy, permission sql.NullString
@@ -218,20 +342,51 @@ func ViewRepoTeams(db *sql.DB, repoName string) error {
 			return fmt.Errorf("failed to scan repository team row: %w", err)
 		}
 
-		fmt.Printf("%d\t%s\t%s\t%s\t%s\t%s\n",
-			id.Int64,
-			slug.String,
-			name.String,
-			permission.String,
-			privacy.String,
-			description.String,
-		)
+		record := repoTeamRecord{
+			ID:          id.Int64,
+			Slug:        slug.String,
+			Name:        name.String,
+			Permission:  permission.String,
+			Privacy:     privacy.String,
+			Description: description.String,
+		}
+		records = append(records, record)
 	}
-	return nil
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("failed to iterate repository team rows: %w", err)
+	}
+
+	tableFn := func() error {
+		fmt.Printf("Repository: %s\n", repoName)
+		fmt.Println("Team ID\tSlug\tName\tPermission\tPrivacy\tDescription")
+		fmt.Println("-------\t----\t----\t----------\t-------\t-----------")
+
+		for _, record := range records {
+			fmt.Printf("%d\t%s\t%s\t%s\t%s\t%s\n",
+				record.ID,
+				record.Slug,
+				record.Name,
+				record.Permission,
+				record.Privacy,
+				record.Description,
+			)
+		}
+		return nil
+	}
+
+	payload := struct {
+		Repository string           `json:"repository" yaml:"repository"`
+		Teams      []repoTeamRecord `json:"teams" yaml:"teams"`
+	}{
+		Repository: repoName,
+		Teams:      records,
+	}
+
+	return renderByFormat(format, tableFn, payload)
 }
 
 // ViewAllRepositoriesTeams displays all repository team assignments alongside repository metadata.
-func ViewAllRepositoriesTeams(db *sql.DB) error {
+func ViewAllRepositoriesTeams(db *sql.DB, format OutputFormat) error {
 	rows, err := db.Query(`
 		SELECT 
 			COALESCE(r.name, rt.repo_name) AS repo_name,
@@ -251,13 +406,13 @@ func ViewAllRepositoriesTeams(db *sql.DB) error {
 	defer rows.Close()
 
 	type repoTeamEntry struct {
-		repoName    string
-		fullName    string
-		teamSlug    string
-		teamName    string
-		permission  string
-		privacy     string
-		description string
+		RepoName    string `json:"repo_name" yaml:"repo_name"`
+		FullName    string `json:"full_name" yaml:"full_name"`
+		TeamSlug    string `json:"team_slug" yaml:"team_slug"`
+		TeamName    string `json:"team_name" yaml:"team_name"`
+		Permission  string `json:"permission" yaml:"permission"`
+		Privacy     string `json:"privacy" yaml:"privacy"`
+		Description string `json:"description" yaml:"description"`
 	}
 
 	var entries []repoTeamEntry
@@ -267,13 +422,13 @@ func ViewAllRepositoriesTeams(db *sql.DB) error {
 			return fmt.Errorf("failed to scan repository team row: %w", err)
 		}
 		entry := repoTeamEntry{
-			repoName:    strings.TrimSpace(repoName.String),
-			fullName:    strings.TrimSpace(fullName.String),
-			teamSlug:    strings.TrimSpace(teamSlug.String),
-			teamName:    strings.TrimSpace(teamName.String),
-			permission:  strings.TrimSpace(permission.String),
-			privacy:     strings.TrimSpace(privacy.String),
-			description: strings.TrimSpace(description.String),
+			RepoName:    strings.TrimSpace(repoName.String),
+			FullName:    strings.TrimSpace(fullName.String),
+			TeamSlug:    strings.TrimSpace(teamSlug.String),
+			TeamName:    strings.TrimSpace(teamName.String),
+			Permission:  strings.TrimSpace(permission.String),
+			Privacy:     strings.TrimSpace(privacy.String),
+			Description: strings.TrimSpace(description.String),
 		}
 		entries = append(entries, entry)
 	}
@@ -283,60 +438,66 @@ func ViewAllRepositoriesTeams(db *sql.DB) error {
 	}
 
 	if len(entries) == 0 {
-		fmt.Println("No repository team data found in database.")
-		fmt.Println("Run 'ghub-desk pull --all-repos-teams' or 'ghub-desk pull --repos-teams <repo>' first.")
+		if format == FormatTable {
+			fmt.Println("No repository team data found in database.")
+			fmt.Println("Run 'ghub-desk pull --all-repos-teams' or 'ghub-desk pull --repos-teams <repo>' first.")
+			return nil
+		}
+		return renderByFormat(format, nil, entries)
+	}
+
+	tableFn := func() error {
+		fmt.Println("Repo\tFull Name\tTeam Slug\tTeam Name\tPermission\tPrivacy\tDescription")
+		fmt.Println("----\t---------\t---------\t---------\t----------\t-------\t-----------")
+
+		for _, entry := range entries {
+			repo := entry.RepoName
+			if repo == "" {
+				repo = "-"
+			}
+			fullName := entry.FullName
+			if fullName == "" {
+				fullName = "-"
+			}
+			teamSlug := entry.TeamSlug
+			if teamSlug == "" {
+				teamSlug = "-"
+			}
+			teamName := entry.TeamName
+			if teamName == "" {
+				teamName = "-"
+			}
+			permission := entry.Permission
+			if permission == "" {
+				permission = "-"
+			}
+			privacy := entry.Privacy
+			if privacy == "" {
+				privacy = "-"
+			}
+			description := entry.Description
+			if description == "" {
+				description = "-"
+			}
+
+			fmt.Printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+				repo,
+				fullName,
+				teamSlug,
+				teamName,
+				permission,
+				privacy,
+				description,
+			)
+		}
 		return nil
 	}
 
-	fmt.Println("Repo\tFull Name\tTeam Slug\tTeam Name\tPermission\tPrivacy\tDescription")
-	fmt.Println("----\t---------\t---------\t---------\t----------\t-------\t-----------")
-
-	for _, entry := range entries {
-		repo := entry.repoName
-		if repo == "" {
-			repo = "-"
-		}
-		fullName := entry.fullName
-		if fullName == "" {
-			fullName = "-"
-		}
-		teamSlug := entry.teamSlug
-		if teamSlug == "" {
-			teamSlug = "-"
-		}
-		teamName := entry.teamName
-		if teamName == "" {
-			teamName = "-"
-		}
-		permission := entry.permission
-		if permission == "" {
-			permission = "-"
-		}
-		privacy := entry.privacy
-		if privacy == "" {
-			privacy = "-"
-		}
-		description := entry.description
-		if description == "" {
-			description = "-"
-		}
-
-		fmt.Printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-			repo,
-			fullName,
-			teamSlug,
-			teamName,
-			permission,
-			privacy,
-			description,
-		)
-	}
-
-	return nil
+	return renderByFormat(format, tableFn, entries)
 }
 
 // ViewAllTeamsUsers displays all team membership entries from the database.
-func ViewAllTeamsUsers(db *sql.DB) error {
+func ViewAllTeamsUsers(db *sql.DB, format OutputFormat) error {
 	rows, err := db.Query(`
 		SELECT 
 			tu.team_slug,
@@ -355,11 +516,11 @@ func ViewAllTeamsUsers(db *sql.DB) error {
 	defer rows.Close()
 
 	type teamUserEntry struct {
-		teamSlug string
-		teamName string
-		login    string
-		userName string
-		role     string
+		TeamSlug string `json:"team_slug" yaml:"team_slug"`
+		TeamName string `json:"team_name" yaml:"team_name"`
+		Login    string `json:"user_login" yaml:"user_login"`
+		UserName string `json:"user_name" yaml:"user_name"`
+		Role     string `json:"role" yaml:"role"`
 	}
 
 	var entries []teamUserEntry
@@ -369,11 +530,11 @@ func ViewAllTeamsUsers(db *sql.DB) error {
 			return fmt.Errorf("failed to scan team user row: %w", err)
 		}
 		entry := teamUserEntry{
-			teamSlug: strings.TrimSpace(teamSlug.String),
-			teamName: strings.TrimSpace(teamName.String),
-			login:    strings.TrimSpace(login.String),
-			userName: strings.TrimSpace(userName.String),
-			role:     strings.TrimSpace(role.String),
+			TeamSlug: strings.TrimSpace(teamSlug.String),
+			TeamName: strings.TrimSpace(teamName.String),
+			Login:    strings.TrimSpace(login.String),
+			UserName: strings.TrimSpace(userName.String),
+			Role:     strings.TrimSpace(role.String),
 		}
 		entries = append(entries, entry)
 	}
@@ -383,44 +544,50 @@ func ViewAllTeamsUsers(db *sql.DB) error {
 	}
 
 	if len(entries) == 0 {
-		fmt.Println("No team membership data found in database.")
-		fmt.Println("Run 'ghub-desk pull --all-teams-users' or 'ghub-desk pull --team-user <team-slug>' first.")
+		if format == FormatTable {
+			fmt.Println("No team membership data found in database.")
+			fmt.Println("Run 'ghub-desk pull --all-teams-users' or 'ghub-desk pull --team-user <team-slug>' first.")
+			return nil
+		}
+		return renderByFormat(format, nil, entries)
+	}
+
+	tableFn := func() error {
+		fmt.Println("Team Slug\tTeam Name\tUser Login\tUser Name\tRole")
+		fmt.Println("---------\t---------\t----------\t---------\t----")
+
+		for _, entry := range entries {
+			slug := entry.TeamSlug
+			if slug == "" {
+				slug = "-"
+			}
+			name := entry.TeamName
+			if name == "" {
+				name = "-"
+			}
+			login := entry.Login
+			if login == "" {
+				login = "-"
+			}
+			fullName := entry.UserName
+			if fullName == "" {
+				fullName = "-"
+			}
+			role := entry.Role
+			if role == "" {
+				role = "-"
+			}
+
+			fmt.Printf("%s\t%s\t%s\t%s\t%s\n", slug, name, login, fullName, role)
+		}
 		return nil
 	}
 
-	fmt.Println("Team Slug\tTeam Name\tUser Login\tUser Name\tRole")
-	fmt.Println("---------\t---------\t----------\t---------\t----")
-
-	for _, entry := range entries {
-		slug := entry.teamSlug
-		if slug == "" {
-			slug = "-"
-		}
-		name := entry.teamName
-		if name == "" {
-			name = "-"
-		}
-		login := entry.login
-		if login == "" {
-			login = "-"
-		}
-		fullName := entry.userName
-		if fullName == "" {
-			fullName = "-"
-		}
-		role := entry.role
-		if role == "" {
-			role = "-"
-		}
-
-		fmt.Printf("%s\t%s\t%s\t%s\t%s\n", slug, name, login, fullName, role)
-	}
-
-	return nil
+	return renderByFormat(format, tableFn, entries)
 }
 
 // ViewUserRepositories displays repositories a user can access along with access path and permission.
-func ViewUserRepositories(db *sql.DB, userLogin string) error {
+func ViewUserRepositories(db *sql.DB, userLogin string, format OutputFormat) error {
 	if db == nil {
 		return fmt.Errorf("database connection is required to view user repositories")
 	}
@@ -537,9 +704,19 @@ func ViewUserRepositories(db *sql.DB, userLogin string) error {
 	}
 
 	if len(accessByRepoName) == 0 {
-		fmt.Printf("No repository access data found for user %s.\n", cleanLogin)
-		fmt.Println("Run 'ghub-desk pull --repos-users', 'ghub-desk pull --repos-teams', and 'ghub-desk pull --team-users <team-slug>' to populate the database.")
-		return nil
+		if format == FormatTable {
+			fmt.Printf("No repository access data found for user %s.\n", cleanLogin)
+			fmt.Println("Run 'ghub-desk pull --repos-users', 'ghub-desk pull --repos-teams', and 'ghub-desk pull --team-users <team-slug>' to populate the database.")
+			return nil
+		}
+		payload := struct {
+			User         string        `json:"user" yaml:"user"`
+			Repositories []interface{} `json:"repositories" yaml:"repositories"`
+		}{
+			User:         cleanLogin,
+			Repositories: []interface{}{},
+		}
+		return renderByFormat(format, nil, payload)
 	}
 
 	entries := make([]*repoAccessEntry, 0, len(accessByRepoName))
@@ -567,23 +744,50 @@ func ViewUserRepositories(db *sql.DB, userLogin string) error {
 		return li < lj
 	})
 
-	fmt.Printf("User: %s\n", cleanLogin)
-	fmt.Println("Repository\tAccess From\tPermission")
-	fmt.Println("----------\t-----------\t----------")
+	type userRepoRecord struct {
+		Repository string   `json:"repository" yaml:"repository"`
+		AccessFrom []string `json:"access_from" yaml:"access_from"`
+		Permission string   `json:"permission" yaml:"permission"`
+	}
 
+	records := make([]userRepoRecord, 0, len(entries))
 	for _, entry := range entries {
 		perm := entry.highest
 		if perm == "" {
 			perm = "-"
 		}
-		fmt.Printf("%s\t%s\t%s\n", entry.repoName, strings.Join(entry.sources, ", "), perm)
+		records = append(records, userRepoRecord{
+			Repository: entry.repoName,
+			AccessFrom: append([]string(nil), entry.sources...),
+			Permission: perm,
+		})
 	}
 
-	return nil
+	tableFn := func() error {
+		fmt.Printf("User: %s\n", cleanLogin)
+		fmt.Println("Repository\tAccess From\tPermission")
+		fmt.Println("----------\t-----------\t----------")
+
+		for _, record := range records {
+			joined := strings.Join(record.AccessFrom, ", ")
+			fmt.Printf("%s\t%s\t%s\n", record.Repository, joined, record.Permission)
+		}
+		return nil
+	}
+
+	payload := struct {
+		User         string           `json:"user" yaml:"user"`
+		Repositories []userRepoRecord `json:"repositories" yaml:"repositories"`
+	}{
+		User:         cleanLogin,
+		Repositories: records,
+	}
+
+	return renderByFormat(format, tableFn, payload)
 }
 
 // ViewTeamUsers displays team members from the database
-func ViewTeamUsers(db *sql.DB, teamSlug string) error {
+func ViewTeamUsers(db *sql.DB, teamSlug string, format OutputFormat) error {
 	rows, err := db.Query(`
 		SELECT user_id, user_login, role 
 		FROM ghub_team_users 
@@ -594,10 +798,13 @@ func ViewTeamUsers(db *sql.DB, teamSlug string) error {
 	}
 	defer rows.Close()
 
-	fmt.Printf("Team: %s\n", teamSlug)
-	fmt.Println("User ID\tLogin\tRole")
-	fmt.Println("-------\t-----\t----")
+	type teamUserRecord struct {
+		UserID int64  `json:"user_id" yaml:"user_id"`
+		Login  string `json:"login" yaml:"login"`
+		Role   string `json:"role" yaml:"role"`
+	}
 
+	var records []teamUserRecord
 	for rows.Next() {
 		var userID int64
 		var login, role sql.NullString
@@ -606,13 +813,41 @@ func ViewTeamUsers(db *sql.DB, teamSlug string) error {
 			return fmt.Errorf("failed to scan team user row: %w", err)
 		}
 
-		fmt.Printf("%d\t%s\t%s\n", userID, login.String, role.String)
+		record := teamUserRecord{
+			UserID: userID,
+			Login:  login.String,
+			Role:   role.String,
+		}
+		records = append(records, record)
 	}
-	return nil
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("failed to iterate team user rows: %w", err)
+	}
+
+	tableFn := func() error {
+		fmt.Printf("Team: %s\n", teamSlug)
+		fmt.Println("User ID\tLogin\tRole")
+		fmt.Println("-------\t-----\t----")
+
+		for _, record := range records {
+			fmt.Printf("%d\t%s\t%s\n", record.UserID, record.Login, record.Role)
+		}
+		return nil
+	}
+
+	payload := struct {
+		TeamSlug string           `json:"team_slug" yaml:"team_slug"`
+		Users    []teamUserRecord `json:"users" yaml:"users"`
+	}{
+		TeamSlug: teamSlug,
+		Users:    records,
+	}
+
+	return renderByFormat(format, tableFn, payload)
 }
 
 // ViewTokenPermission displays token permissions from the database
-func ViewTokenPermission(db *sql.DB) error {
+func ViewTokenPermission(db *sql.DB, format OutputFormat) error {
 	rows, err := db.Query(`
 		SELECT scopes, x_oauth_scopes, x_accepted_oauth_scopes, x_accepted_github_permissions, x_github_media_type,
 		       x_ratelimit_limit, x_ratelimit_remaining, x_ratelimit_reset,
@@ -625,12 +860,27 @@ func ViewTokenPermission(db *sql.DB) error {
 	}
 	defer rows.Close()
 
-	if !rows.Next() {
-		fmt.Println("No token permission data found in database.")
-		fmt.Println("Run 'ghub-desk pull --token-permission' first.")
-		return nil
+	type tokenPermissionRecord struct {
+		Scopes                    string `json:"scopes" yaml:"scopes"`
+		OAuthScopes               string `json:"oauth_scopes" yaml:"oauth_scopes"`
+		AcceptedOAuthScopes       string `json:"accepted_oauth_scopes" yaml:"accepted_oauth_scopes"`
+		AcceptedGitHubPermissions string `json:"accepted_github_permissions" yaml:"accepted_github_permissions"`
+		GitHubMediaType           string `json:"github_media_type" yaml:"github_media_type"`
+		RateLimit                 int    `json:"rate_limit" yaml:"rate_limit"`
+		RateRemaining             int    `json:"rate_remaining" yaml:"rate_remaining"`
+		RateReset                 int    `json:"rate_reset" yaml:"rate_reset"`
+		CreatedAt                 string `json:"created_at" yaml:"created_at"`
+		UpdatedAt                 string `json:"updated_at" yaml:"updated_at"`
 	}
 
+	if !rows.Next() {
+		if format == FormatTable {
+			fmt.Println("No token permission data found in database.")
+			fmt.Println("Run 'ghub-desk pull --token-permission' first.")
+			return nil
+		}
+		return renderByFormat(format, nil, nil)
+	}
 	var scopes, oauthScopes, acceptedScopes, acceptedGitHubPermissions, mediaType, createdAt, updatedAt sql.NullString
 	var rateLimit, rateRemaining, rateReset int
 
@@ -641,33 +891,55 @@ func ViewTokenPermission(db *sql.DB) error {
 		return fmt.Errorf("failed to scan token permission row: %w", err)
 	}
 
-	fmt.Println("Token Permissions (from database):")
-	fmt.Println("===================================")
-	fmt.Printf("OAuth Scopes: %s\n", oauthScopes.String)
-	fmt.Printf("Accepted OAuth Scopes: %s\n", acceptedScopes.String)
-	fmt.Printf("Accepted GitHub Permissions: %s\n", acceptedGitHubPermissions.String)
-	fmt.Printf("GitHub Media Type: %s\n", mediaType.String)
-	fmt.Printf("Rate Limit: %d\n", rateLimit)
-	fmt.Printf("Rate Remaining: %d\n", rateRemaining)
-	fmt.Printf("Rate Reset: %d\n", rateReset)
-	fmt.Printf("Created At: %s\n", createdAt.String)
-	fmt.Printf("Updated At: %s\n", updatedAt.String)
+	record := tokenPermissionRecord{
+		Scopes:                    scopes.String,
+		OAuthScopes:               oauthScopes.String,
+		AcceptedOAuthScopes:       acceptedScopes.String,
+		AcceptedGitHubPermissions: acceptedGitHubPermissions.String,
+		GitHubMediaType:           mediaType.String,
+		RateLimit:                 rateLimit,
+		RateRemaining:             rateRemaining,
+		RateReset:                 rateReset,
+		CreatedAt:                 createdAt.String,
+		UpdatedAt:                 updatedAt.String,
+	}
 
-	return nil
+	tableFn := func() error {
+		fmt.Println("Token Permissions (from database):")
+		fmt.Println("===================================")
+		fmt.Printf("OAuth Scopes: %s\n", record.OAuthScopes)
+		fmt.Printf("Accepted OAuth Scopes: %s\n", record.AcceptedOAuthScopes)
+		fmt.Printf("Accepted GitHub Permissions: %s\n", record.AcceptedGitHubPermissions)
+		fmt.Printf("GitHub Media Type: %s\n", record.GitHubMediaType)
+		fmt.Printf("Rate Limit: %d\n", record.RateLimit)
+		fmt.Printf("Rate Remaining: %d\n", record.RateRemaining)
+		fmt.Printf("Rate Reset: %d\n", record.RateReset)
+		fmt.Printf("Created At: %s\n", record.CreatedAt)
+		fmt.Printf("Updated At: %s\n", record.UpdatedAt)
+		return nil
+	}
+
+	return renderByFormat(format, tableFn, record)
 }
 
 // ViewOutsideUsers displays outside users from the database
-func ViewOutsideUsers(db *sql.DB) error {
+func ViewOutsideUsers(db *sql.DB, format OutputFormat) error {
 	rows, err := db.Query(`SELECT id, login, name, email, company, location FROM ghub_outside_users ORDER BY login`)
 	if err != nil {
 		return fmt.Errorf("failed to query outside users: %w", err)
 	}
 	defer rows.Close()
 
-	fmt.Println("Outside Collaborators:")
-	fmt.Println("ID\tLogin\tName\tEmail\tCompany\tLocation")
-	fmt.Println("--\t-----\t----\t-----\t-------\t--------")
+	type outsideUserRecord struct {
+		ID       int64  `json:"id" yaml:"id"`
+		Login    string `json:"login" yaml:"login"`
+		Name     string `json:"name" yaml:"name"`
+		Email    string `json:"email" yaml:"email"`
+		Company  string `json:"company" yaml:"company"`
+		Location string `json:"location" yaml:"location"`
+	}
 
+	var records []outsideUserRecord
 	for rows.Next() {
 		var id int64
 		var login, name, email, company, location sql.NullString
@@ -676,14 +948,37 @@ func ViewOutsideUsers(db *sql.DB) error {
 			return fmt.Errorf("failed to scan outside user row: %w", err)
 		}
 
-		fmt.Printf("%d\t%s\t%s\t%s\t%s\t%s\n",
-			id,
-			login.String,
-			name.String,
-			email.String,
-			company.String,
-			location.String,
-		)
+		record := outsideUserRecord{
+			ID:       id,
+			Login:    login.String,
+			Name:     name.String,
+			Email:    email.String,
+			Company:  company.String,
+			Location: location.String,
+		}
+		records = append(records, record)
 	}
-	return nil
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("failed to iterate outside user rows: %w", err)
+	}
+
+	tableFn := func() error {
+		fmt.Println("Outside Collaborators:")
+		fmt.Println("ID\tLogin\tName\tEmail\tCompany\tLocation")
+		fmt.Println("--\t-----\t----\t-----\t-------\t--------")
+
+		for _, record := range records {
+			fmt.Printf("%d\t%s\t%s\t%s\t%s\t%s\n",
+				record.ID,
+				record.Login,
+				record.Name,
+				record.Email,
+				record.Company,
+				record.Location,
+			)
+		}
+		return nil
+	}
+
+	return renderByFormat(format, tableFn, records)
 }
