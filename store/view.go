@@ -275,9 +275,6 @@ func ViewAllRepositoriesTeams(db *sql.DB) error {
 			privacy:     strings.TrimSpace(privacy.String),
 			description: strings.TrimSpace(description.String),
 		}
-		if entry.repoName == "" {
-			entry.repoName = strings.TrimSpace(repoName.String)
-		}
 		entries = append(entries, entry)
 	}
 
