@@ -214,7 +214,7 @@ func ViewTeams(db *sql.DB, format OutputFormat) error {
 func ViewRepositories(db *sql.DB, format OutputFormat) error {
 	rows, err := db.Query(`
 		SELECT id, name, full_name, description, private, language, stargazers_count 
-		FROM ghub_repositories ORDER BY name`)
+		FROM ghub_repos ORDER BY name`)
 	if err != nil {
 		return fmt.Errorf("failed to query repositories: %w", err)
 	}
@@ -279,9 +279,9 @@ func ViewRepositories(db *sql.DB, format OutputFormat) error {
 // ViewRepoUsers displays direct repository collaborators from the database
 func ViewRepoUsers(db *sql.DB, repoName string, format OutputFormat) error {
 	rows, err := db.Query(`
-		SELECT user_id, user_login
-		FROM repo_users
-		WHERE repo_name = ?
+		SELECT ghub_user_id, user_login
+		FROM ghub_repos_users
+		WHERE repos_name = ?
 		ORDER BY user_login`, repoName)
 	if err != nil {
 		return fmt.Errorf("failed to query repository users: %w", err)
@@ -335,8 +335,8 @@ func ViewRepoUsers(db *sql.DB, repoName string, format OutputFormat) error {
 func ViewRepoTeams(db *sql.DB, repoName string, format OutputFormat) error {
 	rows, err := db.Query(`
 		SELECT id, team_name, team_slug, description, privacy, permission
-		FROM repo_teams
-		WHERE repo_name = ?
+		FROM ghub_repos_teams
+		WHERE repos_name = ?
 		ORDER BY team_slug`, repoName)
 	if err != nil {
 		return fmt.Errorf("failed to query repository teams: %w", err)
@@ -406,15 +406,15 @@ func ViewRepoTeams(db *sql.DB, repoName string, format OutputFormat) error {
 func ViewAllRepositoriesTeams(db *sql.DB, format OutputFormat) error {
 	rows, err := db.Query(`
 		SELECT 
-			COALESCE(r.name, rt.repo_name) AS repo_name,
+			COALESCE(r.name, rt.repos_name) AS repo_name,
 			COALESCE(r.full_name, '') AS repo_full_name,
 			rt.team_slug,
 			COALESCE(rt.team_name, '') AS team_name,
 			COALESCE(rt.permission, '') AS permission,
 			COALESCE(rt.privacy, '') AS privacy,
 			COALESCE(rt.description, '') AS description
-		FROM repo_teams rt
-		LEFT JOIN ghub_repositories r ON r.name = rt.repo_name
+		FROM ghub_repos_teams rt
+		LEFT JOIN ghub_repos r ON r.name = rt.repos_name
 		ORDER BY LOWER(repo_name), LOWER(rt.team_slug)
 	`)
 	if err != nil {
@@ -648,11 +648,11 @@ func ViewUserRepositories(db *sql.DB, userLogin string, format OutputFormat) err
 	}
 
 	directRows, err := db.Query(`
-		SELECT COALESCE(r.name, ru.repo_name) AS repo_name,
+		SELECT COALESCE(r.name, ru.repos_name) AS repo_name,
 		       COALESCE(ru.permission, ''),
-		       ru.repo_name
-		FROM repo_users ru
-		LEFT JOIN ghub_repositories r ON r.name = ru.repo_name
+		       ru.repos_name
+	FROM ghub_repos_users ru
+	LEFT JOIN ghub_repos r ON r.name = ru.repos_name
 		WHERE ru.user_login = ?
 	`, cleanLogin)
 	if err != nil {
@@ -676,14 +676,14 @@ func ViewUserRepositories(db *sql.DB, userLogin string, format OutputFormat) err
 	}
 
 	teamRows, err := db.Query(`
-		SELECT COALESCE(r.name, rt.repo_name) AS repo_name,
+		SELECT COALESCE(r.name, rt.repos_name) AS repo_name,
 		       rt.team_slug,
 		       COALESCE(rt.team_name, ''),
 		       COALESCE(rt.permission, ''),
-		       rt.repo_name
-		FROM ghub_team_users tu
-		JOIN repo_teams rt ON rt.team_slug = tu.team_slug
-		LEFT JOIN ghub_repositories r ON r.name = rt.repo_name
+		       rt.repos_name
+	FROM ghub_team_users tu
+	JOIN ghub_repos_teams rt ON rt.team_slug = tu.team_slug
+	LEFT JOIN ghub_repos r ON r.name = rt.repos_name
 		WHERE tu.user_login = ?
 	`, cleanLogin)
 	if err != nil {
@@ -803,7 +803,7 @@ func ViewUserRepositories(db *sql.DB, userLogin string, format OutputFormat) err
 // ViewTeamUsers displays team members from the database
 func ViewTeamUsers(db *sql.DB, teamSlug string, format OutputFormat) error {
 	rows, err := db.Query(`
-		SELECT user_id, user_login, role 
+		SELECT ghub_user_id, user_login, role 
 		FROM ghub_team_users 
 		WHERE team_slug = ? 
 		ORDER BY user_login`, teamSlug)

@@ -258,6 +258,10 @@ func TestViewRepoTeams(t *testing.T) {
 	defer db.Close()
 
 	repoName := "test-repo"
+	repo := &github.Repository{ID: github.Int64(1010), Name: github.String(repoName)}
+	if err := StoreRepositories(db, []*github.Repository{repo}); err != nil {
+		t.Fatalf("failed to store repository: %v", err)
+	}
 	teams := []*github.Team{
 		{
 			ID:          github.Int64(1),
