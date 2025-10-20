@@ -599,11 +599,23 @@ func StoreRepoTeams(db *sql.DB, repoName string, teams []*github.Team) error {
 	rows := make([][]any, 0, len(teams))
 	for _, t := range teams {
 		teamID := t.GetID()
+		teamLocalID, teamFound, err := lookupTeamID(db, t.GetSlug())
+		if err != nil {
+			return fmt.Errorf("failed to look up team ID for %s: %w", t.GetSlug(), err)
+		}
+		if !teamFound {
+			fmt.Printf("WARNING: team '%s' not found in ghub_teams. Run 'ghub-desk pull --teams' first to populate team metadata.\n", t.GetSlug())
+		}
+		var teamLocalIDValue any
+		if teamFound {
+			teamLocalIDValue = teamLocalID
+		}
+
 		rows = append(rows, []any{
 			repoName,
 			teamID,
 			repoIDValue,
-			teamID,
+			teamLocalIDValue,
 			t.GetName(),
 			t.GetSlug(),
 			t.GetDescription(),
@@ -687,4 +699,19 @@ func lookupRepositoryID(db *sql.DB, repoName string) (int64, bool, error) {
 		return 0, false, err
 	}
 	return repoID, true, nil
+}
+
+func lookupTeamID(db *sql.DB, teamSlug string) (int64, bool, error) {
+	if db == nil {
+		return 0, false, fmt.Errorf("database connection is required to look up team ID")
+	}
+	var teamID int64
+	err := db.QueryRow(`SELECT id FROM ghub_teams WHERE slug = ?`, teamSlug).Scan(&teamID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, false, nil
+		}
+		return 0, false, err
+	}
+	return teamID, true, nil
 }
