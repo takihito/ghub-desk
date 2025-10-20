@@ -468,7 +468,7 @@ func listRepositories() ([]Repo, error) {
 		return nil, err
 	}
 	defer db.Close()
-	rows, err := db.Query(`SELECT id, name, full_name, description, private, language, stargazers_count FROM ghub_repositories ORDER BY name LIMIT ?`, defaultListLimit)
+	rows, err := db.Query(`SELECT id, name, full_name, description, private, language, stargazers_count FROM ghub_repos ORDER BY name LIMIT ?`, defaultListLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -508,7 +508,7 @@ func listTeamUsers(teamSlug string) ([]TeamUser, error) {
 		return nil, err
 	}
 	defer db.Close()
-	rows, err := db.Query(`SELECT user_id, user_login, role FROM ghub_team_users WHERE team_slug = ? ORDER BY user_login LIMIT ?`, teamSlug, teamUsersListLimit)
+	rows, err := db.Query(`SELECT ghub_user_id, user_login, role FROM ghub_team_users WHERE team_slug = ? ORDER BY user_login LIMIT ?`, teamSlug, teamUsersListLimit)
 	if err != nil {
 		return nil, err
 	}

@@ -217,7 +217,7 @@ func PullRepositories(ctx context.Context, client *github.Client, db *sql.DB, or
 		if db == nil {
 			return fmt.Errorf("database connection is required to store repositories")
 		}
-		if _, err := db.Exec(`DELETE FROM ghub_repositories`); err != nil {
+		if _, err := db.Exec(`DELETE FROM ghub_repos`); err != nil {
 			return fmt.Errorf("failed to clear repositories table: %w", err)
 		}
 	}
@@ -255,7 +255,7 @@ func PullRepoUsers(ctx context.Context, client *github.Client, db *sql.DB, org, 
 		if db == nil {
 			return fmt.Errorf("database connection is required to store repository users")
 		}
-		if _, err := db.Exec(`DELETE FROM repo_users WHERE repo_name = ?`, repoName); err != nil {
+		if _, err := db.Exec(`DELETE FROM ghub_repos_users WHERE repos_name = ?`, repoName); err != nil {
 			return fmt.Errorf("failed to clear repository users for %s: %w", repoName, err)
 		}
 		// TODO: replace with upsert-based synchronization to avoid full delete for large repositories.
@@ -297,7 +297,7 @@ func PullRepoTeams(ctx context.Context, client *github.Client, db *sql.DB, org, 
 		if db == nil {
 			return fmt.Errorf("database connection is required to store repository teams")
 		}
-		if _, err := db.Exec(`DELETE FROM repo_teams WHERE repo_name = ?`, repoName); err != nil {
+		if _, err := db.Exec(`DELETE FROM ghub_repos_teams WHERE repos_name = ?`, repoName); err != nil {
 			return fmt.Errorf("failed to clear repository teams for %s: %w", repoName, err)
 		}
 	}
@@ -394,7 +394,7 @@ func PullAllReposTeams(ctx context.Context, client *github.Client, db *sql.DB, o
 			if db == nil {
 				return fmt.Errorf("database connection is required to store repository teams")
 			}
-			if _, err := db.Exec(`DELETE FROM repo_teams WHERE repo_name = ?`, repoName); err != nil {
+			if _, err := db.Exec(`DELETE FROM ghub_repos_teams WHERE repos_name = ?`, repoName); err != nil {
 				return fmt.Errorf("failed to clear repository teams for %s: %w", repoName, err)
 			}
 		}

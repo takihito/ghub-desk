@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"database/sql"
+	"encoding/json"
 	"io"
 	"os"
 	"strings"
@@ -90,7 +91,7 @@ func TestHandleViewTarget(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := HandleViewTarget(db, tt.req)
+			err := HandleViewTarget(db, tt.req, ViewOptions{})
 			if (err != nil) != tt.expectError {
 				t.Errorf("HandleViewTarget() error = %v, expectError %v", err, tt.expectError)
 			}
@@ -123,7 +124,7 @@ func TestViewUsers(t *testing.T) {
 	}
 
 	// Test ViewUsers - we can't easily test the output, but we can ensure it doesn't error
-	err = ViewUsers(db)
+	err = ViewUsers(db, FormatTable)
 	if err != nil {
 		t.Errorf("ViewUsers() error = %v", err)
 	}
@@ -149,7 +150,7 @@ func TestViewTeams(t *testing.T) {
 	}
 
 	// Test ViewTeams
-	err = ViewTeams(db)
+	err = ViewTeams(db, FormatTable)
 	if err != nil {
 		t.Errorf("ViewTeams() error = %v", err)
 	}
@@ -177,7 +178,7 @@ func TestViewRepositories(t *testing.T) {
 	}
 
 	// Test ViewRepositories
-	err = ViewRepositories(db)
+	err = ViewRepositories(db, FormatTable)
 	if err != nil {
 		t.Errorf("ViewRepositories() error = %v", err)
 	}
@@ -203,8 +204,52 @@ func TestViewRepoUsers(t *testing.T) {
 		t.Fatalf("Failed to store repo users: %v", err)
 	}
 
-	if err := ViewRepoUsers(db, repoName); err != nil {
+	if err := ViewRepoUsers(db, repoName, FormatTable); err != nil {
 		t.Errorf("ViewRepoUsers() error = %v", err)
+	}
+}
+
+func TestViewRepoUsersJSON(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repoName := "json-repo"
+	users := []*github.User{
+		{ID: github.Int64(10), Login: github.String("first")},
+		{ID: github.Int64(20), Login: github.String("second")},
+	}
+
+	if err := StoreRepoUsers(db, repoName, users); err != nil {
+		t.Fatalf("failed to store repo users: %v", err)
+	}
+
+	out, err := captureOutput(t, func() error {
+		return ViewRepoUsers(db, repoName, FormatJSON)
+	})
+	if err != nil {
+		t.Fatalf("ViewRepoUsers JSON error: %v", err)
+	}
+
+	result := struct {
+		Repository string `json:"repository"`
+		Users      []struct {
+			UserID int64  `json:"user_id"`
+			Login  string `json:"login"`
+		} `json:"users"`
+	}{}
+
+	if err := json.Unmarshal([]byte(strings.TrimSpace(out)), &result); err != nil {
+		t.Fatalf("failed to parse JSON output: %v\noutput: %s", err, out)
+	}
+
+	if result.Repository != repoName {
+		t.Fatalf("expected repository %q, got %q", repoName, result.Repository)
+	}
+	if len(result.Users) != 2 {
+		t.Fatalf("expected 2 users, got %d", len(result.Users))
+	}
+	if result.Users[0].Login != "first" || result.Users[1].Login != "second" {
+		t.Fatalf("unexpected user order: %+v", result.Users)
 	}
 }
 
@@ -213,6 +258,10 @@ func TestViewRepoTeams(t *testing.T) {
 	defer db.Close()
 
 	repoName := "test-repo"
+	repo := &github.Repository{ID: github.Int64(1010), Name: github.String(repoName)}
+	if err := StoreRepositories(db, []*github.Repository{repo}); err != nil {
+		t.Fatalf("failed to store repository: %v", err)
+	}
 	teams := []*github.Team{
 		{
 			ID:          github.Int64(1),
@@ -236,7 +285,7 @@ func TestViewRepoTeams(t *testing.T) {
 		t.Fatalf("Failed to store repo teams: %v", err)
 	}
 
-	if err := ViewRepoTeams(db, repoName); err != nil {
+	if err := ViewRepoTeams(db, repoName, FormatTable); err != nil {
 		t.Errorf("ViewRepoTeams() error = %v", err)
 	}
 }
@@ -267,7 +316,7 @@ func TestViewAllRepositoriesTeams(t *testing.T) {
 	}
 
 	output, err := captureOutput(t, func() error {
-		return ViewAllRepositoriesTeams(db)
+		return ViewAllRepositoriesTeams(db, FormatTable)
 	})
 	if err != nil {
 		t.Fatalf("ViewAllRepositoriesTeams returned error: %v", err)
@@ -318,7 +367,7 @@ func TestViewAllTeamsUsers(t *testing.T) {
 	}
 
 	output, err := captureOutput(t, func() error {
-		return ViewAllTeamsUsers(db)
+		return ViewAllTeamsUsers(db, FormatTable)
 	})
 	if err != nil {
 		t.Fatalf("ViewAllTeamsUsers returned error: %v", err)
@@ -389,7 +438,7 @@ func TestViewUserRepositories(t *testing.T) {
 	}
 
 	output, err := captureOutput(t, func() error {
-		return ViewUserRepositories(db, "alice")
+		return ViewUserRepositories(db, "alice", FormatTable)
 	})
 	if err != nil {
 		t.Fatalf("ViewUserRepositories returned error: %v", err)
@@ -420,7 +469,7 @@ func TestViewUserRepositories_NoData(t *testing.T) {
 	defer db.Close()
 
 	output, err := captureOutput(t, func() error {
-		return ViewUserRepositories(db, "nobody")
+		return ViewUserRepositories(db, "nobody", FormatTable)
 	})
 	if err != nil {
 		t.Fatalf("ViewUserRepositories returned error: %v", err)
@@ -465,13 +514,13 @@ func TestViewTeamUsers(t *testing.T) {
 	}
 
 	// Test ViewTeamUsers
-	err = ViewTeamUsers(db, "test-team")
+	err = ViewTeamUsers(db, "test-team", FormatTable)
 	if err != nil {
 		t.Errorf("ViewTeamUsers() error = %v", err)
 	}
 
 	// Test with non-existent team
-	err = ViewTeamUsers(db, "non-existent-team")
+	err = ViewTeamUsers(db, "non-existent-team", FormatTable)
 	if err != nil {
 		t.Errorf("ViewTeamUsers() should handle non-existent team gracefully, error = %v", err)
 	}
@@ -482,7 +531,7 @@ func TestViewTokenPermission(t *testing.T) {
 	defer db.Close()
 
 	// Test with no data (should not error, just print message)
-	err := ViewTokenPermission(db)
+	err := ViewTokenPermission(db, FormatTable)
 	if err != nil {
 		t.Errorf("ViewTokenPermission() with no data error = %v", err)
 	}
@@ -500,7 +549,7 @@ func TestViewTokenPermission(t *testing.T) {
 	}
 
 	// Test ViewTokenPermission with data
-	err = ViewTokenPermission(db)
+	err = ViewTokenPermission(db, FormatTable)
 	if err != nil {
 		t.Errorf("ViewTokenPermission() with data error = %v", err)
 	}
@@ -511,7 +560,7 @@ func TestViewOutsideUsers(t *testing.T) {
 	defer db.Close()
 
 	// Test with empty table
-	err := ViewOutsideUsers(db)
+	err := ViewOutsideUsers(db, FormatTable)
 	if err != nil {
 		t.Errorf("ViewOutsideUsers() with empty table error = %v", err)
 	}
@@ -526,7 +575,7 @@ func TestViewOutsideUsers(t *testing.T) {
 	}
 
 	// Test ViewOutsideUsers with data
-	err = ViewOutsideUsers(db)
+	err = ViewOutsideUsers(db, FormatTable)
 	if err != nil {
 		t.Errorf("ViewOutsideUsers() with data error = %v", err)
 	}

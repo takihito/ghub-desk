@@ -28,7 +28,7 @@ func TestInitDatabase(t *testing.T) {
 	}
 
 	// Verify tables were created
-	tables := []string{"ghub_users", "ghub_teams", "ghub_repositories", "ghub_team_users", "ghub_token_permissions", "ghub_outside_users", "repo_users"}
+	tables := []string{"ghub_users", "ghub_teams", "ghub_repos", "ghub_team_users", "ghub_token_permissions", "ghub_outside_users", "ghub_repos_users", "ghub_repos_teams"}
 	for _, table := range tables {
 		var tableName string
 		err := db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name=?", table).Scan(&tableName)
@@ -260,7 +260,7 @@ func TestStoreRepositories(t *testing.T) {
 
 	// Verify repository was stored
 	var count int
-	err = db.QueryRow("SELECT COUNT(*) FROM ghub_repositories").Scan(&count)
+	err = db.QueryRow("SELECT COUNT(*) FROM ghub_repos").Scan(&count)
 	if err != nil {
 		t.Fatalf("Failed to count repositories: %v", err)
 	}
@@ -433,6 +433,11 @@ func TestRepoUsersOperations(t *testing.T) {
 	}
 
 	repoName := "test-repo"
+	repo := &github.Repository{ID: github.Int64(501), Name: github.String(repoName)}
+
+	if err := StoreRepositories(db, []*github.Repository{repo}); err != nil {
+		t.Fatalf("failed to seed repository metadata: %v", err)
+	}
 	users := []*github.User{
 		{
 			ID:    github.Int64(101),
@@ -457,7 +462,7 @@ func TestRepoUsersOperations(t *testing.T) {
 	}
 
 	var count int
-	if err := db.QueryRow("SELECT COUNT(*) FROM repo_users WHERE repo_name = ?", repoName).Scan(&count); err != nil {
+	if err := db.QueryRow("SELECT COUNT(*) FROM ghub_repos_users WHERE repos_name = ?", repoName).Scan(&count); err != nil {
 		t.Fatalf("Failed to count repo users: %v", err)
 	}
 	if count != 2 {
@@ -465,17 +470,25 @@ func TestRepoUsersOperations(t *testing.T) {
 	}
 
 	var perm sql.NullString
-	if err := db.QueryRow("SELECT permission FROM repo_users WHERE repo_name = ? AND user_login = ?", repoName, "collab1").Scan(&perm); err != nil {
+	if err := db.QueryRow("SELECT permission FROM ghub_repos_users WHERE repos_name = ? AND user_login = ?", repoName, "collab1").Scan(&perm); err != nil {
 		t.Fatalf("failed to fetch permission: %v", err)
 	}
 	if perm.String != "admin" {
 		t.Fatalf("expected collab1 permission admin, got %q", perm.String)
 	}
-	if err := db.QueryRow("SELECT permission FROM repo_users WHERE repo_name = ? AND user_login = ?", repoName, "collab2").Scan(&perm); err != nil {
+	if err := db.QueryRow("SELECT permission FROM ghub_repos_users WHERE repos_name = ? AND user_login = ?", repoName, "collab2").Scan(&perm); err != nil {
 		t.Fatalf("failed to fetch permission: %v", err)
 	}
 	if perm.String != "push" {
 		t.Fatalf("expected collab2 permission push, got %q", perm.String)
+	}
+
+	var repoID sql.NullInt64
+	if err := db.QueryRow("SELECT ghub_repos_id FROM ghub_repos_users WHERE repos_name = ? AND user_login = ?", repoName, "collab1").Scan(&repoID); err != nil {
+		t.Fatalf("failed to fetch ghub_repos_id: %v", err)
+	}
+	if !repoID.Valid || repoID.Int64 != repo.GetID() {
+		t.Fatalf("expected ghub_repos_id %d for collab1, got %v", repo.GetID(), repoID)
 	}
 
 	// Upsert a new collaborator
@@ -486,18 +499,24 @@ func TestRepoUsersOperations(t *testing.T) {
 		t.Fatalf("UpsertRepoUser error: %v", err)
 	}
 
-	if err := db.QueryRow("SELECT COUNT(*) FROM repo_users WHERE repo_name = ?", repoName).Scan(&count); err != nil {
+	if err := db.QueryRow("SELECT COUNT(*) FROM ghub_repos_users WHERE repos_name = ?", repoName).Scan(&count); err != nil {
 		t.Fatalf("Failed to count repo users after upsert: %v", err)
 	}
 	if count != 3 {
 		t.Fatalf("expected 3 repo users after upsert, got %d", count)
 	}
 
-	if err := db.QueryRow("SELECT permission FROM repo_users WHERE repo_name = ? AND user_login = ?", repoName, "collab3").Scan(&perm); err != nil {
+	if err := db.QueryRow("SELECT permission FROM ghub_repos_users WHERE repos_name = ? AND user_login = ?", repoName, "collab3").Scan(&perm); err != nil {
 		t.Fatalf("failed to fetch permission after upsert: %v", err)
 	}
 	if perm.Valid && perm.String != "" {
 		t.Fatalf("expected empty permission for collab3, got %q", perm.String)
+	}
+	if err := db.QueryRow("SELECT ghub_repos_id FROM ghub_repos_users WHERE repos_name = ? AND user_login = ?", repoName, "collab3").Scan(&repoID); err != nil {
+		t.Fatalf("failed to fetch ghub_repos_id after upsert: %v", err)
+	}
+	if !repoID.Valid || repoID.Int64 != repo.GetID() {
+		t.Fatalf("expected ghub_repos_id %d for collab3, got %v", repo.GetID(), repoID)
 	}
 
 	// Delete one collaborator
@@ -505,7 +524,7 @@ func TestRepoUsersOperations(t *testing.T) {
 		t.Fatalf("DeleteRepoUser error: %v", err)
 	}
 
-	if err := db.QueryRow("SELECT COUNT(*) FROM repo_users WHERE repo_name = ?", repoName).Scan(&count); err != nil {
+	if err := db.QueryRow("SELECT COUNT(*) FROM ghub_repos_users WHERE repos_name = ?", repoName).Scan(&count); err != nil {
 		t.Fatalf("Failed to count repo users after delete: %v", err)
 	}
 	if count != 2 {
@@ -513,7 +532,7 @@ func TestRepoUsersOperations(t *testing.T) {
 	}
 
 	var created, updated sql.NullString
-	if err := db.QueryRow("SELECT created_at, updated_at FROM repo_users WHERE repo_name = ? AND user_login = ?", repoName, "collab2").Scan(&created, &updated); err != nil {
+	if err := db.QueryRow("SELECT created_at, updated_at FROM ghub_repos_users WHERE repos_name = ? AND user_login = ?", repoName, "collab2").Scan(&created, &updated); err != nil {
 		t.Fatalf("failed to fetch timestamps: %v", err)
 	}
 	if !created.Valid || created.String == "" {
@@ -616,6 +635,10 @@ func TestStoreRepoTeams(t *testing.T) {
 	}
 
 	repoName := "test-repo"
+	repo := &github.Repository{ID: github.Int64(201), Name: github.String(repoName)}
+	if err := StoreRepositories(db, []*github.Repository{repo}); err != nil {
+		t.Fatalf("failed to seed repository: %v", err)
+	}
 	teams := []*github.Team{
 		{
 			ID:          github.Int64(11),
@@ -640,7 +663,7 @@ func TestStoreRepoTeams(t *testing.T) {
 	}
 
 	var count int
-	if err := db.QueryRow("SELECT COUNT(*) FROM repo_teams WHERE repo_name = ?", repoName).Scan(&count); err != nil {
+	if err := db.QueryRow("SELECT COUNT(*) FROM ghub_repos_teams WHERE repos_name = ?", repoName).Scan(&count); err != nil {
 		t.Fatalf("Failed to count repo teams: %v", err)
 	}
 	if count != len(teams) {
@@ -672,7 +695,7 @@ func TestStoreRepoTeams(t *testing.T) {
 	}
 
 	var description sql.NullString
-	if err := db.QueryRow("SELECT description FROM repo_teams WHERE repo_name = ? AND id = ?", repoName, 11).Scan(&description); err != nil {
+	if err := db.QueryRow("SELECT description FROM ghub_repos_teams WHERE repos_name = ? AND id = ?", repoName, 11).Scan(&description); err != nil {
 		t.Fatalf("failed to fetch updated description: %v", err)
 	}
 	if description.String != updatedDesc {
@@ -711,7 +734,7 @@ func TestUpsertAndDeleteTeamUser(t *testing.T) {
 		scannedLogin  string
 		scannedRole   string
 	)
-	row := db.QueryRow(`SELECT team_id, user_id, user_login, role FROM ghub_team_users WHERE team_slug = ?`, team.GetSlug())
+	row := db.QueryRow(`SELECT ghub_team_id, ghub_user_id, user_login, role FROM ghub_team_users WHERE team_slug = ?`, team.GetSlug())
 	if err := row.Scan(&scannedTeamID, &scannedUserID, &scannedLogin, &scannedRole); err != nil {
 		t.Fatalf("failed to scan team user row: %v", err)
 	}

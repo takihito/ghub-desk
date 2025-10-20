@@ -124,7 +124,7 @@ func createTables(db *sql.DB) error {
 			created_at TEXT,
 			updated_at TEXT
 		)`,
-		`CREATE TABLE IF NOT EXISTS ghub_repositories (
+		`CREATE TABLE IF NOT EXISTS ghub_repos (
 			id INTEGER PRIMARY KEY,
 			name TEXT UNIQUE,
 			full_name TEXT,
@@ -140,13 +140,14 @@ func createTables(db *sql.DB) error {
 			pushed_at TEXT
 		)`,
 		`CREATE TABLE IF NOT EXISTS ghub_team_users (
-			team_id INTEGER,
-			user_id INTEGER,
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			ghub_team_id INTEGER,
+			ghub_user_id INTEGER,
 			user_login TEXT,
 			team_slug TEXT,
 			role TEXT,
 			created_at TEXT,
-			PRIMARY KEY (team_id, user_id)
+			UNIQUE (ghub_team_id, ghub_user_id)
 		)`,
 		`CREATE TABLE IF NOT EXISTS ghub_token_permissions (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -171,18 +172,22 @@ func createTables(db *sql.DB) error {
 			created_at TEXT,
 			updated_at TEXT
 		)`,
-		`CREATE TABLE IF NOT EXISTS repo_users (
-			repo_name TEXT,
+		`CREATE TABLE IF NOT EXISTS ghub_repos_users (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			ghub_repos_id INTEGER,
+			repos_name TEXT,
 			user_login TEXT,
-			user_id INTEGER,
+			ghub_user_id INTEGER,
 			permission TEXT,
 			created_at TEXT,
 			updated_at TEXT,
-			PRIMARY KEY (repo_name, user_login)
+			UNIQUE (repos_name, user_login)
 		)`,
-		`CREATE TABLE IF NOT EXISTS repo_teams (
-			repo_name TEXT NOT NULL,
+		`CREATE TABLE IF NOT EXISTS ghub_repos_teams (
 			id INTEGER NOT NULL,
+			ghub_repos_id INTEGER,
+			repos_name TEXT NOT NULL,
+			ghub_team_id INTEGER,
 			team_name TEXT NOT NULL,
 			team_slug TEXT NOT NULL,
 			description TEXT,
@@ -190,7 +195,7 @@ func createTables(db *sql.DB) error {
 			permission TEXT,
 			created_at TEXT NOT NULL,
 			updated_at TEXT NOT NULL,
-			PRIMARY KEY (repo_name, id)
+			PRIMARY KEY (repos_name, id)
 		)`,
 	}
 
@@ -203,9 +208,9 @@ func createTables(db *sql.DB) error {
 	// indexes
 	indexes := []string{
 		`CREATE INDEX IF NOT EXISTS idx_token_permissions_created_at ON ghub_token_permissions(created_at)`,
-		`CREATE INDEX IF NOT EXISTS idx_repo_users_repo_name ON repo_users(repo_name)`,
-		`CREATE INDEX IF NOT EXISTS idx_repo_users_user_login ON repo_users(user_login)`,
-		`CREATE INDEX IF NOT EXISTS idx_repo_teams_repo_name ON repo_teams(repo_name)`,
+		`CREATE INDEX IF NOT EXISTS idx_ghub_repos_users_repos_name ON ghub_repos_users(repos_name)`,
+		`CREATE INDEX IF NOT EXISTS idx_ghub_repos_users_user_login ON ghub_repos_users(user_login)`,
+		`CREATE INDEX IF NOT EXISTS idx_ghub_repos_teams_repos_name ON ghub_repos_teams(repos_name)`,
 	}
 	for _, idx := range indexes {
 		if _, err := db.Exec(idx); err != nil {
@@ -245,12 +250,12 @@ func resolvedCollaboratorPermission(u *github.User) string {
 	return normalizePermissionValue(highest)
 }
 
-// ListRepositoryNames returns repository names stored in ghub_repositories ordered alphabetically.
+// ListRepositoryNames returns repository names stored in ghub_repos ordered alphabetically.
 func ListRepositoryNames(db *sql.DB) ([]string, error) {
 	if db == nil {
 		return nil, fmt.Errorf("database connection is required to list repositories")
 	}
-	rows, err := db.Query(`SELECT name FROM ghub_repositories ORDER BY name`)
+	rows, err := db.Query(`SELECT name FROM ghub_repos ORDER BY name`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query repositories: %w", err)
 	}
@@ -386,7 +391,7 @@ func StoreRepositories(db *sql.DB, repos []*github.Repository) error {
 	}
 
 	columns := []string{"id", "name", "full_name", "description", "private", "language", "size", "stargazers_count", "watchers_count", "forks_count", "created_at", "updated_at", "pushed_at"}
-	if err := insertOrReplaceBatch(db, "ghub_repositories", columns, rows); err != nil {
+	if err := insertOrReplaceBatch(db, "ghub_repos", columns, rows); err != nil {
 		return fmt.Errorf("failed to insert repositories: %w", err)
 	}
 	return nil
@@ -422,7 +427,7 @@ func StoreTeamUsers(db *sql.DB, users []*github.User, teamSlug string) error {
 		})
 	}
 
-	columns := []string{"team_id", "user_id", "user_login", "team_slug", "role", "created_at"}
+	columns := []string{"ghub_team_id", "ghub_user_id", "user_login", "team_slug", "role", "created_at"}
 	if err := insertOrReplaceBatch(db, "ghub_team_users", columns, rows); err != nil {
 		return fmt.Errorf("failed to insert team users for %s: %w", teamSlug, err)
 	}
@@ -444,7 +449,7 @@ func UpsertTeamUser(db *sql.DB, teamSlug string, teamID int64, user *github.User
 		role = "member"
 	}
 	now := time.Now().Format("2006-01-02 15:04:05")
-	_, err := db.Exec(`INSERT OR REPLACE INTO ghub_team_users(team_id, user_id, user_login, team_slug, role, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+	_, err := db.Exec(`INSERT OR REPLACE INTO ghub_team_users(ghub_team_id, ghub_user_id, user_login, team_slug, role, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
 		teamID, user.GetID(), user.GetLogin(), teamSlug, role, now)
 	if err != nil {
 		return fmt.Errorf("failed to upsert team user %s for team %s: %w", user.GetLogin(), teamSlug, err)
@@ -531,11 +536,24 @@ func StoreRepoUsers(db *sql.DB, repoName string, users []*github.User) error {
 		return nil
 	}
 
+	repoID, repoFound, err := lookupRepositoryID(db, repoName)
+	if err != nil {
+		return fmt.Errorf("failed to look up repository ID for %s: %w", repoName, err)
+	}
+	if !repoFound {
+		fmt.Printf("WARNING: repository '%s' not found in ghub_repos. Run 'ghub-desk pull --repos' first to populate repository metadata.\n", repoName)
+	}
+
 	now := time.Now().Format("2006-01-02 15:04:05")
 	rows := make([][]any, 0, len(users))
+	var repoIDValue any
+	if repoFound {
+		repoIDValue = repoID
+	}
 	for _, u := range users {
 		resolvedPermission := resolvedCollaboratorPermission(u)
 		rows = append(rows, []any{
+			repoIDValue,
 			repoName,
 			u.GetLogin(),
 			u.GetID(),
@@ -545,8 +563,8 @@ func StoreRepoUsers(db *sql.DB, repoName string, users []*github.User) error {
 		})
 	}
 
-	columns := []string{"repo_name", "user_login", "user_id", "permission", "created_at", "updated_at"}
-	if err := insertOrReplaceBatch(db, "repo_users", columns, rows); err != nil {
+	columns := []string{"ghub_repos_id", "repos_name", "user_login", "ghub_user_id", "permission", "created_at", "updated_at"}
+	if err := insertOrReplaceBatch(db, "ghub_repos_users", columns, rows); err != nil {
 		return fmt.Errorf("failed to store repository users for %s: %w", repoName, err)
 	}
 	return nil
@@ -566,11 +584,38 @@ func StoreRepoTeams(db *sql.DB, repoName string, teams []*github.Team) error {
 	}
 
 	now := time.Now().Format("2006-01-02 15:04:05")
+	repoID, repoFound, err := lookupRepositoryID(db, repoName)
+	if err != nil {
+		return fmt.Errorf("failed to look up repository ID for %s: %w", repoName, err)
+	}
+	if !repoFound {
+		fmt.Printf("WARNING: repository '%s' not found in ghub_repos. Run 'ghub-desk pull --repos' first to populate repository metadata.\n", repoName)
+	}
+	var repoIDValue any
+	if repoFound {
+		repoIDValue = repoID
+	}
+
 	rows := make([][]any, 0, len(teams))
 	for _, t := range teams {
+		teamID := t.GetID()
+		teamLocalID, teamFound, err := lookupTeamID(db, t.GetSlug())
+		if err != nil {
+			return fmt.Errorf("failed to look up team ID for %s: %w", t.GetSlug(), err)
+		}
+		if !teamFound {
+			fmt.Printf("WARNING: team '%s' not found in ghub_teams. Run 'ghub-desk pull --teams' first to populate team metadata.\n", t.GetSlug())
+		}
+		var teamLocalIDValue any
+		if teamFound {
+			teamLocalIDValue = teamLocalID
+		}
+
 		rows = append(rows, []any{
 			repoName,
-			t.GetID(),
+			teamID,
+			repoIDValue,
+			teamLocalIDValue,
 			t.GetName(),
 			t.GetSlug(),
 			t.GetDescription(),
@@ -581,8 +626,8 @@ func StoreRepoTeams(db *sql.DB, repoName string, teams []*github.Team) error {
 		})
 	}
 
-	columns := []string{"repo_name", "id", "team_name", "team_slug", "description", "privacy", "permission", "created_at", "updated_at"}
-	if err := insertOrReplaceBatch(db, "repo_teams", columns, rows); err != nil {
+	columns := []string{"repos_name", "id", "ghub_repos_id", "ghub_team_id", "team_name", "team_slug", "description", "privacy", "permission", "created_at", "updated_at"}
+	if err := insertOrReplaceBatch(db, "ghub_repos_teams", columns, rows); err != nil {
 		return fmt.Errorf("failed to store repository teams for %s: %w", repoName, err)
 	}
 	return nil
@@ -601,8 +646,18 @@ func UpsertRepoUser(db *sql.DB, repoName string, user *github.User) error {
 	}
 	now := time.Now().Format("2006-01-02 15:04:05")
 	resolvedPermission := resolvedCollaboratorPermission(user)
-	_, err := db.Exec(`INSERT OR REPLACE INTO repo_users(repo_name, user_login, user_id, permission, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
-		repoName, user.GetLogin(), user.GetID(), resolvedPermission, now, now)
+	repoID, repoFound, err := lookupRepositoryID(db, repoName)
+	if err != nil {
+		return fmt.Errorf("failed to look up repository ID for %s: %w", repoName, err)
+	}
+	var repoIDValue any
+	if repoFound {
+		repoIDValue = repoID
+	} else {
+		fmt.Printf("WARNING: repository '%s' not found in ghub_repos. Run 'ghub-desk pull --repos' first to populate repository metadata.\n", repoName)
+	}
+	_, err = db.Exec(`INSERT OR REPLACE INTO ghub_repos_users(ghub_repos_id, repos_name, user_login, ghub_user_id, permission, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		repoIDValue, repoName, user.GetLogin(), user.GetID(), resolvedPermission, now, now)
 	if err != nil {
 		return fmt.Errorf("failed to upsert repository user %s for repo %s: %w", user.GetLogin(), repoName, err)
 	}
@@ -617,7 +672,7 @@ func DeleteRepoUser(db *sql.DB, repoName, userLogin string) error {
 	if repoName == "" || userLogin == "" {
 		return fmt.Errorf("repository name and user login are required to delete repository user")
 	}
-	if _, err := db.Exec(`DELETE FROM repo_users WHERE repo_name = ? AND user_login = ?`, repoName, userLogin); err != nil {
+	if _, err := db.Exec(`DELETE FROM ghub_repos_users WHERE repos_name = ? AND user_login = ?`, repoName, userLogin); err != nil {
 		return fmt.Errorf("failed to delete repository user %s for repo %s: %w", userLogin, repoName, err)
 	}
 	return nil
@@ -629,4 +684,34 @@ func formatTime(t github.Timestamp) string {
 		return ""
 	}
 	return t.Format("2006-01-02 15:04:05")
+}
+
+func lookupRepositoryID(db *sql.DB, repoName string) (int64, bool, error) {
+	if db == nil {
+		return 0, false, fmt.Errorf("database connection is required to look up repository ID")
+	}
+	var repoID int64
+	err := db.QueryRow(`SELECT id FROM ghub_repos WHERE name = ?`, repoName).Scan(&repoID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, false, nil
+		}
+		return 0, false, err
+	}
+	return repoID, true, nil
+}
+
+func lookupTeamID(db *sql.DB, teamSlug string) (int64, bool, error) {
+	if db == nil {
+		return 0, false, fmt.Errorf("database connection is required to look up team ID")
+	}
+	var teamID int64
+	err := db.QueryRow(`SELECT id FROM ghub_teams WHERE slug = ?`, teamSlug).Scan(&teamID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, false, nil
+		}
+		return 0, false, err
+	}
+	return teamID, true, nil
 }
