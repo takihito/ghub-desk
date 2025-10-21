@@ -24,6 +24,7 @@ type Config struct {
 	GitHubApp    GitHubApp `yaml:"github_app"`
 	MCP          MCPConfig `yaml:"mcp"`
 	DatabasePath string    `yaml:"database_path"`
+	SessionPath  string    `yaml:"session_path"`
 }
 
 // GitHubApp holds GitHub App specific configuration
@@ -95,6 +96,9 @@ func LoadConfigNoValidate(customPath string) (*Config, error) {
 	if dbp := os.Getenv("GHUB_DESK_DB_PATH"); dbp != "" {
 		cfg.DatabasePath = dbp
 	}
+	if sp := os.Getenv("GHUB_DESK_SESSION_PATH"); sp != "" {
+		cfg.SessionPath = sp
+	}
 	if appID := os.Getenv("GHUB_DESK_APP_ID"); appID != "" {
 		v, err := strconv.ParseInt(appID, 10, 64)
 		if err == nil { // best-effort for non-validating load
@@ -109,6 +113,10 @@ func LoadConfigNoValidate(customPath string) (*Config, error) {
 	}
 	if key := os.Getenv("GHUB_DESK_PRIVATE_KEY"); key != "" {
 		cfg.GitHubApp.PrivateKey = key
+	}
+
+	if cfg.SessionPath == "" {
+		cfg.SessionPath = DefaultSessionPath()
 	}
 
 	return cfg, nil
@@ -158,6 +166,32 @@ func validateConfig(cfg *Config) error {
 		}
 	}
 
+	if cfg.SessionPath == "" {
+		cfg.SessionPath = DefaultSessionPath()
+	} else {
+		cleaned := filepath.Clean(cfg.SessionPath)
+		if strings.ContainsRune(cleaned, '\x00') || filepath.Base(cleaned) == "." || filepath.Base(cleaned) == ".." {
+			return fmt.Errorf("invalid session_path: contains invalid characters or basename")
+		}
+		if filepath.IsAbs(cleaned) {
+			cfg.SessionPath = cleaned
+		} else {
+			wd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("could not get working directory: %w", err)
+			}
+			abs := filepath.Clean(filepath.Join(wd, cleaned))
+			rel, err := filepath.Rel(wd, abs)
+			if err != nil {
+				return fmt.Errorf("invalid session_path: %w", err)
+			}
+			if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+				return fmt.Errorf("invalid session_path: must reside within current working directory")
+			}
+			cfg.SessionPath = abs
+		}
+	}
+
 	return nil
 }
 
@@ -172,4 +206,12 @@ func ResolveConfigPath(customPath string) (string, error) {
 		return "", fmt.Errorf("could not get user home directory: %w", err)
 	}
 	return filepath.Join(home, ".config", AppName, "config.yaml"), nil
+}
+
+// DefaultSessionPath returns the default session file location.
+func DefaultSessionPath() string {
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		return filepath.Join(home, ".config", AppName, "session.json")
+	}
+	return "session.json"
 }

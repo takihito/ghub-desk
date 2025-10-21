@@ -3,14 +3,19 @@ package cmd
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"os"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"ghub-desk/config"
 	"ghub-desk/github"
 	"ghub-desk/mcp"
+	"ghub-desk/session"
 	"ghub-desk/store"
 
 	"github.com/alecthomas/kong"
@@ -219,13 +224,29 @@ func (p *PullCmd) Run(cli *CLI) error {
 	if cfg.DatabasePath != "" {
 		store.SetDBPath(cfg.DatabasePath)
 	}
+	session.SetPath(cfg.SessionPath)
 
 	// Initialize GitHub client
 	client, err := github.InitClient(cfg)
 	if err != nil {
 		return fmt.Errorf("github client initialization error: %w", err)
 	}
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(sigChan)
+
+	signalSeen := make(chan os.Signal, 1)
+	go func() {
+		select {
+		case s := <-sigChan:
+			signalSeen <- s
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
 
 	var db *sql.DB
 	if storeData || target == "all-teams-users" || target == "all-repos-teams" {
@@ -259,19 +280,116 @@ func (p *PullCmd) Run(cli *CLI) error {
 		}
 		return fmt.Errorf("pull コマンドでは --user-repos を使用できません。view コマンドで --user-repos を指定してください")
 	}
-	return github.HandlePullTarget(
+	sessionKey := buildPullSessionKey(target, req, storeData, p.Stdout, p.IntervalTime)
+	pullSession, err := session.LoadPull(sessionKey)
+	resuming := err == nil
+	if err != nil && !errors.Is(err, session.ErrNotFound) {
+		return fmt.Errorf("セッションの読み込みに失敗しました: %w", err)
+	}
+	expectedInterval := p.IntervalTime.String()
+	if resuming {
+		if pullSession.Target != target ||
+			pullSession.Store != storeData ||
+			pullSession.Stdout != p.Stdout ||
+			pullSession.Interval != expectedInterval ||
+			(pullSession.TeamSlug != "" && pullSession.TeamSlug != req.TeamSlug) ||
+			(pullSession.RepoName != "" && pullSession.RepoName != req.RepoName) ||
+			(pullSession.UserLogin != "" && pullSession.UserLogin != req.UserLogin) {
+			fmt.Println("既存のセッションと現在のオプションが異なるため、新しいセッションを開始します。")
+			resuming = false
+		}
+	}
+	if !resuming {
+		pullSession = session.NewPullSession(sessionKey, target)
+		pullSession.Store = storeData
+		pullSession.Stdout = p.Stdout
+		pullSession.Interval = expectedInterval
+		pullSession.TeamSlug = req.TeamSlug
+		pullSession.RepoName = req.RepoName
+		pullSession.UserLogin = req.UserLogin
+		if err := session.SavePull(pullSession); err != nil {
+			return fmt.Errorf("セッションの初期化に失敗しました: %w", err)
+		}
+	} else {
+		fmt.Printf("前回の pull セッションを再開します (endpoint=%s, 最終ページ=%d, 取得件数=%d)\n",
+			pullSession.Endpoint, pullSession.LastPage, pullSession.FetchedCount)
+	}
+
+	recorder := session.NewProgressRecorder(pullSession)
+	pullOptions := github.PullOptions{
+		Store:    storeData,
+		Stdout:   p.Stdout,
+		Interval: p.IntervalTime,
+		Resume: github.ResumeState{
+			Endpoint: pullSession.Endpoint,
+			Metadata: pullSession.Metadata,
+			LastPage: pullSession.LastPage,
+			Count:    pullSession.FetchedCount,
+		},
+		Progress: recorder,
+	}
+
+	err = github.HandlePullTarget(
 		ctx,
 		client,
 		db,
 		cfg.Organization,
 		req,
 		cfg.GitHubToken,
-		github.PullOptions{
-			Store:    storeData,
-			Stdout:   p.Stdout,
-			Interval: p.IntervalTime,
-		},
+		pullOptions,
 	)
+
+	var receivedSignal os.Signal
+	select {
+	case receivedSignal = <-signalSeen:
+	default:
+	}
+
+	if errors.Is(err, context.Canceled) {
+		printInterruptionSummary(receivedSignal, pullSession)
+		return nil
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if err := session.RemovePull(sessionKey); err != nil && !errors.Is(err, session.ErrNotFound) {
+		return fmt.Errorf("セッションの削除に失敗しました: %w", err)
+	}
+
+	return nil
+}
+
+func buildPullSessionKey(target string, req github.TargetRequest, store bool, stdout bool, interval time.Duration) string {
+	parts := []string{target}
+	if req.TeamSlug != "" {
+		parts = append(parts, "team:"+req.TeamSlug)
+	}
+	if req.RepoName != "" {
+		parts = append(parts, "repo:"+req.RepoName)
+	}
+	if req.UserLogin != "" {
+		parts = append(parts, "user:"+req.UserLogin)
+	}
+	parts = append(parts,
+		fmt.Sprintf("store:%t", store),
+		fmt.Sprintf("stdout:%t", stdout),
+		fmt.Sprintf("interval:%s", interval))
+	return strings.Join(parts, "|")
+}
+
+func printInterruptionSummary(sig os.Signal, sess *session.PullSession) {
+	reason := "context canceled"
+	if sig != nil {
+		reason = sig.String()
+	}
+	fmt.Printf("INFO: %s を受け取ったため pull を中断しました。\n", reason)
+	fmt.Printf("      endpoint=%s, 最終ページ=%d, 取得件数=%d\n", sess.Endpoint, sess.LastPage, sess.FetchedCount)
+	if len(sess.Metadata) > 0 {
+		fmt.Printf("      メタデータ: %v\n", sess.Metadata)
+	}
+	fmt.Printf("      中断状態は %s に保存されています。\n", session.Path())
 }
 
 // Run implements the view command execution
