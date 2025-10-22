@@ -286,24 +286,32 @@ func (p *PullCmd) Run(cli *CLI) error {
 	if err != nil && !errors.Is(err, session.ErrNotFound) {
 		return fmt.Errorf("セッションの読み込みに失敗しました: %w", err)
 	}
-	expectedInterval := p.IntervalTime.String()
+	expectedInterval := p.IntervalTime
 	if resuming {
-		if pullSession.Target != target ||
-			pullSession.Store != storeData ||
-			pullSession.Stdout != p.Stdout ||
-			pullSession.Interval != expectedInterval ||
-			(pullSession.TeamSlug != "" && pullSession.TeamSlug != req.TeamSlug) ||
-			(pullSession.RepoName != "" && pullSession.RepoName != req.RepoName) ||
-			(pullSession.UserLogin != "" && pullSession.UserLogin != req.UserLogin) {
-			fmt.Println("既存のセッションと現在のオプションが異なるため、新しいセッションを開始します。")
+		storedInterval, parseErr := time.ParseDuration(pullSession.Interval)
+		if parseErr != nil {
+			fmt.Printf("既存のセッションに無効な間隔値(%q)があるため、新しいセッションを開始します: %v\n", pullSession.Interval, parseErr)
 			resuming = false
+			storedInterval = expectedInterval
+		}
+		if resuming {
+			if pullSession.Target != target ||
+				pullSession.Store != storeData ||
+				pullSession.Stdout != p.Stdout ||
+				storedInterval != expectedInterval ||
+				(pullSession.TeamSlug != "" && pullSession.TeamSlug != req.TeamSlug) ||
+				(pullSession.RepoName != "" && pullSession.RepoName != req.RepoName) ||
+				(pullSession.UserLogin != "" && pullSession.UserLogin != req.UserLogin) {
+				fmt.Println("既存のセッションと現在のオプションが異なるため、新しいセッションを開始します。")
+				resuming = false
+			}
 		}
 	}
 	if !resuming {
 		pullSession = session.NewPullSession(sessionKey, target)
 		pullSession.Store = storeData
 		pullSession.Stdout = p.Stdout
-		pullSession.Interval = expectedInterval
+		pullSession.Interval = expectedInterval.String()
 		pullSession.TeamSlug = req.TeamSlug
 		pullSession.RepoName = req.RepoName
 		pullSession.UserLogin = req.UserLogin
