@@ -292,7 +292,6 @@ func (p *PullCmd) Run(cli *CLI) error {
 		if parseErr != nil {
 			fmt.Printf("既存のセッションに無効な間隔値(%q)があるため、新しいセッションを開始します: %v\n", pullSession.Interval, parseErr)
 			resuming = false
-			storedInterval = expectedInterval
 		}
 		if resuming {
 			if pullSession.Target != target ||
