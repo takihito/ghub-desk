@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"strconv"
 	"strings"
 	"time"
@@ -60,7 +61,8 @@ func (opts PullOptions) ForEndpoint(endpoint string, metadata map[string]string)
 	next := opts
 	next.StartPage = 1
 	next.InitialCount = 0
-	if opts.Resume.Endpoint == endpoint && metadataEqual(opts.Resume.Metadata, metadata) {
+	// maps.Equal handles nil maps and ensures order-independent comparison.
+	if opts.Resume.Endpoint == endpoint && maps.Equal(opts.Resume.Metadata, metadata) {
 		next.StartPage = opts.Resume.LastPage + 1
 		if next.StartPage < 1 {
 			next.StartPage = 1
@@ -69,22 +71,6 @@ func (opts PullOptions) ForEndpoint(endpoint string, metadata map[string]string)
 	}
 	next.Resume = ResumeState{}
 	return next
-}
-
-func metadataEqual(a, b map[string]string) bool {
-	if len(a) == 0 && len(b) == 0 {
-		return true
-	}
-	if len(a) != len(b) {
-		return false
-	}
-	for k, va := range a {
-		vb, ok := b[k]
-		if !ok || va != vb {
-			return false
-		}
-	}
-	return true
 }
 
 // HandlePullTarget processes different types of pull targets (users, teams, repos, team_users)
@@ -457,11 +443,14 @@ func PullAllReposTeams(ctx context.Context, client *github.Client, db *sql.DB, o
 
 	resumeState := opts.Resume
 	resumeRepoIndex := -1
-	if resumeState.Endpoint == "repos-teams" {
-		if idxStr, ok := resumeState.Metadata["repo_index"]; ok {
-			if idx, err := strconv.Atoi(idxStr); err == nil {
-				resumeRepoIndex = idx
-			}
+	if len(uniqueRepos) > 0 {
+		var logMsg string
+		// Ensure the stored resume state still points at an existing repository name.
+		// Matching by name prevents newly inserted repositories from causing the resume logic
+		// to skip the original in-progress repository.
+		resumeState, resumeRepoIndex, logMsg, _ = prepareResume(uniqueRepos, resumeState, "repos-teams", "repo", "repo_index", "repository", "repository name")
+		if logMsg != "" {
+			fmt.Print(logMsg)
 		}
 	}
 
@@ -489,11 +478,6 @@ func PullAllReposTeams(ctx context.Context, client *github.Client, db *sql.DB, o
 			}
 		}
 
-		// After applying resume to the matching repository, ensure subsequent iterations start fresh.
-		if resumeState.Endpoint == "repos-teams" && idx == resumeRepoIndex {
-			resumeState = ResumeState{}
-		}
-
 		teams, err := fetchAndStore(
 			ctx, client,
 			func(ctx context.Context, org string, optsList *github.ListOptions) ([]*github.Team, *github.Response, error) {
@@ -519,6 +503,12 @@ func PullAllReposTeams(ctx context.Context, client *github.Client, db *sql.DB, o
 				Repo:  repoName,
 				Teams: teams,
 			})
+		}
+
+		if resumeState.Endpoint == "repos-teams" && resumeRepoIndex >= 0 && idx == resumeRepoIndex {
+			// After processing the resumed repository, clear state so following repos start fresh.
+			resumeState = ResumeState{}
+			resumeRepoIndex = -1
 		}
 	}
 
@@ -638,11 +628,13 @@ func PullAllTeamsUsers(ctx context.Context, client *github.Client, db *sql.DB, o
 	}
 	resumeState := opts.Resume
 	resumeTeamIndex := -1
-	if resumeState.Endpoint == "team-user" {
-		if idxStr, ok := resumeState.Metadata["team_index"]; ok {
-			if idx, err := strconv.Atoi(idxStr); err == nil {
-				resumeTeamIndex = idx
-			}
+	if len(teamSlugs) > 0 {
+		var logMsg string
+		// Similar to repositories, match the stored team slug against the current list so we
+		// only skip ahead when the intended team still exists.
+		resumeState, resumeTeamIndex, logMsg, _ = prepareResume(teamSlugs, resumeState, "team-user", "team", "team_index", "team", "team slug")
+		if logMsg != "" {
+			fmt.Print(logMsg)
 		}
 	}
 	for i, teamSlug := range teamSlugs {
@@ -666,6 +658,7 @@ func PullAllTeamsUsers(ctx context.Context, client *github.Client, db *sql.DB, o
 		}
 		if resumeState.Endpoint == "team-user" && i == resumeTeamIndex {
 			resumeState = ResumeState{}
+			resumeTeamIndex = -1
 		}
 		if opts.Stdout {
 			stdoutResults = append(stdoutResults, struct {
@@ -889,6 +882,39 @@ func PullOutsideUsers(ctx context.Context, client *github.Client, db *sql.DB, or
 	}
 
 	return nil
+}
+
+// prepareResume normalizes resume metadata for list-based targets, ensuring that the stored
+// name still exists in the active list. When the metadata is stale it clears the resume state
+// and returns a message so the caller can notify the user.
+func prepareResume(names []string, state ResumeState, endpoint, nameKey, indexKey, label, identifier string) (ResumeState, int, string, string) {
+	if state.Endpoint != endpoint {
+		return state, -1, "", ""
+	}
+
+	meta := state.Metadata
+	var name string
+	if meta != nil {
+		name = strings.TrimSpace(meta[nameKey])
+	}
+	if name != "" {
+		for idx, current := range names {
+			if current == name {
+				return state, idx, "", name
+			}
+		}
+		return ResumeState{}, -1, fmt.Sprintf("INFO: resume target %s '%s' not found in current list; restarting from first %s.\n", label, name, label), ""
+	}
+
+	var storedIndex string
+	if meta != nil {
+		storedIndex = strings.TrimSpace(meta[indexKey])
+	}
+	if storedIndex != "" {
+		return ResumeState{}, -1, fmt.Sprintf("INFO: resume metadata missing %s; restarting from first %s (stored index=%s).\n", identifier, label, storedIndex), ""
+	}
+
+	return ResumeState{}, -1, "", ""
 }
 
 func printJSON(v any) error {

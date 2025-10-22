@@ -40,7 +40,7 @@ type CLI struct {
 	Debug      bool   `help:"Enable debug mode."`
 	ConfigPath string `name:"config" short:"c" help:"Path to config file." type:"path"`
 
-	Pull    PullCmd    `cmd:"" help:"Fetch data from GitHub API"`
+	Pull    PullCmd    `cmd:"" help:"Fetch data from GitHub API (resumable; session_path stores progress and validation ensures repository/team names still exist)"`
 	View    ViewCmd    `cmd:"" help:"Display data from local database"`
 	Push    PushCmd    `cmd:"" help:"Manipulate resources on GitHub"`
 	Init    InitCmd    `cmd:"" help:"Initialize local database tables"`

@@ -1,6 +1,7 @@
 package github
 
 import (
+	"maps"
 	"testing"
 )
 
@@ -66,8 +67,8 @@ func TestMetadataEqual(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := metadataEqual(tc.a, tc.b); got != tc.want {
-				t.Fatalf("metadataEqual(%v, %v) = %v, want %v", tc.a, tc.b, got, tc.want)
+			if got := maps.Equal(tc.a, tc.b); got != tc.want {
+				t.Fatalf("maps.Equal(%v, %v) = %v, want %v", tc.a, tc.b, got, tc.want)
 			}
 		})
 	}
