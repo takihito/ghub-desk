@@ -138,6 +138,19 @@ $ ghub-desk pull --all-repos-teams --no-store
 $ ghub-desk view --all-repos-teams
 ````
 
+* 全リポジトリの直接コラボレーター一覧の取得
+
+````
+# SQLiteには保存する
+$ ghub-desk pull --all-repos-users
+
+# SQLiteには保存せず
+$ ghub-desk pull --all-repos-users --no-store
+
+# SQLiteをソースとして表示する
+$ ghub-desk view --all-repos-users
+````
+
 * ユーザーがアクセスできるリポジトリと権限の確認
 
 ````

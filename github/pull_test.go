@@ -53,6 +53,7 @@ func TestHandlePullTarget_ValidTargets(t *testing.T) {
 		{Kind: "teams"},
 		{Kind: "repos"},
 		{Kind: "repos-users", RepoName: "sample-repo"},
+		{Kind: "all-repos-users"},
 		{Kind: "all-teams-users"},
 		{Kind: "token-permission"},
 		{Kind: "outside-users"},

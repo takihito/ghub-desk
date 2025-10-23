@@ -97,6 +97,8 @@ func HandlePullTarget(ctx context.Context, client *github.Client, db *sql.DB, or
 			return fmt.Errorf("invalid repository name: %w", err)
 		}
 		return PullRepoTeams(ctx, client, db, org, req.RepoName, opts)
+	case "all-repos-users":
+		return PullAllReposUsers(ctx, client, db, org, opts)
 	case "all-repos-teams":
 		return PullAllReposTeams(ctx, client, db, org, opts)
 	case "all-teams-users":
@@ -380,46 +382,137 @@ func PullRepoTeams(ctx context.Context, client *github.Client, db *sql.DB, org, 
 	return nil
 }
 
-// PullAllReposTeams iterates all repositories and fetches their team assignments.
-func PullAllReposTeams(ctx context.Context, client *github.Client, db *sql.DB, org string, opts PullOptions) error {
-	repoNames := make([]string, 0)
-	if db != nil {
-		names, err := store.ListRepositoryNames(db)
-		if err != nil {
-			return fmt.Errorf("failed to load repositories from database: %w", err)
-		}
-		repoNames = append(repoNames, names...)
+// PullAllReposUsers iterates all repositories and fetches their direct collaborators.
+func PullAllReposUsers(ctx context.Context, client *github.Client, db *sql.DB, org string, opts PullOptions) error {
+	if db == nil {
+		return fmt.Errorf("database connection is required to fetch all repository users")
+	}
+
+	repoNames, err := store.ListRepositoryNames(db)
+	if err != nil {
+		return fmt.Errorf("failed to load repositories from database: %w", err)
 	}
 
 	if len(repoNames) == 0 {
-		fmt.Println("Repository list not found in local database. Fetching from GitHub API...")
-		reposOpts := opts.ForEndpoint("repos", nil)
-		repos, err := fetchAndStore(
-			ctx, client,
-			func(ctx context.Context, org string, optsList *github.ListOptions) ([]*github.Repository, *github.Response, error) {
-				repoOpts := &github.RepositoryListByOrgOptions{ListOptions: *optsList}
-				return client.Repositories.ListByOrg(ctx, org, repoOpts)
-			},
-			func(db *sql.DB, repos []*github.Repository) error {
-				if !reposOpts.Store || db == nil {
-					return nil
-				}
-				return store.StoreRepositories(db, repos)
-			},
-			db, org, reposOpts, "repos", nil,
-		)
-		if err != nil {
-			return fmt.Errorf("failed to fetch repositories: %w", err)
+		fmt.Println("No repositories found in database. Please run 'ghub-desk pull --repos' first.")
+		return nil
+	}
+
+	stdoutPayload := make([]struct {
+		Repo  string         `json:"repo"`
+		Users []*github.User `json:"users"`
+	}, 0, len(repoNames))
+
+	seen := make(map[string]struct{}, len(repoNames))
+	uniqueRepos := make([]string, 0, len(repoNames))
+	for _, name := range repoNames {
+		trimmed := strings.TrimSpace(name)
+		if trimmed == "" {
+			continue
 		}
-		for _, repo := range repos {
-			if name := strings.TrimSpace(repo.GetName()); name != "" {
-				repoNames = append(repoNames, name)
+		if _, ok := seen[trimmed]; ok {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		uniqueRepos = append(uniqueRepos, trimmed)
+	}
+
+	resumeState := opts.Resume
+	resumeRepoIndex := -1
+	if len(uniqueRepos) > 0 {
+		var logMsg string
+		resumeState, resumeRepoIndex, logMsg, _ = prepareResume(uniqueRepos, resumeState, "repos-users", "repo", "repo_index", "repository", "repository name")
+		if logMsg != "" {
+			fmt.Print(logMsg)
+		}
+	}
+
+	fmt.Printf("Fetching users for %d repositories...\n", len(uniqueRepos))
+
+	for idx, repoName := range uniqueRepos {
+		if resumeState.Endpoint == "repos-users" && resumeRepoIndex >= 0 && idx < resumeRepoIndex {
+			continue
+		}
+
+		fmt.Printf("Fetching users for repository %d/%d: %s\n", idx+1, len(uniqueRepos), repoName)
+		meta := map[string]string{
+			"repo":       repoName,
+			"repo_index": strconv.Itoa(idx),
+		}
+
+		baseOpts := opts
+		baseOpts.Resume = resumeState
+		localOpts := baseOpts.ForEndpoint("repos-users", meta)
+
+		if localOpts.Store && localOpts.InitialCount == 0 {
+			if db == nil {
+				return fmt.Errorf("database connection is required to store repository users")
+			}
+			if _, err := db.Exec(`DELETE FROM ghub_repos_users WHERE repos_name = ?`, repoName); err != nil {
+				return fmt.Errorf("failed to clear repository users for %s: %w", repoName, err)
 			}
 		}
+
+		users, err := fetchAndStore(
+			ctx, client,
+			func(ctx context.Context, org string, optsList *github.ListOptions) ([]*github.User, *github.Response, error) {
+				collabOpts := &github.ListCollaboratorsOptions{
+					Affiliation: "direct",
+					ListOptions: *optsList,
+				}
+				return client.Repositories.ListCollaborators(ctx, org, repoName, collabOpts)
+			},
+			func(db *sql.DB, users []*github.User) error {
+				if !localOpts.Store || db == nil {
+					return nil
+				}
+				return store.StoreRepoUsers(db, repoName, users)
+			},
+			db, org, localOpts, "repos-users", meta,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to fetch repository users for %s: %w", repoName, err)
+		}
+
+		if opts.Stdout {
+			stdoutPayload = append(stdoutPayload, struct {
+				Repo  string         `json:"repo"`
+				Users []*github.User `json:"users"`
+			}{
+				Repo:  repoName,
+				Users: users,
+			})
+		}
+
+		if resumeState.Endpoint == "repos-users" && resumeRepoIndex >= 0 && idx == resumeRepoIndex {
+			resumeState = ResumeState{}
+			resumeRepoIndex = -1
+		}
+	}
+
+	if opts.Stdout {
+		if err := printJSON(stdoutPayload); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// PullAllReposTeams iterates all repositories and fetches their team assignments.
+func PullAllReposTeams(ctx context.Context, client *github.Client, db *sql.DB, org string, opts PullOptions) error {
+	if db == nil {
+		return fmt.Errorf("database connection is required to fetch all repository teams")
+	}
+
+	repoNames, err := store.ListRepositoryNames(db)
+	if err != nil {
+		return fmt.Errorf("failed to load repositories from database: %w", err)
 	}
 
 	if len(repoNames) == 0 {
-		return fmt.Errorf("no repositories available. Run 'ghub-desk pull --repos' first")
+		fmt.Println("No repositories found in database. Please run 'ghub-desk pull --repos' first.")
+		return nil
 	}
 
 	stdoutPayload := make([]struct {
@@ -453,6 +546,8 @@ func PullAllReposTeams(ctx context.Context, client *github.Client, db *sql.DB, o
 			fmt.Print(logMsg)
 		}
 	}
+
+	fmt.Printf("Fetching teams for %d repositories...\n", len(uniqueRepos))
 
 	for idx, repoName := range uniqueRepos {
 		if resumeState.Endpoint == "repos-teams" && resumeRepoIndex >= 0 && idx < resumeRepoIndex {

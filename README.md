@@ -16,7 +16,7 @@ GitHub Organization Management CLI & MCP Server
 ## Core Commands
 
 ### Data collection (pull)
-- Targets: `users`, `detail-users`, `teams`, `repos`, `repos-users`, `repos-teams`, `all-repos-teams`, `team-user`, `all-teams-users`, `outside-users`, `token-permission`
+- Targets: `users`, `detail-users`, `teams`, `repos`, `repos-users`, `all-repos-users`, `repos-teams`, `all-repos-teams`, `team-user`, `all-teams-users`, `outside-users`, `token-permission`
 - Use `--no-store` to skip writing to the local DB, `--stdout` to stream API responses to stdout
 - Use `--interval-time` to throttle GitHub API calls
 
@@ -24,6 +24,7 @@ GitHub Organization Management CLI & MCP Server
 - Display the data stored by `pull` from SQLite
 - Use `--team-user` or `team-slug/users` arguments to inspect specific teams
 - Use `--repos-users` to review direct collaborators added to a repository
+- Use `--all-repos-users` to review collaborators across every repository stored in SQLite
 - Use `--user-repos <login>` to list repositories a user can access along with direct/team routes and permissions (requires `pull --repos-users`, `pull --repos-teams`, and `pull --team-users`)
 - Use `--settings` to review masked configuration values
 
@@ -112,6 +113,9 @@ mcp:
 # Fetch direct collaborators for a repository
 ./ghub-desk pull --repos-users repo-name
 
+# Fetch direct collaborators for every repository (respects resume sessions)
+./ghub-desk pull --all-repos-users
+
 # Fetch teams for every repository stored in GitHub
 ./ghub-desk pull --all-repos-teams
 
@@ -130,6 +134,9 @@ mcp:
 
 # Inspect direct collaborators for a repository
 ./ghub-desk view --repos-users repo-name
+
+# Inspect direct collaborators across every repository in the database
+./ghub-desk view --all-repos-users
 
 # Inspect repository teams across every repository in the database
 ./ghub-desk view --all-repos-teams

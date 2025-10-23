@@ -70,6 +70,7 @@ type CommonTargetOptions struct {
 	Teams           bool   `help:"Target: teams"`
 	Repos           bool   `help:"Target: repos"`
 	AllTeamsUsers   bool   `name:"all-teams-users" help:"Target: all-teams-users"`
+	AllReposUsers   bool   `name:"all-repos-users" help:"Target: all-repos-users"`
 	TeamUser        string `name:"team-user" aliases:"team-users" help:"Target: team-user (provide team slug: 1–100 chars, lowercase alnum + hyphen)"`
 	RepoUsers       string `name:"repos-users" help:"Target: repos-users (provide repository name)"`
 	RepoTeams       string `name:"repos-teams" help:"Target: repos-teams (provide repository name)"`
@@ -96,6 +97,7 @@ func (c *CommonTargetOptions) GetTarget(extraTargets ...TargetFlag) (string, err
 		{c.Teams, "teams"},
 		{c.Repos, "repos"},
 		{c.AllTeamsUsers, "all-teams-users"},
+		{c.AllReposUsers, "all-repos-users"},
 		{c.TeamUser != "", "team-user"},
 		{c.RepoUsers != "", "repos-users"},
 		{c.RepoTeams != "", "repos-teams"},
@@ -249,7 +251,7 @@ func (p *PullCmd) Run(cli *CLI) error {
 	}()
 
 	var db *sql.DB
-	if storeData || target == "all-teams-users" || target == "all-repos-teams" {
+	if storeData || target == "all-teams-users" || target == "all-repos-teams" || target == "all-repos-users" {
 		db, err = store.InitDatabase()
 		if err != nil {
 			return fmt.Errorf("failed to initialize database: %w", err)

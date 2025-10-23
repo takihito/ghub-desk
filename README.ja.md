@@ -14,7 +14,7 @@ GitHub Organization Management CLI & MCP Server
 ## 主な機能
 
 ### データ取得 (pull)
-- ターゲット: `users`, `detail-users`, `teams`, `repos`, `repos-users`, `repos-teams`, `all-repos-teams`, `team-user`, `all-teams-users`, `outside-users`, `token-permission`
+- ターゲット: `users`, `detail-users`, `teams`, `repos`, `repos-users`, `all-repos-users`, `repos-teams`, `all-repos-teams`, `team-user`, `all-teams-users`, `outside-users`, `token-permission`
 - `--no-store` でローカル DB への保存をスキップ、`--stdout` で API レスポンスを標準出力に表示
 - `--interval-time` で GitHub API 呼び出し間隔を調整
 
@@ -22,6 +22,7 @@ GitHub Organization Management CLI & MCP Server
 - `pull` で保存した情報を SQLite から表示
 - `--team-user` や `{team-slug}/users` 引数で特定チームのユーザーを参照
 - `--repos-users` でリポジトリに直接追加されたユーザー一覧を確認
+- `--all-repos-users` で SQLite に保存された全リポジトリの直接コラボレーターを一覧表示
 - `--user-repos <login>` でユーザーがアクセスできるリポジトリと権限を表示（事前に `pull --repos-users`, `pull --repos-teams`, `pull --team-users` を実行）
 - `--settings` でマスク済み設定値を確認
 
@@ -110,6 +111,9 @@ mcp:
 # リポジトリに直接追加されたユーザーを取得
 ./ghub-desk pull --repos-users repo-name
 
+# 全リポジトリの直接コラボレーターを取得（セッション再開対応）
+./ghub-desk pull --all-repos-users
+
 # 全リポジトリのチーム情報を取得
 ./ghub-desk pull --all-repos-teams
 
@@ -128,6 +132,9 @@ mcp:
 
 # リポジトリに直接追加されたユーザーを表示
 ./ghub-desk view --repos-users repo-name
+
+# 全リポジトリの直接コラボレーターを表示
+./ghub-desk view --all-repos-users
 
 # 全リポジトリのチーム情報を表示
 ./ghub-desk view --all-repos-teams

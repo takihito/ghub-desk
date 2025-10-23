@@ -49,6 +49,8 @@ func HandleViewTarget(db *sql.DB, req TargetRequest, opts ViewOptions) error {
 			return fmt.Errorf("invalid repository name: %w", err)
 		}
 		return ViewRepoTeams(db, req.RepoName, format)
+	case "all-repos-users":
+		return ViewAllRepositoriesUsers(db, format)
 	case "all-repos-teams":
 		return ViewAllRepositoriesTeams(db, format)
 	case "all-teams-users":
@@ -402,6 +404,101 @@ func ViewRepoTeams(db *sql.DB, repoName string, format OutputFormat) error {
 	return renderByFormat(format, tableFn, payload)
 }
 
+// ViewAllRepositoriesUsers displays direct collaborators for all repositories in the database.
+func ViewAllRepositoriesUsers(db *sql.DB, format OutputFormat) error {
+	rows, err := db.Query(`
+		SELECT 
+			COALESCE(r.name, ru.repos_name) AS repo_name,
+			COALESCE(r.full_name, '') AS repo_full_name,
+			ru.user_login,
+			COALESCE(u.name, '') AS user_name,
+			COALESCE(ru.permission, '') AS permission
+		FROM ghub_repos_users ru
+		LEFT JOIN ghub_repos r ON r.name = ru.repos_name
+		LEFT JOIN ghub_users u ON u.login = ru.user_login
+		ORDER BY LOWER(repo_name), LOWER(ru.user_login)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to query repository users: %w", err)
+	}
+	defer rows.Close()
+
+	type repoUserEntry struct {
+		RepoName   string `json:"repo_name" yaml:"repo_name"`
+		FullName   string `json:"full_name" yaml:"full_name"`
+		Login      string `json:"user_login" yaml:"user_login"`
+		UserName   string `json:"user_name" yaml:"user_name"`
+		Permission string `json:"permission" yaml:"permission"`
+	}
+
+	var entries []repoUserEntry
+	for rows.Next() {
+		var repoName, fullName, login, userName, permission sql.NullString
+		if err := rows.Scan(&repoName, &fullName, &login, &userName, &permission); err != nil {
+			return fmt.Errorf("failed to scan repository user row: %w", err)
+		}
+		entry := repoUserEntry{
+			RepoName:   strings.TrimSpace(repoName.String),
+			FullName:   strings.TrimSpace(fullName.String),
+			Login:      strings.TrimSpace(login.String),
+			UserName:   strings.TrimSpace(userName.String),
+			Permission: strings.TrimSpace(permission.String),
+		}
+		entries = append(entries, entry)
+	}
+
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("failed to iterate repository user rows: %w", err)
+	}
+
+	if len(entries) == 0 {
+		if format == FormatTable {
+			fmt.Println("No repository user data found in database.")
+			fmt.Println("Run 'ghub-desk pull --all-repos-users' or 'ghub-desk pull --repos-users <repo>' first.")
+			return nil
+		}
+		return renderByFormat(format, nil, entries)
+	}
+
+	tableFn := func() error {
+		printTableHeader("Repo", "Full Name", "User Login", "User Name", "Permission")
+
+		for _, entry := range entries {
+			repo := entry.RepoName
+			if repo == "" {
+				repo = "-"
+			}
+			fullName := entry.FullName
+			if fullName == "" {
+				fullName = "-"
+			}
+			login := entry.Login
+			if login == "" {
+				login = "-"
+			}
+			userName := entry.UserName
+			if userName == "" {
+				userName = "-"
+			}
+			permission := entry.Permission
+			if permission == "" {
+				permission = "-"
+			}
+
+			fmt.Printf("%s\t%s\t%s\t%s\t%s\n",
+				repo,
+				fullName,
+				login,
+				userName,
+				permission,
+			)
+		}
+		return nil
+	}
+
+	return renderByFormat(format, tableFn, entries)
+}
+
 // ViewAllRepositoriesTeams displays all repository team assignments alongside repository metadata.
 func ViewAllRepositoriesTeams(db *sql.DB, format OutputFormat) error {
 	rows, err := db.Query(`
@@ -721,7 +818,7 @@ func ViewUserRepositories(db *sql.DB, userLogin string, format OutputFormat) err
 	if len(accessByRepoName) == 0 {
 		if format == FormatTable {
 			fmt.Printf("No repository access data found for user %s.\n", cleanLogin)
-			fmt.Println("Run 'ghub-desk pull --repos-users', 'ghub-desk pull --repos-teams', and 'ghub-desk pull --team-users <team-slug>' to populate the database.")
+			fmt.Println("Run 'ghub-desk pull --all-repos-users' (or 'ghub-desk pull --repos-users <repo>'), 'ghub-desk pull --repos-teams', and 'ghub-desk pull --team-users <team-slug>' to populate the database.")
 			return nil
 		}
 		payload := struct {

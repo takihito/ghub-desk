@@ -82,6 +82,7 @@ func TestHandleViewTarget(t *testing.T) {
 		{"outside-users target", TargetRequest{Kind: "outside-users"}, false},
 		{"repos users target", TargetRequest{Kind: "repos-users", RepoName: "test-repo"}, false},
 		{"repo teams target", TargetRequest{Kind: "repos-teams", RepoName: "test-repo"}, false},
+		{"all repo users target", TargetRequest{Kind: "all-repos-users"}, false},
 		{"all repo teams target", TargetRequest{Kind: "all-repos-teams"}, false},
 		{"all teams users target", TargetRequest{Kind: "all-teams-users"}, false},
 		{"user repos target", TargetRequest{Kind: "user-repos", UserLogin: "octocat"}, false},
@@ -250,6 +251,74 @@ func TestViewRepoUsersJSON(t *testing.T) {
 	}
 	if result.Users[0].Login != "first" || result.Users[1].Login != "second" {
 		t.Fatalf("unexpected user order: %+v", result.Users)
+	}
+}
+
+func TestViewAllRepositoriesUsers(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repos := []*github.Repository{
+		{ID: github.Int64(1), Name: github.String("alpha"), FullName: github.String("org/alpha")},
+		{ID: github.Int64(2), Name: github.String("beta"), FullName: github.String("org/beta")},
+	}
+	if err := StoreRepositories(db, repos); err != nil {
+		t.Fatalf("failed to store repositories: %v", err)
+	}
+
+	users := []*github.User{
+		{ID: github.Int64(101), Login: github.String("alice"), Name: github.String("Alice"), Permissions: map[string]bool{"admin": true}},
+		{ID: github.Int64(102), Login: github.String("bob"), Name: github.String("Bob"), Permissions: map[string]bool{"push": true}},
+	}
+	if err := StoreUsers(db, users); err != nil {
+		t.Fatalf("failed to store users: %v", err)
+	}
+
+	if err := StoreRepoUsers(db, "alpha", []*github.User{users[0]}); err != nil {
+		t.Fatalf("failed to store alpha collaborators: %v", err)
+	}
+	if err := StoreRepoUsers(db, "beta", []*github.User{users[1]}); err != nil {
+		t.Fatalf("failed to store beta collaborators: %v", err)
+	}
+
+	output, err := captureOutput(t, func() error {
+		return ViewAllRepositoriesUsers(db, FormatTable)
+	})
+	if err != nil {
+		t.Fatalf("ViewAllRepositoriesUsers returned error: %v", err)
+	}
+
+	expect := []string{
+		"Repo\tFull Name\tUser Login\tUser Name\tPermission",
+		"alpha\torg/alpha\talice\tAlice\tadmin",
+		"beta\torg/beta\tbob\tBob\tpush",
+	}
+	for _, marker := range expect {
+		if !strings.Contains(output, marker) {
+			t.Fatalf("expected %q in output: %s", marker, output)
+		}
+	}
+}
+
+func TestViewAllRepositoriesUsers_NoData(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	output, err := captureOutput(t, func() error {
+		return ViewAllRepositoriesUsers(db, FormatTable)
+	})
+	if err != nil {
+		t.Fatalf("ViewAllRepositoriesUsers returned error: %v", err)
+	}
+
+	if !strings.Contains(output, "No repository user data found in database.") {
+		t.Fatalf("expected guidance message, got: %s", output)
+	}
+	if !strings.Contains(output, "pull --all-repos-users") {
+		t.Fatalf("expected all-repos-users guidance, got: %s", output)
+	}
+	if !strings.Contains(output, "pull --repos-users") {
+		t.Fatalf("expected repos-users guidance, got: %s", output)
 	}
 }
 
@@ -477,6 +546,9 @@ func TestViewUserRepositories_NoData(t *testing.T) {
 
 	if !strings.Contains(output, "No repository access data found for user nobody.") {
 		t.Fatalf("expected guidance message, got: %s", output)
+	}
+	if !strings.Contains(output, "pull --all-repos-users") {
+		t.Fatalf("expected all-repos-users guidance, got: %s", output)
 	}
 	if !strings.Contains(output, "pull --repos-users") {
 		t.Fatalf("expected pull guidance, got: %s", output)
