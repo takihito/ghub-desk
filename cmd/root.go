@@ -75,7 +75,6 @@ type CommonTargetOptions struct {
 	RepoUsers       string `name:"repos-users" help:"Target: repos-users (provide repository name)"`
 	RepoTeams       string `name:"repos-teams" help:"Target: repos-teams (provide repository name)"`
 	AllReposTeams   bool   `name:"all-repos-teams" help:"Target: all-repos-teams"`
-	UserRepos       string `name:"user-repos" help:"Target: user-repos (provide user login)"`
 	TokenPermission bool   `name:"token-permission" help:"Target: token-permission"`
 	OutsideUsers    bool   `name:"outside-users" help:"Target: outside-users"`
 }
@@ -102,7 +101,6 @@ func (c *CommonTargetOptions) GetTarget(extraTargets ...TargetFlag) (string, err
 		{c.RepoUsers != "", "repos-users"},
 		{c.RepoTeams != "", "repos-teams"},
 		{c.AllReposTeams, "all-repos-teams"},
-		{c.UserRepos != "", "user-repos"},
 		{c.TokenPermission, "token-permission"},
 		{c.OutsideUsers, "outside-users"},
 	}
@@ -144,6 +142,7 @@ type PullCmd struct {
 // ViewCmd represents the view command structure
 type ViewCmd struct {
 	CommonTargetOptions `embed:""`
+	UserRepos           string `name:"user-repos" help:"Target: user-repos (provide user login)"`
 	Settings            bool   `name:"settings" help:"Show application settings (masked)"`
 	Format              string `name:"format" default:"table" help:"Output format (table|json|yaml)"`
 	TargetPath          string `arg:"" optional:"" help:"Target path (e.g. team-slug/users)."`
@@ -276,11 +275,6 @@ func (p *PullCmd) Run(cli *CLI) error {
 			return err
 		}
 		req.RepoName = p.RepoTeams
-	case "user-repos":
-		if err := validateUserLogin(p.UserRepos); err != nil {
-			return err
-		}
-		return fmt.Errorf("pull コマンドでは --user-repos を使用できません。view コマンドで --user-repos を指定してください")
 	}
 	sessionKey := buildPullSessionKey(target, req, storeData, p.Stdout, p.IntervalTime)
 	pullSession, err := session.LoadPull(sessionKey)
@@ -415,7 +409,10 @@ func (v *ViewCmd) Run(cli *CLI) error {
 	}
 
 	// Determine target from flags
-	target, err := v.CommonTargetOptions.GetTarget(TargetFlag{Enabled: v.Settings, Name: "settings"})
+	target, err := v.CommonTargetOptions.GetTarget(
+		TargetFlag{Enabled: v.Settings, Name: "settings"},
+		TargetFlag{Enabled: v.UserRepos != "", Name: "user-repos"},
+	)
 	if err != nil {
 		return err
 	}

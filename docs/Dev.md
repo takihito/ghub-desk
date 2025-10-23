@@ -163,28 +163,28 @@ $ ghub-desk view --user-repos {user_login}
 * チームを組織から削除（{team_slug} はチームの slug を指定）
 
 ````
-$ ghub-desk push --remove --team {team_slug} --exec
+$ ghub-desk push remove --team {team_slug} --exec
 
 # DRYRUN
-$ ghub-desk push --remove --team {team_slug}
+$ ghub-desk push remove --team {team_slug}
 ````
 
 * ユーザーを組織から削除
 
 ````
-$ ghub-desk push --remove --user {user_name} --exec
+$ ghub-desk push remove --user {user_name} --exec
 
 # DRYRUN
-$ ghub-desk push --remove --user {user_name}
+$ ghub-desk push remove --user {user_name}
 ````
 
 * ユーザーをチームから削除（{team_slug} はチームの slug を指定）
 
 ````
-$ ghub-desk push --remove --team-user {team_slug}/{user_name} --exec
+$ ghub-desk push remove --team-user {team_slug}/{user_name} --exec
 
 # DRYRUN
-$ ghub-desk push --remove --team-user  {team_slug}/{user_name}
+$ ghub-desk push remove --team-user  {team_slug}/{user_name}
 ````
 
 * TOKENの権限チェック
