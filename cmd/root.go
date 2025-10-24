@@ -277,6 +277,11 @@ func (p *PullCmd) Run(cli *CLI) error {
 			return err
 		}
 		req.RepoName = p.RepoTeams
+	case "user-repos":
+		if err := validateUserLogin(p.UserRepos); err != nil {
+			return err
+		}
+		return fmt.Errorf("pull コマンドでは --user-repos を使用できません。view コマンドで --user-repos を指定してください")
 	}
 	sessionKey := buildPullSessionKey(target, req, storeData, p.Stdout, p.IntervalTime)
 	pullSession, err := session.LoadPull(sessionKey)
