@@ -155,8 +155,14 @@ mcp:
 # 追加を実行し、成功時にローカル DB も同期
 ./ghub-desk push add --team-user team-slug/username --exec
 
-# チームからユーザーを削除し、ローカル DB 更新は抑止
-./ghub-desk push remove --team-user team-slug/username --exec --no-store
+# チームからユーザーを削除
+./ghub-desk push remove --team-user team-slug/username --exec
+
+# 組織からユーザーを削除
+./ghub-desk push remove --user username --exec
+
+# チームを組織から削除
+./ghub-desk push remove --team team-slug --exec
 
 # リポジトリの外部コラボレーターを招待（DRYRUN）
 ./ghub-desk push add --outside-user repo-name/username

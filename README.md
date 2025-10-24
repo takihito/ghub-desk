@@ -157,8 +157,14 @@ mcp:
 # Execute the addition and sync the local DB on success
 ./ghub-desk push add --team-user team-slug/username --exec
 
-# Remove a user from a team while skipping the DB sync
-./ghub-desk push remove --team-user team-slug/username --exec --no-store
+# Remove a user from a team
+./ghub-desk push remove --team-user team-slug/username --exec
+
+# Remove a user from the organization
+./ghub-desk push remove --user username --exec
+
+# Remove a team from the organization
+./ghub-desk push remove --team team-slug --exec
 
 # Invite an outside collaborator to a repository (DRYRUN)
 ./ghub-desk push add --outside-user repo-name/username

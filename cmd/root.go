@@ -144,6 +144,7 @@ type PullCmd struct {
 // ViewCmd represents the view command structure
 type ViewCmd struct {
 	CommonTargetOptions `embed:""`
+	UserRepos           string `name:"user-repos" help:"Target: user-repos (provide user login)"`
 	Settings            bool   `name:"settings" help:"Show application settings (masked)"`
 	Format              string `name:"format" default:"table" help:"Output format (table|json|yaml)"`
 	TargetPath          string `arg:"" optional:"" help:"Target path (e.g. team-slug/users)."`
@@ -196,7 +197,7 @@ func Execute() error {
 	// Preload config once for commands that require GitHub access.
 	// Keep view/init/version free from config requirement.
 	cmdPath := ctx.Command()
-	if cmdPath == "pull" || cmdPath == "push" {
+	if cmdPath == "pull" || strings.HasPrefix(cmdPath, "push") {
 		if _, err := cli.Config(); err != nil {
 			return fmt.Errorf("configuration error: %w", err)
 		}
@@ -301,8 +302,7 @@ func (p *PullCmd) Run(cli *CLI) error {
 				pullSession.Stdout != p.Stdout ||
 				storedInterval != expectedInterval ||
 				(pullSession.TeamSlug != "" && pullSession.TeamSlug != req.TeamSlug) ||
-				(pullSession.RepoName != "" && pullSession.RepoName != req.RepoName) ||
-				(pullSession.UserLogin != "" && pullSession.UserLogin != req.UserLogin) {
+				(pullSession.RepoName != "" && pullSession.RepoName != req.RepoName) {
 				fmt.Println("既存のセッションと現在のオプションが異なるため、新しいセッションを開始します。")
 				resuming = false
 			}
@@ -315,7 +315,6 @@ func (p *PullCmd) Run(cli *CLI) error {
 		pullSession.Interval = expectedInterval.String()
 		pullSession.TeamSlug = req.TeamSlug
 		pullSession.RepoName = req.RepoName
-		pullSession.UserLogin = req.UserLogin
 		if err := session.SavePull(pullSession); err != nil {
 			return fmt.Errorf("セッションの初期化に失敗しました: %w", err)
 		}
@@ -415,7 +414,10 @@ func (v *ViewCmd) Run(cli *CLI) error {
 	}
 
 	// Determine target from flags
-	target, err := v.CommonTargetOptions.GetTarget(TargetFlag{Enabled: v.Settings, Name: "settings"})
+	target, err := v.CommonTargetOptions.GetTarget(
+		TargetFlag{Enabled: v.Settings, Name: "settings"},
+		TargetFlag{Enabled: v.UserRepos != "", Name: "user-repos"},
+	)
 	if err != nil {
 		return err
 	}
