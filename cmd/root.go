@@ -75,6 +75,7 @@ type CommonTargetOptions struct {
 	RepoUsers       string `name:"repos-users" help:"Target: repos-users (provide repository name)"`
 	RepoTeams       string `name:"repos-teams" help:"Target: repos-teams (provide repository name)"`
 	AllReposTeams   bool   `name:"all-repos-teams" help:"Target: all-repos-teams"`
+	UserRepos       string `name:"user-repos" help:"Target: user-repos (provide user login)"`
 	TokenPermission bool   `name:"token-permission" help:"Target: token-permission"`
 	OutsideUsers    bool   `name:"outside-users" help:"Target: outside-users"`
 }
@@ -101,6 +102,7 @@ func (c *CommonTargetOptions) GetTarget(extraTargets ...TargetFlag) (string, err
 		{c.RepoUsers != "", "repos-users"},
 		{c.RepoTeams != "", "repos-teams"},
 		{c.AllReposTeams, "all-repos-teams"},
+		{c.UserRepos != "", "user-repos"},
 		{c.TokenPermission, "token-permission"},
 		{c.OutsideUsers, "outside-users"},
 	}
@@ -295,8 +297,7 @@ func (p *PullCmd) Run(cli *CLI) error {
 				pullSession.Stdout != p.Stdout ||
 				storedInterval != expectedInterval ||
 				(pullSession.TeamSlug != "" && pullSession.TeamSlug != req.TeamSlug) ||
-				(pullSession.RepoName != "" && pullSession.RepoName != req.RepoName) ||
-				(pullSession.UserLogin != "" && pullSession.UserLogin != "") { // user-repos is view-only
+				(pullSession.RepoName != "" && pullSession.RepoName != req.RepoName) {
 				fmt.Println("既存のセッションと現在のオプションが異なるため、新しいセッションを開始します。")
 				resuming = false
 			}
@@ -685,7 +686,7 @@ func (a *AddCmd) getTarget() (string, string, string, error) {
 		return "", "", "", fmt.Errorf("only one target can be specified at a time")
 	}
 
-	sswitch selectedTarget {
+	switch selectedTarget {
 	case "team-user":
 		if a.Permission != "" {
 			return "", "", "", fmt.Errorf("--permission can only be used with --outside-user")
