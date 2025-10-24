@@ -72,7 +72,6 @@ type CommonTargetOptions struct {
 	AllTeamsUsers   bool   `name:"all-teams-users" help:"Target: all-teams-users"`
 	AllReposUsers   bool   `name:"all-repos-users" help:"Target: all-repos-users"`
 	TeamUser        string `name:"team-user" aliases:"team-users" help:"Target: team-user (provide team slug: 1–100 chars, lowercase alnum + hyphen)"`
-	UserRepos       string `name:"user-repos" help:"Target: user-repos (provide user login)"`
 	RepoUsers       string `name:"repos-users" help:"Target: repos-users (provide repository name)"`
 	RepoTeams       string `name:"repos-teams" help:"Target: repos-teams (provide repository name)"`
 	AllReposTeams   bool   `name:"all-repos-teams" help:"Target: all-repos-teams"`
@@ -102,7 +101,6 @@ func (c *CommonTargetOptions) GetTarget(extraTargets ...TargetFlag) (string, err
 		{c.RepoUsers != "", "repos-users"},
 		{c.RepoTeams != "", "repos-teams"},
 		{c.AllReposTeams, "all-repos-teams"},
-		{c.UserRepos != "", "user-repos"},
 		{c.TokenPermission, "token-permission"},
 		{c.OutsideUsers, "outside-users"},
 	}
@@ -144,6 +142,7 @@ type PullCmd struct {
 // ViewCmd represents the view command structure
 type ViewCmd struct {
 	CommonTargetOptions `embed:""`
+	UserRepos           string `name:"user-repos" help:"Target: user-repos (provide user login)"`
 	Settings            bool   `name:"settings" help:"Show application settings (masked)"`
 	Format              string `name:"format" default:"table" help:"Output format (table|json|yaml)"`
 	TargetPath          string `arg:"" optional:"" help:"Target path (e.g. team-slug/users)."`
@@ -196,7 +195,7 @@ func Execute() error {
 	// Preload config once for commands that require GitHub access.
 	// Keep view/init/version free from config requirement.
 	cmdPath := ctx.Command()
-	if cmdPath == "pull" || cmdPath == "push" {
+	if cmdPath == "pull" || strings.HasPrefix(cmdPath, "push") {
 		if _, err := cli.Config(); err != nil {
 			return fmt.Errorf("configuration error: %w", err)
 		}
@@ -297,7 +296,7 @@ func (p *PullCmd) Run(cli *CLI) error {
 				storedInterval != expectedInterval ||
 				(pullSession.TeamSlug != "" && pullSession.TeamSlug != req.TeamSlug) ||
 				(pullSession.RepoName != "" && pullSession.RepoName != req.RepoName) ||
-				(pullSession.UserLogin != "" && pullSession.UserLogin != req.UserLogin) {
+				(pullSession.UserLogin != "" && pullSession.UserLogin != "") { // user-repos is view-only
 				fmt.Println("既存のセッションと現在のオプションが異なるため、新しいセッションを開始します。")
 				resuming = false
 			}
@@ -310,7 +309,6 @@ func (p *PullCmd) Run(cli *CLI) error {
 		pullSession.Interval = expectedInterval.String()
 		pullSession.TeamSlug = req.TeamSlug
 		pullSession.RepoName = req.RepoName
-		pullSession.UserLogin = req.UserLogin
 		if err := session.SavePull(pullSession); err != nil {
 			return fmt.Errorf("セッションの初期化に失敗しました: %w", err)
 		}
@@ -687,7 +685,7 @@ func (a *AddCmd) getTarget() (string, string, string, error) {
 		return "", "", "", fmt.Errorf("only one target can be specified at a time")
 	}
 
-	switch selectedTarget {
+	sswitch selectedTarget {
 	case "team-user":
 		if a.Permission != "" {
 			return "", "", "", fmt.Errorf("--permission can only be used with --outside-user")
