@@ -144,7 +144,6 @@ type PullCmd struct {
 // ViewCmd represents the view command structure
 type ViewCmd struct {
 	CommonTargetOptions `embed:""`
-	UserRepos           string `name:"user-repos" help:"Target: user-repos (provide user login)"`
 	Settings            bool   `name:"settings" help:"Show application settings (masked)"`
 	Format              string `name:"format" default:"table" help:"Output format (table|json|yaml)"`
 	TargetPath          string `arg:"" optional:"" help:"Target path (e.g. team-slug/users)."`
@@ -163,6 +162,7 @@ type RemoveCmd struct {
 	User        string `help:"Remove user from organization (username: 1–39 chars, alnum + hyphen, no leading/trailing hyphen)"`
 	TeamUser    string `name:"team-user" help:"Remove user from team (format: team-slug/username)"`
 	OutsideUser string `name:"outside-user" help:"Remove outside collaborator from repository (format: repo-name/username)"`
+	ReposUser   string `name:"repos-user" help:"Remove repository collaborator (format: repo-name/username)"`
 	NoStore     bool   `name:"no-store" help:"Do not update local SQLite database after executing the operation"`
 }
 
@@ -416,7 +416,6 @@ func (v *ViewCmd) Run(cli *CLI) error {
 	// Determine target from flags
 	target, err := v.CommonTargetOptions.GetTarget(
 		TargetFlag{Enabled: v.Settings, Name: "settings"},
-		TargetFlag{Enabled: v.UserRepos != "", Name: "user-repos"},
 	)
 	if err != nil {
 		return err
@@ -555,6 +554,7 @@ func (r *RemoveCmd) getTarget() (string, string, error) {
 		{r.User, "user"},
 		{r.TeamUser, "team-user"},
 		{r.OutsideUser, "outside-user"},
+		{r.ReposUser, "repos-user"},
 	}
 
 	var selectedTarget, selectedValue string
@@ -569,7 +569,7 @@ func (r *RemoveCmd) getTarget() (string, string, error) {
 	}
 
 	if count == 0 {
-		return "", "", fmt.Errorf("target required: specify one of --team, --user, --team-user, --outside-user")
+		return "", "", fmt.Errorf("target required: specify one of --team, --user, --team-user, --outside-user, --repos-user")
 	}
 
 	if count > 1 {
@@ -591,6 +591,10 @@ func (r *RemoveCmd) getTarget() (string, string, error) {
 			return "", "", err
 		}
 	case "outside-user":
+		if _, _, err := validateRepoUserPair(selectedValue); err != nil {
+			return "", "", err
+		}
+	case "repos-user":
 		if _, _, err := validateRepoUserPair(selectedValue); err != nil {
 			return "", "", err
 		}
