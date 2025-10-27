@@ -49,7 +49,7 @@ func ExecutePushRemove(ctx context.Context, client *github.Client, org, target, 
 			return fmt.Errorf("チームからのユーザー削除エラー: %v, Required permission scope: %s", err, scopePermission)
 		}
 		return nil
-	case "outside-user":
+	case "outside-user", "repos-user":
 		repoName, username, err := validate.ParseRepoUserPair(resourceName)
 		if err != nil {
 			return fmt.Errorf("リポジトリ/ユーザー形式が正しくありません。{repository}/{user_name} の形式で指定してください")
@@ -200,7 +200,7 @@ func SyncPushRemove(ctx context.Context, client *github.Client, db *sql.DB, org,
 			return err
 		}
 		return store.DeleteTeamUser(db, teamSlug, userLogin)
-	case "outside-user":
+	case "outside-user", "repos-user":
 		repoName, userLogin, err := validate.ParseRepoUserPair(resourceName)
 		if err != nil {
 			return err

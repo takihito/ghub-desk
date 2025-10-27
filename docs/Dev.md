@@ -187,6 +187,15 @@ $ ghub-desk push remove --team-user {team_slug}/{user_name} --exec
 $ ghub-desk push remove --team-user  {team_slug}/{user_name}
 ````
 
+* リポジトリのアウトサイドコラボレーター・直接メンバーから削除
+
+````
+$ ghub-desk push remove --repos-user {repository}/{user_name} --exec
+
+# DRYRUN
+$ ghub-desk push remove --repos-user {repository}/{user_name}
+````
+
 * TOKENの権限チェック
 
 ````
