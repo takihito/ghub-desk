@@ -1,5 +1,17 @@
 # Changelog
 
+## [v0.1.7](https://github.com/takihito/ghub-desk/compare/v0.1.6...v0.1.7) - 2025-10-27
+- 実装: pull --repo-users,push add --outside-user by @takihito in https://github.com/takihito/ghub-desk/pull/50
+- implement 'pull --repos-teams' by @takihito in https://github.com/takihito/ghub-desk/pull/52
+- implement view --user-repos by @takihito in https://github.com/takihito/ghub-desk/pull/53
+- implement option --format by @takihito in https://github.com/takihito/ghub-desk/pull/54
+- 実装: receive SIGNAL by @takihito in https://github.com/takihito/ghub-desk/pull/55
+- implement: option --all-repos-users by @takihito in https://github.com/takihito/ghub-desk/pull/56
+- actionspin test.yml by @takihito in https://github.com/takihito/ghub-desk/pull/57
+- ドキュメント修正 v017 by @takihito in https://github.com/takihito/ghub-desk/pull/58
+- implement  push remove --repos-user  by @takihito in https://github.com/takihito/ghub-desk/pull/59
+- update README by @takihito in https://github.com/takihito/ghub-desk/pull/60
+
 ## [v0.1.6](https://github.com/takihito/ghub-desk/compare/v0.1.5...v0.1.6) - 2025-09-30
 - refactoring option  by @takihito in https://github.com/takihito/ghub-desk/pull/38
 - MCP: Add Pull Remove by @takihito in https://github.com/takihito/ghub-desk/pull/40
