@@ -6,6 +6,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
+	"sort"
 	"strings"
 	"time"
 
@@ -20,11 +22,35 @@ import (
 
 const (
 	// defaultListLimit is the common LIMIT used for list views.
-	defaultListLimit   = 200
-	teamUsersListLimit = 500
+	defaultListLimit    = 200
+	teamUsersListLimit  = 500
+	defaultPullInterval = 3 * time.Second
 )
 
-func intPtr(i int) *int { return &i }
+func intPtr(i int) *int           { return &i }
+func floatPtr(f float64) *float64 { return &f }
+
+func pullOptionProperties(extra map[string]*jsonschema.Schema) map[string]*jsonschema.Schema {
+	props := map[string]*jsonschema.Schema{
+		"no_store": {
+			Type:        "boolean",
+			Description: "When true, skip writing fetched data to the local SQLite database.",
+		},
+		"stdout": {
+			Type:        "boolean",
+			Description: "When true, stream GitHub API responses to stdout for debugging.",
+		},
+		"interval_seconds": {
+			Type:        "number",
+			Description: "Delay between GitHub API requests in seconds (default: 3).",
+			Minimum:     floatPtr(0),
+		},
+	}
+	for key, schema := range extra {
+		props[key] = schema
+	}
+	return props
+}
 
 // Serve starts the MCP server using the go-sdk over stdio.
 // Tools provided in phase 1:
@@ -146,6 +172,150 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		return nil, ViewTeamUsersOut{Team: in.Team, Users: users}, nil
 	})
 
+	// view.repos-users {repository}
+	sdk.AddTool[ViewRepoUsersIn, ViewRepoUsersOut](srv, &sdk.Tool{
+		Name:        "view.repos-users",
+		Title:       "View Repository Collaborators",
+		Description: "List direct collaborators for a repository from the local cache.",
+		InputSchema: &jsonschema.Schema{
+			Type: "object",
+			Properties: map[string]*jsonschema.Schema{
+				"repository": {
+					Type:        "string",
+					Title:       "Repository Name",
+					Description: "Repository name (1-100 chars, alnum/underscore/hyphen).",
+					MinLength:   intPtr(v.RepoNameMin),
+					MaxLength:   intPtr(v.RepoNameMax),
+					Pattern:     v.RepoNamePattern,
+				},
+			},
+			Required: []string{"repository"},
+		},
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in ViewRepoUsersIn) (*sdk.CallToolResult, ViewRepoUsersOut, error) {
+		repo := strings.TrimSpace(in.Repository)
+		if repo == "" {
+			return &sdk.CallToolResult{}, ViewRepoUsersOut{}, fmt.Errorf("repository is required")
+		}
+		if err := v.ValidateRepoName(repo); err != nil {
+			return &sdk.CallToolResult{}, ViewRepoUsersOut{}, err
+		}
+		out, err := listRepoUsers(repo)
+		if err != nil {
+			return &sdk.CallToolResult{}, ViewRepoUsersOut{}, fmt.Errorf("failed to list repository users: %w", err)
+		}
+		return nil, out, nil
+	})
+
+	// view.repos-teams {repository}
+	sdk.AddTool[ViewRepoTeamsIn, ViewRepoTeamsOut](srv, &sdk.Tool{
+		Name:        "view.repos-teams",
+		Title:       "View Repository Teams",
+		Description: "List teams with access to a repository from the local cache.",
+		InputSchema: &jsonschema.Schema{
+			Type: "object",
+			Properties: map[string]*jsonschema.Schema{
+				"repository": {
+					Type:        "string",
+					Title:       "Repository Name",
+					Description: "Repository name (1-100 chars, alnum/underscore/hyphen).",
+					MinLength:   intPtr(v.RepoNameMin),
+					MaxLength:   intPtr(v.RepoNameMax),
+					Pattern:     v.RepoNamePattern,
+				},
+			},
+			Required: []string{"repository"},
+		},
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in ViewRepoTeamsIn) (*sdk.CallToolResult, ViewRepoTeamsOut, error) {
+		repo := strings.TrimSpace(in.Repository)
+		if repo == "" {
+			return &sdk.CallToolResult{}, ViewRepoTeamsOut{}, fmt.Errorf("repository is required")
+		}
+		if err := v.ValidateRepoName(repo); err != nil {
+			return &sdk.CallToolResult{}, ViewRepoTeamsOut{}, err
+		}
+		out, err := listRepoTeams(repo)
+		if err != nil {
+			return &sdk.CallToolResult{}, ViewRepoTeamsOut{}, fmt.Errorf("failed to list repository teams: %w", err)
+		}
+		return nil, out, nil
+	})
+
+	// view.all-teams-users
+	sdk.AddTool[struct{}, ViewAllTeamsUsersOut](srv, &sdk.Tool{
+		Name:        "view.all-teams-users",
+		Title:       "View All Team Memberships",
+		Description: "Enumerate every team membership entry stored in the local database.",
+		InputSchema: &jsonschema.Schema{Type: "object"},
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewAllTeamsUsersOut, error) {
+		entries, err := listAllTeamsUsers()
+		if err != nil {
+			return &sdk.CallToolResult{}, ViewAllTeamsUsersOut{}, fmt.Errorf("failed to list team memberships: %w", err)
+		}
+		return nil, ViewAllTeamsUsersOut{Entries: entries}, nil
+	})
+
+	// view.all-repos-users
+	sdk.AddTool[struct{}, ViewAllReposUsersOut](srv, &sdk.Tool{
+		Name:        "view.all-repos-users",
+		Title:       "View All Repository Collaborators",
+		Description: "Enumerate collaborators for every repository stored in the local database.",
+		InputSchema: &jsonschema.Schema{Type: "object"},
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewAllReposUsersOut, error) {
+		entries, err := listAllRepositoriesUsers()
+		if err != nil {
+			return &sdk.CallToolResult{}, ViewAllReposUsersOut{}, fmt.Errorf("failed to list repository collaborators: %w", err)
+		}
+		return nil, ViewAllReposUsersOut{Entries: entries}, nil
+	})
+
+	// view.all-repos-teams
+	sdk.AddTool[struct{}, ViewAllReposTeamsOut](srv, &sdk.Tool{
+		Name:        "view.all-repos-teams",
+		Title:       "View All Repository Teams",
+		Description: "Enumerate team access for every repository stored in the local database.",
+		InputSchema: &jsonschema.Schema{Type: "object"},
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewAllReposTeamsOut, error) {
+		entries, err := listAllRepositoriesTeams()
+		if err != nil {
+			return &sdk.CallToolResult{}, ViewAllReposTeamsOut{}, fmt.Errorf("failed to list repository teams: %w", err)
+		}
+		return nil, ViewAllReposTeamsOut{Entries: entries}, nil
+	})
+
+	// view.user-repos {user}
+	sdk.AddTool[ViewUserReposIn, ViewUserReposOut](srv, &sdk.Tool{
+		Name:        "view.user-repos",
+		Title:       "View User Repository Access",
+		Description: "List repositories a user can access and how the access is granted.",
+		InputSchema: &jsonschema.Schema{
+			Type: "object",
+			Properties: map[string]*jsonschema.Schema{
+				"user": {
+					Type:        "string",
+					Title:       "User Login",
+					Description: "GitHub username (1-39 chars, alnum or hyphen).",
+					MinLength:   intPtr(v.UserNameMin),
+					MaxLength:   intPtr(v.UserNameMax),
+					Pattern:     v.UserNamePattern,
+				},
+			},
+			Required: []string{"user"},
+		},
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in ViewUserReposIn) (*sdk.CallToolResult, ViewUserReposOut, error) {
+		login := strings.TrimSpace(in.User)
+		if login == "" {
+			return &sdk.CallToolResult{}, ViewUserReposOut{}, fmt.Errorf("user is required")
+		}
+		if err := v.ValidateUserName(login); err != nil {
+			return &sdk.CallToolResult{}, ViewUserReposOut{}, err
+		}
+		out, err := listUserRepositories(login)
+		if err != nil {
+			return &sdk.CallToolResult{}, ViewUserReposOut{}, fmt.Errorf("failed to list user repositories: %w", err)
+		}
+		return nil, out, nil
+	})
+
 	// view.outside-users
 	sdk.AddTool[struct{}, ViewOutsideUsersOut](srv, &sdk.Tool{
 		Name:        "view.outside-users",
@@ -158,6 +328,17 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 			return &sdk.CallToolResult{}, ViewOutsideUsersOut{}, fmt.Errorf("failed to list outside users: %w", err)
 		}
 		return nil, ViewOutsideUsersOut{Users: users}, nil
+	})
+
+	// view.settings (masked configuration)
+	sdk.AddTool[struct{}, ViewSettingsOut](srv, &sdk.Tool{
+		Name:        "view.settings",
+		Title:       "View Masked Settings",
+		Description: "Show application configuration with secrets masked, useful for confirming MCP permissions.",
+		InputSchema: &jsonschema.Schema{Type: "object"},
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewSettingsOut, error) {
+		out := maskConfig(cfg)
+		return nil, out, nil
 	})
 
 	// view.token-permission
@@ -176,89 +357,228 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 
 	// pull tools (non-destructive): gated by AllowPull
 	if cfg.MCP.AllowPull {
-		// pull.users {store?:bool, detail?:bool}
-		sdk.AddTool[PullUsersIn, PullResult](srv, &sdk.Tool{
+		pullSchema := func(extra map[string]*jsonschema.Schema, required []string) *jsonschema.Schema {
+			schema := &jsonschema.Schema{
+				Type:       "object",
+				Properties: pullOptionProperties(extra),
+			}
+			if len(required) > 0 {
+				schema.Required = required
+			}
+			return schema
+		}
+
+		// pull.users
+		sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
 			Name:        "pull.users",
 			Title:       "Pull Users",
-			Description: "Fetch org users from GitHub; optionally store in DB.",
-		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullUsersIn) (*sdk.CallToolResult, PullResult, error) {
-			target := "users"
-			if in.Detail {
-				target = "detail-users"
-			}
-			opts := resolvePullOptions(in.NoStore, in.Stdout)
-			if err := doPull(ctx, cfg, target, opts, ""); err != nil {
+			Description: "Fetch organization members from GitHub; optionally store them in SQLite.",
+			InputSchema: pullSchema(nil, nil),
+		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
+			opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
+			if err := doPull(ctx, cfg, "users", opts, "", ""); err != nil {
 				return &sdk.CallToolResult{}, PullResult{}, err
 			}
-			return nil, PullResult{Ok: true, Target: target}, nil
+			return nil, PullResult{Ok: true, Target: "users"}, nil
 		})
 
-		// pull.teams {store?:bool}
+		// pull.detail-users
+		sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
+			Name:        "pull.detail-users",
+			Title:       "Pull Detailed Users",
+			Description: "Fetch organization members with profile details; optionally store them in SQLite.",
+			InputSchema: pullSchema(nil, nil),
+		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
+			opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
+			if err := doPull(ctx, cfg, "detail-users", opts, "", ""); err != nil {
+				return &sdk.CallToolResult{}, PullResult{}, err
+			}
+			return nil, PullResult{Ok: true, Target: "detail-users"}, nil
+		})
+
+		// pull.teams
 		sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
 			Name:        "pull.teams",
 			Title:       "Pull Teams",
-			Description: "Fetch teams from GitHub; optionally store in DB.",
+			Description: "Fetch organization teams from GitHub; optionally store them in SQLite.",
+			InputSchema: pullSchema(nil, nil),
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
-			opts := resolvePullOptions(in.NoStore, in.Stdout)
-			if err := doPull(ctx, cfg, "teams", opts, ""); err != nil {
+			opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
+			if err := doPull(ctx, cfg, "teams", opts, "", ""); err != nil {
 				return &sdk.CallToolResult{}, PullResult{}, err
 			}
 			return nil, PullResult{Ok: true, Target: "teams"}, nil
 		})
 
-		// pull.repositories {store?:bool}
+		// pull.repositories
 		sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
 			Name:        "pull.repositories",
 			Title:       "Pull Repositories",
-			Description: "Fetch repositories from GitHub; optionally store in DB.",
+			Description: "Fetch repositories from GitHub; optionally store them in SQLite.",
+			InputSchema: pullSchema(nil, nil),
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
-			opts := resolvePullOptions(in.NoStore, in.Stdout)
-			if err := doPull(ctx, cfg, "repos", opts, ""); err != nil {
+			opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
+			if err := doPull(ctx, cfg, "repos", opts, "", ""); err != nil {
 				return &sdk.CallToolResult{}, PullResult{}, err
 			}
 			return nil, PullResult{Ok: true, Target: "repos"}, nil
 		})
 
-		// pull.team-user {team:string, store?:bool}
+		// pull.all-teams-users
+		sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
+			Name:        "pull.all-teams-users",
+			Title:       "Pull All Team Memberships",
+			Description: "Fetch every team membership from GitHub; optionally store them in SQLite.",
+			InputSchema: pullSchema(nil, nil),
+		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
+			opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
+			if err := doPull(ctx, cfg, "all-teams-users", opts, "", ""); err != nil {
+				return &sdk.CallToolResult{}, PullResult{}, err
+			}
+			return nil, PullResult{Ok: true, Target: "all-teams-users"}, nil
+		})
+
+		// pull.all-repos-users
+		sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
+			Name:        "pull.all-repos-users",
+			Title:       "Pull All Repository Collaborators",
+			Description: "Fetch collaborators for every repository; optionally store them in SQLite.",
+			InputSchema: pullSchema(nil, nil),
+		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
+			opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
+			if err := doPull(ctx, cfg, "all-repos-users", opts, "", ""); err != nil {
+				return &sdk.CallToolResult{}, PullResult{}, err
+			}
+			return nil, PullResult{Ok: true, Target: "all-repos-users"}, nil
+		})
+
+		// pull.all-repos-teams
+		sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
+			Name:        "pull.all-repos-teams",
+			Title:       "Pull All Repository Teams",
+			Description: "Fetch team access for every repository; optionally store them in SQLite.",
+			InputSchema: pullSchema(nil, nil),
+		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
+			opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
+			if err := doPull(ctx, cfg, "all-repos-teams", opts, "", ""); err != nil {
+				return &sdk.CallToolResult{}, PullResult{}, err
+			}
+			return nil, PullResult{Ok: true, Target: "all-repos-teams"}, nil
+		})
+
+		// pull.team-user
 		sdk.AddTool[PullTeamUsersIn, PullResult](srv, &sdk.Tool{
 			Name:        "pull.team-user",
 			Title:       "Pull Team Users",
-			Description: "Fetch users in a team from GitHub; optionally store in DB.",
+			Description: "Fetch members for a specific team; optionally store them in SQLite.",
+			InputSchema: pullSchema(map[string]*jsonschema.Schema{
+				"team": {
+					Type:        "string",
+					Title:       "Team Slug",
+					Description: "Team slug (lowercase alnum + hyphen).",
+					MinLength:   intPtr(v.TeamSlugMin),
+					MaxLength:   intPtr(v.TeamSlugMax),
+					Pattern:     v.TeamSlugPattern,
+				},
+			}, []string{"team"}),
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullTeamUsersIn) (*sdk.CallToolResult, PullResult, error) {
-			if in.Team == "" {
+			team := strings.TrimSpace(in.Team)
+			if team == "" {
 				return &sdk.CallToolResult{}, PullResult{}, fmt.Errorf("team is required")
 			}
-			if err := v.ValidateTeamSlug(in.Team); err != nil {
+			if err := v.ValidateTeamSlug(team); err != nil {
 				return &sdk.CallToolResult{}, PullResult{}, err
 			}
-			opts := resolvePullOptions(in.NoStore, in.Stdout)
-			if err := doPull(ctx, cfg, "team-user", opts, in.Team); err != nil {
+			opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
+			if err := doPull(ctx, cfg, "team-user", opts, team, ""); err != nil {
 				return &sdk.CallToolResult{}, PullResult{}, err
 			}
-			return nil, PullResult{Ok: true, Target: "team-user"}, nil
+			return nil, PullResult{Ok: true, Target: "team-user", Value: team}, nil
 		})
 
-		// pull.outside-users {store?:bool}
+		// pull.repos-users
+		sdk.AddTool[PullRepoTargetIn, PullResult](srv, &sdk.Tool{
+			Name:        "pull.repos-users",
+			Title:       "Pull Repository Collaborators",
+			Description: "Fetch direct collaborators for a repository; optionally store them in SQLite.",
+			InputSchema: pullSchema(map[string]*jsonschema.Schema{
+				"repository": {
+					Type:        "string",
+					Title:       "Repository Name",
+					Description: "Repository name (1-100 chars, alnum/underscore/hyphen).",
+					MinLength:   intPtr(v.RepoNameMin),
+					MaxLength:   intPtr(v.RepoNameMax),
+					Pattern:     v.RepoNamePattern,
+				},
+			}, []string{"repository"}),
+		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullRepoTargetIn) (*sdk.CallToolResult, PullResult, error) {
+			repo := strings.TrimSpace(in.Repository)
+			if repo == "" {
+				return &sdk.CallToolResult{}, PullResult{}, fmt.Errorf("repository is required")
+			}
+			if err := v.ValidateRepoName(repo); err != nil {
+				return &sdk.CallToolResult{}, PullResult{}, err
+			}
+			opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
+			if err := doPull(ctx, cfg, "repos-users", opts, "", repo); err != nil {
+				return &sdk.CallToolResult{}, PullResult{}, err
+			}
+			return nil, PullResult{Ok: true, Target: "repos-users", Value: repo}, nil
+		})
+
+		// pull.repos-teams
+		sdk.AddTool[PullRepoTargetIn, PullResult](srv, &sdk.Tool{
+			Name:        "pull.repos-teams",
+			Title:       "Pull Repository Teams",
+			Description: "Fetch team permissions for a repository; optionally store them in SQLite.",
+			InputSchema: pullSchema(map[string]*jsonschema.Schema{
+				"repository": {
+					Type:        "string",
+					Title:       "Repository Name",
+					Description: "Repository name (1-100 chars, alnum/underscore/hyphen).",
+					MinLength:   intPtr(v.RepoNameMin),
+					MaxLength:   intPtr(v.RepoNameMax),
+					Pattern:     v.RepoNamePattern,
+				},
+			}, []string{"repository"}),
+		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullRepoTargetIn) (*sdk.CallToolResult, PullResult, error) {
+			repo := strings.TrimSpace(in.Repository)
+			if repo == "" {
+				return &sdk.CallToolResult{}, PullResult{}, fmt.Errorf("repository is required")
+			}
+			if err := v.ValidateRepoName(repo); err != nil {
+				return &sdk.CallToolResult{}, PullResult{}, err
+			}
+			opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
+			if err := doPull(ctx, cfg, "repos-teams", opts, "", repo); err != nil {
+				return &sdk.CallToolResult{}, PullResult{}, err
+			}
+			return nil, PullResult{Ok: true, Target: "repos-teams", Value: repo}, nil
+		})
+
+		// pull.outside-users
 		sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
 			Name:        "pull.outside-users",
-			Title:       "Pull Outside Users",
-			Description: "Fetch outside collaborators; optionally store in DB.",
+			Title:       "Pull Outside Collaborators",
+			Description: "Fetch outside collaborators; optionally store them in SQLite.",
+			InputSchema: pullSchema(nil, nil),
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
-			opts := resolvePullOptions(in.NoStore, in.Stdout)
-			if err := doPull(ctx, cfg, "outside-users", opts, ""); err != nil {
+			opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
+			if err := doPull(ctx, cfg, "outside-users", opts, "", ""); err != nil {
 				return &sdk.CallToolResult{}, PullResult{}, err
 			}
 			return nil, PullResult{Ok: true, Target: "outside-users"}, nil
 		})
 
-		// pull.token-permission {store?:bool}
+		// pull.token-permission
 		sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
 			Name:        "pull.token-permission",
 			Title:       "Pull Token Permission",
-			Description: "Fetch token permission info; optionally store in DB.",
+			Description: "Fetch GitHub token permission headers; optionally store them in SQLite.",
+			InputSchema: pullSchema(nil, nil),
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
-			opts := resolvePullOptions(in.NoStore, in.Stdout)
-			if err := doPull(ctx, cfg, "token-permission", opts, ""); err != nil {
+			opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
+			if err := doPull(ctx, cfg, "token-permission", opts, "", ""); err != nil {
 				return &sdk.CallToolResult{}, PullResult{}, err
 			}
 			return nil, PullResult{Ok: true, Target: "token-permission"}, nil
@@ -272,13 +592,22 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		sdk.AddTool[PushAddIn, PushResult](srv, &sdk.Tool{
 			Name:        "push.add",
 			Title:       "Push Add",
-			Description: "Add users to teams. Dry-run unless exec=true.",
+			Description: "Add users to teams or invite outside collaborators. Dry-run unless exec=true.",
 			InputSchema: &jsonschema.Schema{
-				Type: "object",
+				Type:        "object",
+				Description: "Provide exactly one of team_user or outside_user.",
 				Properties: map[string]*jsonschema.Schema{
 					"team_user": {
 						Type:        "string",
 						Description: "Team/user pair in the form {team_slug}/{user_name}.",
+					},
+					"outside_user": {
+						Type:        "string",
+						Description: "Repository/user pair in the form {repository}/{user_name}.",
+					},
+					"permission": {
+						Type:        "string",
+						Description: "Optional permission for outside collaborators (pull|push|admin, aliases: read→pull, write→push).",
 					},
 					"exec": {
 						Type:        "boolean",
@@ -289,21 +618,26 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 						Description: "Skip local database update when true.",
 					},
 				},
-				Required: []string{"team_user"},
 			},
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PushAddIn) (*sdk.CallToolResult, PushResult, error) {
-			target, value, err := resolvePushAddInput(in)
+			target, value, permission, err := resolvePushAddInput(in)
 			if err != nil {
 				return &sdk.CallToolResult{}, PushResult{}, err
 			}
 			if !in.Exec {
 				msg := fmt.Sprintf("DRYRUN: Would add %s '%s' to organization %s", target, value, cfg.Organization)
+				if permission != "" {
+					msg = fmt.Sprintf("DRYRUN: Would add %s '%s' (permission=%s) to organization %s", target, value, permission, cfg.Organization)
+				}
 				return nil, PushResult{Ok: true, Target: target, Value: value, Executed: false, Message: msg}, nil
 			}
-			if err := doPushAdd(ctx, cfg, target, value, !in.NoStore); err != nil {
+			if err := doPushAdd(ctx, cfg, target, value, permission, !in.NoStore); err != nil {
 				return &sdk.CallToolResult{}, PushResult{}, err
 			}
 			msg := fmt.Sprintf("Added %s '%s' to organization %s", target, value, cfg.Organization)
+			if permission != "" {
+				msg = fmt.Sprintf("Added %s '%s' (permission=%s) to organization %s", target, value, permission, cfg.Organization)
+			}
 			return nil, PushResult{Ok: true, Target: target, Value: value, Executed: true, Message: msg}, nil
 		})
 
@@ -312,7 +646,8 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 			Title:       "Push Remove",
 			Description: "Remove teams, users, or team members. Dry-run unless exec=true.",
 			InputSchema: &jsonschema.Schema{
-				Type: "object",
+				Type:        "object",
+				Description: "Provide exactly one removal target (team, user, team_user, outside_user, or repos_user).",
 				Properties: map[string]*jsonschema.Schema{
 					"team": {
 						Type:        "string",
@@ -331,6 +666,14 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 					"team_user": {
 						Type:        "string",
 						Description: "Team/user pair in the form {team_slug}/{user_name}.",
+					},
+					"outside_user": {
+						Type:        "string",
+						Description: "Repository/user pair in the form {repository}/{user_name} (outside collaborator).",
+					},
+					"repos_user": {
+						Type:        "string",
+						Description: "Repository/user pair in the form {repository}/{user_name} (direct collaborator).",
 					},
 					"exec": {
 						Type:        "boolean",
@@ -525,6 +868,554 @@ func listTeamUsers(teamSlug string) ([]TeamUser, error) {
 	return res, nil
 }
 
+type RepoUser struct {
+	UserID     int64  `json:"user_id" jsonschema:"user ID"`
+	Login      string `json:"login" jsonschema:"user login"`
+	Permission string `json:"permission,omitempty" jsonschema:"repository permission (normalized)"`
+}
+
+type ViewRepoUsersIn struct {
+	Repository string `json:"repository" jsonschema:"repository name"`
+}
+
+type ViewRepoUsersOut struct {
+	Repository string     `json:"repository"`
+	FullName   string     `json:"full_name,omitempty"`
+	Users      []RepoUser `json:"users"`
+}
+
+func listRepoUsers(repoName string) (ViewRepoUsersOut, error) {
+	db, err := store.InitDatabase()
+	if err != nil {
+		return ViewRepoUsersOut{}, err
+	}
+	defer db.Close()
+
+	out := ViewRepoUsersOut{Repository: repoName}
+
+	var (
+		displayName sql.NullString
+		fullName    sql.NullString
+	)
+	err = db.QueryRow(`SELECT name, full_name FROM ghub_repos WHERE name = ? LIMIT 1`, repoName).Scan(&displayName, &fullName)
+	if err != nil && err != sql.ErrNoRows {
+		return ViewRepoUsersOut{}, err
+	}
+	if err == nil {
+		if trimmed := strings.TrimSpace(displayName.String); trimmed != "" {
+			out.Repository = trimmed
+		}
+		out.FullName = strings.TrimSpace(fullName.String)
+	}
+
+	rows, err := db.Query(`
+		SELECT ghub_user_id, user_login, COALESCE(permission, '')
+		FROM ghub_repos_users
+		WHERE repos_name = ?
+		ORDER BY user_login`, repoName)
+	if err != nil {
+		return ViewRepoUsersOut{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var userID sql.NullInt64
+		var login, permission sql.NullString
+		if err := rows.Scan(&userID, &login, &permission); err != nil {
+			return ViewRepoUsersOut{}, err
+		}
+		out.Users = append(out.Users, RepoUser{
+			UserID:     userID.Int64,
+			Login:      strings.TrimSpace(login.String),
+			Permission: normalizePermissionValue(permission.String),
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return ViewRepoUsersOut{}, err
+	}
+
+	return out, nil
+}
+
+type RepoTeam struct {
+	ID          int64  `json:"id" jsonschema:"team ID"`
+	Slug        string `json:"team_slug" jsonschema:"team slug"`
+	Name        string `json:"team_name" jsonschema:"team display name"`
+	Permission  string `json:"permission,omitempty" jsonschema:"repository permission"`
+	Privacy     string `json:"privacy,omitempty" jsonschema:"team privacy"`
+	Description string `json:"description,omitempty" jsonschema:"team description"`
+}
+
+type ViewRepoTeamsIn struct {
+	Repository string `json:"repository" jsonschema:"repository name"`
+}
+
+type ViewRepoTeamsOut struct {
+	Repository string     `json:"repository"`
+	FullName   string     `json:"full_name,omitempty"`
+	Teams      []RepoTeam `json:"teams"`
+}
+
+func listRepoTeams(repoName string) (ViewRepoTeamsOut, error) {
+	db, err := store.InitDatabase()
+	if err != nil {
+		return ViewRepoTeamsOut{}, err
+	}
+	defer db.Close()
+
+	out := ViewRepoTeamsOut{Repository: repoName}
+
+	var (
+		displayName sql.NullString
+		fullName    sql.NullString
+	)
+	err = db.QueryRow(`SELECT name, full_name FROM ghub_repos WHERE name = ? LIMIT 1`, repoName).Scan(&displayName, &fullName)
+	if err != nil && err != sql.ErrNoRows {
+		return ViewRepoTeamsOut{}, err
+	}
+	if err == nil {
+		if trimmed := strings.TrimSpace(displayName.String); trimmed != "" {
+			out.Repository = trimmed
+		}
+		out.FullName = strings.TrimSpace(fullName.String)
+	}
+
+	rows, err := db.Query(`
+		SELECT id, team_slug, team_name, COALESCE(permission, ''), COALESCE(privacy, ''), COALESCE(description, '')
+		FROM ghub_repos_teams
+		WHERE repos_name = ?
+		ORDER BY team_slug`, repoName)
+	if err != nil {
+		return ViewRepoTeamsOut{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			id          sql.NullInt64
+			slug        sql.NullString
+			name        sql.NullString
+			permission  sql.NullString
+			privacy     sql.NullString
+			description sql.NullString
+		)
+		if err := rows.Scan(&id, &slug, &name, &permission, &privacy, &description); err != nil {
+			return ViewRepoTeamsOut{}, err
+		}
+		out.Teams = append(out.Teams, RepoTeam{
+			ID:          id.Int64,
+			Slug:        strings.TrimSpace(slug.String),
+			Name:        strings.TrimSpace(name.String),
+			Permission:  normalizePermissionValue(permission.String),
+			Privacy:     strings.TrimSpace(privacy.String),
+			Description: strings.TrimSpace(description.String),
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return ViewRepoTeamsOut{}, err
+	}
+
+	return out, nil
+}
+
+type AllTeamsUsersEntry struct {
+	TeamSlug  string `json:"team_slug"`
+	TeamName  string `json:"team_name"`
+	UserLogin string `json:"user_login"`
+	UserName  string `json:"user_name"`
+	Role      string `json:"role"`
+}
+
+type ViewAllTeamsUsersOut struct {
+	Entries []AllTeamsUsersEntry `json:"entries"`
+}
+
+func listAllTeamsUsers() ([]AllTeamsUsersEntry, error) {
+	db, err := store.InitDatabase()
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	rows, err := db.Query(`
+		SELECT 
+			tu.team_slug,
+			COALESCE(t.name, '') AS team_name,
+			tu.user_login,
+			COALESCE(u.name, '') AS user_name,
+			COALESCE(tu.role, '') AS role
+		FROM ghub_team_users tu
+		LEFT JOIN ghub_teams t ON t.slug = tu.team_slug
+		LEFT JOIN ghub_users u ON u.login = tu.user_login
+		ORDER BY LOWER(tu.team_slug), LOWER(tu.user_login)
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []AllTeamsUsersEntry
+	for rows.Next() {
+		var teamSlug, teamName, login, userName, role sql.NullString
+		if err := rows.Scan(&teamSlug, &teamName, &login, &userName, &role); err != nil {
+			return nil, err
+		}
+		entries = append(entries, AllTeamsUsersEntry{
+			TeamSlug:  strings.TrimSpace(teamSlug.String),
+			TeamName:  strings.TrimSpace(teamName.String),
+			UserLogin: strings.TrimSpace(login.String),
+			UserName:  strings.TrimSpace(userName.String),
+			Role:      strings.TrimSpace(role.String),
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return entries, nil
+}
+
+type AllReposUsersEntry struct {
+	RepoName   string `json:"repo_name"`
+	FullName   string `json:"full_name"`
+	UserLogin  string `json:"user_login"`
+	UserName   string `json:"user_name"`
+	Permission string `json:"permission"`
+}
+
+type ViewAllReposUsersOut struct {
+	Entries []AllReposUsersEntry `json:"entries"`
+}
+
+func listAllRepositoriesUsers() ([]AllReposUsersEntry, error) {
+	db, err := store.InitDatabase()
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	rows, err := db.Query(`
+		SELECT 
+			COALESCE(r.name, ru.repos_name) AS repo_name,
+			COALESCE(r.full_name, '') AS repo_full_name,
+			ru.user_login,
+			COALESCE(u.name, '') AS user_name,
+			COALESCE(ru.permission, '') AS permission
+		FROM ghub_repos_users ru
+		LEFT JOIN ghub_repos r ON r.name = ru.repos_name
+		LEFT JOIN ghub_users u ON u.login = ru.user_login
+		ORDER BY LOWER(repo_name), LOWER(ru.user_login)
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []AllReposUsersEntry
+	for rows.Next() {
+		var repoName, fullName, login, userName, permission sql.NullString
+		if err := rows.Scan(&repoName, &fullName, &login, &userName, &permission); err != nil {
+			return nil, err
+		}
+		entries = append(entries, AllReposUsersEntry{
+			RepoName:   strings.TrimSpace(repoName.String),
+			FullName:   strings.TrimSpace(fullName.String),
+			UserLogin:  strings.TrimSpace(login.String),
+			UserName:   strings.TrimSpace(userName.String),
+			Permission: normalizePermissionValue(permission.String),
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return entries, nil
+}
+
+type AllReposTeamsEntry struct {
+	RepoName    string `json:"repo_name"`
+	FullName    string `json:"full_name"`
+	TeamSlug    string `json:"team_slug"`
+	TeamName    string `json:"team_name"`
+	Permission  string `json:"permission"`
+	Privacy     string `json:"privacy"`
+	Description string `json:"description"`
+}
+
+type ViewAllReposTeamsOut struct {
+	Entries []AllReposTeamsEntry `json:"entries"`
+}
+
+func listAllRepositoriesTeams() ([]AllReposTeamsEntry, error) {
+	db, err := store.InitDatabase()
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	rows, err := db.Query(`
+		SELECT 
+			COALESCE(r.name, rt.repos_name) AS repo_name,
+			COALESCE(r.full_name, '') AS repo_full_name,
+			rt.team_slug,
+			COALESCE(rt.team_name, '') AS team_name,
+			COALESCE(rt.permission, '') AS permission,
+			COALESCE(rt.privacy, '') AS privacy,
+			COALESCE(rt.description, '') AS description
+		FROM ghub_repos_teams rt
+		LEFT JOIN ghub_repos r ON r.name = rt.repos_name
+		ORDER BY LOWER(repo_name), LOWER(rt.team_slug)
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []AllReposTeamsEntry
+	for rows.Next() {
+		var repoName, fullName, teamSlug, teamName, permission, privacy, description sql.NullString
+		if err := rows.Scan(&repoName, &fullName, &teamSlug, &teamName, &permission, &privacy, &description); err != nil {
+			return nil, err
+		}
+		entries = append(entries, AllReposTeamsEntry{
+			RepoName:    strings.TrimSpace(repoName.String),
+			FullName:    strings.TrimSpace(fullName.String),
+			TeamSlug:    strings.TrimSpace(teamSlug.String),
+			TeamName:    strings.TrimSpace(teamName.String),
+			Permission:  normalizePermissionValue(permission.String),
+			Privacy:     strings.TrimSpace(privacy.String),
+			Description: strings.TrimSpace(description.String),
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return entries, nil
+}
+
+type ViewUserReposIn struct {
+	User string `json:"user" jsonschema:"user login"`
+}
+
+type UserRepoAccess struct {
+	Repository string   `json:"repository"`
+	AccessFrom []string `json:"access_from"`
+	Permission string   `json:"permission"`
+}
+
+type ViewUserReposOut struct {
+	User         string           `json:"user"`
+	Repositories []UserRepoAccess `json:"repositories"`
+}
+
+func listUserRepositories(userLogin string) (ViewUserReposOut, error) {
+	db, err := store.InitDatabase()
+	if err != nil {
+		return ViewUserReposOut{}, err
+	}
+	defer db.Close()
+
+	cleanLogin := strings.TrimSpace(userLogin)
+	if cleanLogin == "" {
+		return ViewUserReposOut{}, fmt.Errorf("user login is required")
+	}
+
+	type repoAccessEntry struct {
+		repoName string
+		highest  string
+		sources  []string
+		seen     map[string]struct{}
+	}
+
+	accessByRepo := make(map[string]*repoAccessEntry)
+	mergeRepoAccess := func(repoName, sourceLabel, permission string) {
+		name := strings.TrimSpace(repoName)
+		if name == "" {
+			return
+		}
+		entry, ok := accessByRepo[name]
+		if !ok {
+			entry = &repoAccessEntry{
+				repoName: name,
+				highest:  "",
+				sources:  make([]string, 0, 2),
+				seen:     make(map[string]struct{}),
+			}
+			accessByRepo[name] = entry
+		}
+		entry.highest = maxPermission(entry.highest, permission)
+
+		displayPerm := normalizePermissionValue(permission)
+		display := sourceLabel
+		if displayPerm != "" {
+			display = fmt.Sprintf("%s [%s]", sourceLabel, displayPerm)
+		}
+		if _, exists := entry.seen[display]; !exists {
+			entry.sources = append(entry.sources, display)
+			entry.seen[display] = struct{}{}
+		}
+	}
+
+	directRows, err := db.Query(`
+		SELECT COALESCE(r.name, ru.repos_name) AS repo_name,
+		       COALESCE(ru.permission, ''),
+		       ru.repos_name
+		FROM ghub_repos_users ru
+		LEFT JOIN ghub_repos r ON r.name = ru.repos_name
+		WHERE ru.user_login = ?
+	`, cleanLogin)
+	if err != nil {
+		return ViewUserReposOut{}, err
+	}
+	defer directRows.Close()
+
+	for directRows.Next() {
+		var repoName, permission, fallback sql.NullString
+		if err := directRows.Scan(&repoName, &permission, &fallback); err != nil {
+			return ViewUserReposOut{}, err
+		}
+		name := strings.TrimSpace(repoName.String)
+		if name == "" {
+			name = strings.TrimSpace(fallback.String)
+		}
+		if name == "" {
+			continue
+		}
+		mergeRepoAccess(name, "Direct", permission.String)
+	}
+	if err := directRows.Err(); err != nil {
+		return ViewUserReposOut{}, err
+	}
+
+	teamRows, err := db.Query(`
+		SELECT COALESCE(r.name, rt.repos_name) AS repo_name,
+		       rt.team_slug,
+		       COALESCE(rt.team_name, ''),
+		       COALESCE(rt.permission, ''),
+		       rt.repos_name
+		FROM ghub_team_users tu
+		JOIN ghub_repos_teams rt ON rt.team_slug = tu.team_slug
+		LEFT JOIN ghub_repos r ON r.name = rt.repos_name
+		WHERE tu.user_login = ?
+	`, cleanLogin)
+	if err != nil {
+		return ViewUserReposOut{}, err
+	}
+	defer teamRows.Close()
+
+	for teamRows.Next() {
+		var repoName, teamSlug, teamName, permission, fallback sql.NullString
+		if err := teamRows.Scan(&repoName, &teamSlug, &teamName, &permission, &fallback); err != nil {
+			return ViewUserReposOut{}, err
+		}
+		name := strings.TrimSpace(repoName.String)
+		if name == "" {
+			name = strings.TrimSpace(fallback.String)
+		}
+		if name == "" {
+			continue
+		}
+		slug := strings.TrimSpace(teamSlug.String)
+		if slug == "" {
+			continue
+		}
+		label := fmt.Sprintf("Team:%s", slug)
+		if displayName := strings.TrimSpace(teamName.String); displayName != "" {
+			label = fmt.Sprintf("%s (%s)", label, displayName)
+		}
+		mergeRepoAccess(name, label, permission.String)
+	}
+	if err := teamRows.Err(); err != nil {
+		return ViewUserReposOut{}, err
+	}
+
+	if len(accessByRepo) == 0 {
+		return ViewUserReposOut{User: cleanLogin, Repositories: []UserRepoAccess{}}, nil
+	}
+
+	entries := make([]*repoAccessEntry, 0, len(accessByRepo))
+	for _, entry := range accessByRepo {
+		sort.Slice(entry.sources, func(i, j int) bool {
+			si := entry.sources[i]
+			sj := entry.sources[j]
+			isDirect := strings.HasPrefix(si, "Direct")
+			jsDirect := strings.HasPrefix(sj, "Direct")
+			if isDirect != jsDirect {
+				return isDirect
+			}
+			return si < sj
+		})
+		entries = append(entries, entry)
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		li := strings.ToLower(entries[i].repoName)
+		lj := strings.ToLower(entries[j].repoName)
+		if li == lj {
+			return entries[i].repoName < entries[j].repoName
+		}
+		return li < lj
+	})
+
+	output := make([]UserRepoAccess, 0, len(entries))
+	for _, entry := range entries {
+		output = append(output, UserRepoAccess{
+			Repository: entry.repoName,
+			AccessFrom: append([]string(nil), entry.sources...),
+			Permission: entry.highest,
+		})
+	}
+
+	return ViewUserReposOut{User: cleanLogin, Repositories: output}, nil
+}
+
+type ViewSettingsOut struct {
+	Organization string `json:"organization"`
+	GitHubToken  string `json:"github_token"`
+	GitHubApp    struct {
+		AppID          int64  `json:"app_id"`
+		InstallationID int64  `json:"installation_id"`
+		PrivateKey     string `json:"private_key"`
+	} `json:"github_app"`
+	MCP struct {
+		AllowPull  bool `json:"allow_pull"`
+		AllowWrite bool `json:"allow_write"`
+	} `json:"mcp"`
+	DatabasePath string `json:"database_path"`
+	SessionPath  string `json:"session_path"`
+}
+
+func maskConfig(cfg *appcfg.Config) ViewSettingsOut {
+	if cfg == nil {
+		return ViewSettingsOut{}
+	}
+	var out ViewSettingsOut
+	out.Organization = cfg.Organization
+	out.GitHubToken = maskSecret(cfg.GitHubToken)
+	out.DatabasePath = cfg.DatabasePath
+	out.SessionPath = cfg.SessionPath
+	out.GitHubApp.AppID = cfg.GitHubApp.AppID
+	out.GitHubApp.InstallationID = cfg.GitHubApp.InstallationID
+	if cfg.GitHubApp.PrivateKey != "" {
+		out.GitHubApp.PrivateKey = "[masked PEM]"
+	}
+	out.MCP.AllowPull = cfg.MCP.AllowPull
+	out.MCP.AllowWrite = cfg.MCP.AllowWrite
+	return out
+}
+
+func maskSecret(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	if len(s) > 8 {
+		return "[masked]…" + s[len(s)-4:]
+	}
+	return "[masked]"
+}
+
 type ViewOutsideUsersOut struct {
 	Users []User `json:"users" jsonschema:"list of outside collaborators"`
 }
@@ -585,39 +1476,43 @@ func getTokenPermission() (ViewTokenPermissionOut, error) {
 
 // Pull inputs/outputs
 type PullCommonIn struct {
-	NoStore bool `json:"no_store,omitempty"`
-	Stdout  bool `json:"stdout,omitempty"`
-}
-
-type PullUsersIn struct {
-	NoStore bool `json:"no_store,omitempty"`
-	Stdout  bool `json:"stdout,omitempty"`
-	Detail  bool `json:"detail,omitempty"`
+	NoStore         bool    `json:"no_store,omitempty"`
+	Stdout          bool    `json:"stdout,omitempty"`
+	IntervalSeconds float64 `json:"interval_seconds,omitempty"`
 }
 
 type PullTeamUsersIn struct {
-	Team    string `json:"team"`
-	NoStore bool   `json:"no_store,omitempty"`
-	Stdout  bool   `json:"stdout,omitempty"`
+	PullCommonIn
+	Team string `json:"team"`
+}
+
+type PullRepoTargetIn struct {
+	PullCommonIn
+	Repository string `json:"repository"`
 }
 
 type PullResult struct {
 	Ok     bool   `json:"ok"`
 	Target string `json:"target"`
+	Value  string `json:"value,omitempty"`
 }
 
 type PushAddIn struct {
-	TeamUser string `json:"team_user"`
-	Exec     bool   `json:"exec,omitempty"`
-	NoStore  bool   `json:"no_store,omitempty"`
+	TeamUser    string `json:"team_user,omitempty"`
+	OutsideUser string `json:"outside_user,omitempty"`
+	Permission  string `json:"permission,omitempty"`
+	Exec        bool   `json:"exec,omitempty"`
+	NoStore     bool   `json:"no_store,omitempty"`
 }
 
 type PushRemoveIn struct {
-	Team     string `json:"team,omitempty"`
-	User     string `json:"user,omitempty"`
-	TeamUser string `json:"team_user,omitempty"`
-	Exec     bool   `json:"exec,omitempty"`
-	NoStore  bool   `json:"no_store,omitempty"`
+	Team        string `json:"team,omitempty"`
+	User        string `json:"user,omitempty"`
+	TeamUser    string `json:"team_user,omitempty"`
+	OutsideUser string `json:"outside_user,omitempty"`
+	ReposUser   string `json:"repos_user,omitempty"`
+	Exec        bool   `json:"exec,omitempty"`
+	NoStore     bool   `json:"no_store,omitempty"`
 }
 
 type PushResult struct {
@@ -628,34 +1523,64 @@ type PushResult struct {
 	Message  string `json:"message,omitempty"`
 }
 
-// resolvePullOptions converts CLI-style flags to PullOptions.
-// デフォルトは保存有効、`no_store` 指定時のみ無効化する。
-func resolvePullOptions(noStore, stdout bool) gh.PullOptions {
+// resolvePullOptions converts MCP inputs to GitHub pull options.
+// デフォルトは保存有効、`no_store` 指定時のみ無効化する。間隔は秒指定で3秒を既定とする。
+func resolvePullOptions(noStore, stdout bool, intervalSeconds float64) gh.PullOptions {
+	interval := defaultPullInterval
+	if intervalSeconds > 0 {
+		ms := math.Round(intervalSeconds * 1000)
+		interval = time.Duration(ms) * time.Millisecond
+	}
 	return gh.PullOptions{
-		Store:  !noStore,
-		Stdout: stdout,
+		Store:    !noStore,
+		Stdout:   stdout,
+		Interval: interval,
 	}
 }
 
-func resolvePushAddInput(in PushAddIn) (string, string, error) {
-	pair := strings.TrimSpace(in.TeamUser)
-	if pair == "" {
-		return "", "", fmt.Errorf("team_user を指定してください (例: team-slug/user)")
+func resolvePushAddInput(in PushAddIn) (string, string, string, error) {
+	teamUser := strings.TrimSpace(in.TeamUser)
+	outsideUser := strings.TrimSpace(in.OutsideUser)
+
+	switch {
+	case teamUser == "" && outsideUser == "":
+		return "", "", "", fmt.Errorf("target required: specify team_user or outside_user")
+	case teamUser != "" && outsideUser != "":
+		return "", "", "", fmt.Errorf("target conflicted: specify only one of team_user or outside_user")
 	}
-	teamSlug, userName, err := v.ParseTeamUserPair(pair)
+
+	if teamUser != "" {
+		if strings.TrimSpace(in.Permission) != "" {
+			return "", "", "", fmt.Errorf("permission は outside_user と併用してください")
+		}
+		teamSlug, userName, err := v.ParseTeamUserPair(teamUser)
+		if err != nil {
+			return "", "", "", err
+		}
+		return "team-user", fmt.Sprintf("%s/%s", teamSlug, userName), "", nil
+	}
+
+	perm, err := normalizeOutsidePermission(in.Permission)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
-	return "team-user", fmt.Sprintf("%s/%s", teamSlug, userName), nil
+	repoName, userLogin, err := v.ParseRepoUserPair(outsideUser)
+	if err != nil {
+		return "", "", "", err
+	}
+	return "outside-user", fmt.Sprintf("%s/%s", repoName, userLogin), perm, nil
 }
 
-func doPull(ctx context.Context, cfg *appcfg.Config, target string, opts gh.PullOptions, teamSlug string) error {
+func doPull(ctx context.Context, cfg *appcfg.Config, target string, opts gh.PullOptions, teamSlug, repoName string) error {
 	client, err := gh.InitClient(cfg)
 	if err != nil {
 		return fmt.Errorf("github client init: %w", err)
 	}
 	var db *sql.DB
-	if opts.Store || target == "all-teams-users" {
+	if opts.Store ||
+		target == "all-teams-users" ||
+		target == "all-repos-users" ||
+		target == "all-repos-teams" {
 		db, err = store.InitDatabase()
 		if err != nil {
 			return fmt.Errorf("db init: %w", err)
@@ -663,21 +1588,24 @@ func doPull(ctx context.Context, cfg *appcfg.Config, target string, opts gh.Pull
 		defer db.Close()
 	}
 	req := gh.TargetRequest{Kind: target}
-	if target == "team-user" && teamSlug != "" {
+	if teamSlug != "" {
 		req.TeamSlug = teamSlug
 	}
-	if opts.Interval == 0 {
-		opts.Interval = gh.DefaultSleep
+	if repoName != "" {
+		req.RepoName = repoName
+	}
+	if opts.Interval <= 0 {
+		opts.Interval = defaultPullInterval
 	}
 	return gh.HandlePullTarget(ctx, client, db, cfg.Organization, req, cfg.GitHubToken, opts)
 }
 
-func doPushAdd(ctx context.Context, cfg *appcfg.Config, target, value string, storeResult bool) error {
+func doPushAdd(ctx context.Context, cfg *appcfg.Config, target, value, permission string, storeResult bool) error {
 	client, err := gh.InitClient(cfg)
 	if err != nil {
 		return fmt.Errorf("github client init: %w", err)
 	}
-	if err := gh.ExecutePushAdd(ctx, client, cfg.Organization, target, value, ""); err != nil {
+	if err := gh.ExecutePushAdd(ctx, client, cfg.Organization, target, value, permission); err != nil {
 		return err
 	}
 	if !storeResult {
@@ -701,26 +1629,26 @@ func resolvePushRemoveInput(in PushRemoveIn) (string, string, error) {
 		count  int
 	)
 
-	if strings.TrimSpace(in.Team) != "" {
-		if err := v.ValidateTeamSlug(in.Team); err != nil {
+	if team := strings.TrimSpace(in.Team); team != "" {
+		if err := v.ValidateTeamSlug(team); err != nil {
 			return "", "", err
 		}
 		target = "team"
-		value = strings.TrimSpace(in.Team)
+		value = team
 		count++
 	}
 
-	if strings.TrimSpace(in.User) != "" {
-		if err := v.ValidateUserName(in.User); err != nil {
+	if user := strings.TrimSpace(in.User); user != "" {
+		if err := v.ValidateUserName(user); err != nil {
 			return "", "", err
 		}
 		target = "user"
-		value = strings.TrimSpace(in.User)
+		value = user
 		count++
 	}
 
-	if strings.TrimSpace(in.TeamUser) != "" {
-		teamSlug, userName, err := v.ParseTeamUserPair(strings.TrimSpace(in.TeamUser))
+	if pair := strings.TrimSpace(in.TeamUser); pair != "" {
+		teamSlug, userName, err := v.ParseTeamUserPair(pair)
 		if err != nil {
 			return "", "", err
 		}
@@ -729,8 +1657,28 @@ func resolvePushRemoveInput(in PushRemoveIn) (string, string, error) {
 		count++
 	}
 
+	if outside := strings.TrimSpace(in.OutsideUser); outside != "" {
+		repoName, userLogin, err := v.ParseRepoUserPair(outside)
+		if err != nil {
+			return "", "", err
+		}
+		target = "outside-user"
+		value = fmt.Sprintf("%s/%s", repoName, userLogin)
+		count++
+	}
+
+	if repos := strings.TrimSpace(in.ReposUser); repos != "" {
+		repoName, userLogin, err := v.ParseRepoUserPair(repos)
+		if err != nil {
+			return "", "", err
+		}
+		target = "repos-user"
+		value = fmt.Sprintf("%s/%s", repoName, userLogin)
+		count++
+	}
+
 	if count == 0 {
-		return "", "", fmt.Errorf("対象を1つ指定してください (--team, --user, --team-user に相当)")
+		return "", "", fmt.Errorf("対象を1つ指定してください (--team, --user, --team-user, --outside-user, --repos-user のいずれか)")
 	}
 	if count > 1 {
 		return "", "", fmt.Errorf("対象を1つだけ指定してください (複数指定はできません)")
@@ -758,4 +1706,52 @@ func doPushRemove(ctx context.Context, cfg *appcfg.Config, target, value string,
 		return fmt.Errorf("db sync: %w", err)
 	}
 	return nil
+}
+
+var permissionPriority = []string{"admin", "maintain", "push", "triage", "pull"}
+
+func normalizePermissionValue(p string) string {
+	return strings.ToLower(strings.TrimSpace(p))
+}
+
+func permissionRank(p string) int {
+	for idx, key := range permissionPriority {
+		if p == key {
+			return idx
+		}
+	}
+	return len(permissionPriority)
+}
+
+func maxPermission(current, candidate string) string {
+	currentNorm := normalizePermissionValue(current)
+	candidateNorm := normalizePermissionValue(candidate)
+
+	if candidateNorm == "" {
+		return currentNorm
+	}
+	if currentNorm == "" {
+		return candidateNorm
+	}
+	if permissionRank(candidateNorm) < permissionRank(currentNorm) {
+		return candidateNorm
+	}
+	return currentNorm
+}
+
+func normalizeOutsidePermission(p string) (string, error) {
+	trimmed := strings.TrimSpace(p)
+	if trimmed == "" {
+		return "", nil
+	}
+	switch val := strings.ToLower(trimmed); val {
+	case "pull", "push", "admin":
+		return val, nil
+	case "read":
+		return "pull", nil
+	case "write":
+		return "push", nil
+	default:
+		return "", fmt.Errorf("外部コラボレーターの権限が不正です: pull, push, admin（エイリアス: read, write）から選択してください")
+	}
 }
