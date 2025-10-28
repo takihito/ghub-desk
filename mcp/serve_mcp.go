@@ -1529,9 +1529,6 @@ func resolvePullOptions(noStore, stdout bool, intervalSeconds float64) gh.PullOp
 	interval := defaultPullInterval
 	if intervalSeconds > 0 {
 		ms := math.Round(intervalSeconds * 1000)
-		if ms < 0 {
-			ms = 0
-		}
 		interval = time.Duration(ms) * time.Millisecond
 	}
 	return gh.PullOptions{
