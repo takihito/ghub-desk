@@ -42,7 +42,6 @@ GitHub Organization Management CLI & MCP Server
 ### MCP server (mcp)
 - `./ghub-desk mcp --debug` launches the go-sdk MCP server over stdio
 - Control the exposed tools with `mcp.allow_pull` and `mcp.allow_write`
-- `make build_mcp` remains as a compatibility alias for `make build`
 
 ## Configuration
 
@@ -202,7 +201,6 @@ make build
 ```
 
 - The server exposes `pull.*` and `push.*` tools based on `mcp.allow_pull` and `mcp.allow_write`.
-- `make build_mcp` behaves the same as `make build` for backward compatibility.
 - When enabling write operations, run with `--exec` and review the DRYRUN output first.
 
 ### MCP tools

@@ -40,7 +40,6 @@ GitHub Organization Management CLI & MCP Server
 ### MCP サーバー (mcp)
 - `./ghub-desk mcp --debug` は go-sdk を組み込んだ MCP サーバーを stdio 上で起動
 - 設定ファイルの `mcp.allow_pull` / `mcp.allow_write` で公開するツールを制御
-- `make build_mcp` は `make build` と同等の後方互換ターゲット
 
 ## 設定
 
@@ -201,7 +200,6 @@ make build
 ```
 
 - MCP サーバーは設定の `mcp.allow_pull` / `allow_write` に応じて `pull.*` / `push.*` ツールを公開します。
-- `make build_mcp` も `make build` と同じ成果物を生成します（後方互換）。
 - `allow_write` を有効にする場合は、`--exec` フラグの利用や DRYRUN で影響範囲を確認してから実行してください。
 
 ### MCP ツール
@@ -237,7 +235,6 @@ make build
 ```bash
 make build
 
-make build_mcp
 ```
 
 ## テスト
