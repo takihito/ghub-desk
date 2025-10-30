@@ -11,10 +11,10 @@
 ## ビルドモード
 | モード | コマンド | 内容 |
 | --- | --- | --- |
-| スタブサーバー (既定) | `go build ./...`<br>`ghub-desk mcp` | go-sdk に依存しないビルド。起動すると許可されたツール一覧を表示し、Ctrl+C を待機します。|
-| go-sdk サーバー | `make build_mcp`<br>`./build/ghub-desk mcp --debug` | `-tags mcp_sdk` でビルドし、`github.com/modelcontextprotocol/go-sdk` を使った本格的な MCP サーバーを stdio で起動します。|
+| デフォルト | `go build ./...`<br>`ghub-desk mcp --debug` | `github.com/modelcontextprotocol/go-sdk` をリンクした MCP サーバーを stdio で提供します。|
+| 互換ターゲット | `make build_mcp`<br>`./build/ghub-desk mcp --debug` | `make build` と同じ成果物を生成する後方互換ターゲットです。|
 
-> go-sdk サーバーのみが MCP クライアントからの JSON-RPC に応答します。スタブは開発時の確認用です。
+> 以前のスタブモードは廃止され、標準ビルドでそのまま go-sdk MCP サーバーを利用できます。
 
 ## 設定例
 `~/.config/ghub-desk/config.yaml`
@@ -73,15 +73,11 @@ GitHub 側へ変更を加える操作です。既定では DRYRUN として実�
 
 ## 起動例
 ```bash
-# スタブサーバー (許可ツール一覧のみ表示)
-go run ./cmd/ghub-desk mcp
-
-# go-sdk サーバー (実際の MCP を提供)
-make build_mcp
+make build
 ./build/ghub-desk mcp --debug
 ```
 
-MCP クライアント（例: MCP Inspector）をサブプロセスとして起動すると、`health` / `view.*` / `pull.*` / `push.*` を呼び出せます。`allow_write` を有効にする前に DRYRUN 出力で影響範囲を確認してください。
+`make build_mcp` を使用しても同じバイナリ (`./build/ghub-desk`) が生成されます。MCP クライアント（例: MCP Inspector）をサブプロセスとして起動すると、`health` / `view.*` / `pull.*` / `push.*` を呼び出せます。`allow_write` を有効にする前に DRYRUN 出力で影響範囲を確認してください。
 
 ## エラーハンドリングと注意点
 - 認証設定が無い、もしくは PAT と GitHub App を同時に設定している場合はサーバー起動時にエラーになります。

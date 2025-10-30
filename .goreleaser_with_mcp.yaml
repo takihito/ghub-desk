@@ -1,7 +1,7 @@
 version: 2
 
-# このファイルは MCP 対応版の配布レイアウト例です。
-# 既存の .goreleaser.yaml を置き換えずに、二系統（通常版/タグ付きMCP版）を並行配布する想定。
+# このファイルは MCP 機能を統合した単一バイナリ用の配布レイアウト例です。
+# 既存の .goreleaser.yaml と同等ですが、過去の二系統配布から移行する際のリファレンスとして残しています。
 # 使い方（スナップショット）: goreleaser build --snapshot --clean -f .goreleaser_with_mcp.yaml
 
 project_name: ghub-desk
@@ -12,7 +12,6 @@ before:
     - go generate ./...
 
 builds:
-  # 通常版（スタブサーバーを含むが MCP は喋らない）
   - id: ghub-desk
     main: ./
     binary: ghub-desk
@@ -26,36 +25,11 @@ builds:
       - -X main.Commit={{.Commit}}
       - -X main.Date={{.Date}}
 
-  # MCP 実装版（-tags mcp_sdk）
-  - id: ghub-desk-mcp
-    main: ./
-    binary: ghub-desk-mcp
-    tags: [mcp_sdk]
-    env:
-      - CGO_ENABLED=0
-    goos: [linux, windows, darwin]
-    goarch: [amd64, arm64]
-    ldflags:
-      - -s -w
-      - -X main.Version={{.Version}}
-      - -X main.Commit={{.Commit}}
-      - -X main.Date={{.Date}}
-
 archives:
-  # 通常版のアーカイブ
   - id: default
     builds: [ghub-desk]
     name_template: >-
       {{ .ProjectName }}_{{ .Version }}_{{- title .Os }}_{{- if eq .Arch "amd64" }}x86_64{{- else if eq .Arch "386" }}i386{{- else }}{{ .Arch }}{{ end }}
-    files:
-      - README.md
-      - LICENSE*
-
-  # MCP 版のアーカイブ（バイナリ名サフィックスで混同回避）
-  - id: mcp
-    builds: [ghub-desk-mcp]
-    name_template: >-
-      {{ .ProjectName }}-mcp_{{ .Version }}_{{- title .Os }}_{{- if eq .Arch "amd64" }}x86_64{{- else if eq .Arch "386" }}i386{{- else }}{{ .Arch }}{{ end }}
     files:
       - README.md
       - LICENSE*
@@ -78,4 +52,3 @@ changelog:
       - "^docs:"
       - "^test:"
       - "^work-logs:"
-

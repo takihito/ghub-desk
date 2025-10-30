@@ -40,8 +40,9 @@ GitHub Organization Management CLI & MCP Server
 - Display build-time metadata (version, commit, build time)
 
 ### MCP server (mcp)
-- Launch an MCP server so clients (for example, MCP Inspector) can call the CLI features
+- `./ghub-desk mcp --debug` launches the go-sdk MCP server over stdio
 - Control the exposed tools with `mcp.allow_pull` and `mcp.allow_write`
+- `make build_mcp` remains as a compatibility alias for `make build`
 
 ## Configuration
 
@@ -195,15 +196,13 @@ mcp:
 ## MCP server
 
 ```bash
-# Launch the MCP server (only exposes allowed tools)
-./ghub-desk mcp --debug
-
-# Build with the go-sdk support and launch
-make build_mcp
-./build/ghub-desk mcp
+# Build and launch the MCP server
+make build
+./build/ghub-desk mcp --debug
 ```
 
 - The server exposes `pull.*` and `push.*` tools based on `mcp.allow_pull` and `mcp.allow_write`.
+- `make build_mcp` behaves the same as `make build` for backward compatibility.
 - When enabling write operations, run with `--exec` and review the DRYRUN output first.
 
 ### MCP tools

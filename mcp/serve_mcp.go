@@ -1,5 +1,3 @@
-//go:build mcp_sdk
-
 package mcp
 
 import (
