@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.2.0](https://github.com/takihito/ghub-desk/compare/v0.1.7...v0.2.0) - 2025-10-31
+- implement: add subcommand option to MCP by @takihito in https://github.com/takihito/ghub-desk/pull/61
+- implement unify binary by @takihito in https://github.com/takihito/ghub-desk/pull/63
+
 ## [v0.1.7](https://github.com/takihito/ghub-desk/compare/v0.1.6...v0.1.7) - 2025-10-27
 - 実装: pull --repo-users,push add --outside-user by @takihito in https://github.com/takihito/ghub-desk/pull/50
 - implement 'pull --repos-teams' by @takihito in https://github.com/takihito/ghub-desk/pull/52
