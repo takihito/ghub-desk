@@ -5,7 +5,6 @@ APP=ghub-desk
 
 # Variables
 BINARY_NAME=ghub-desk
-BINARY_NAME_MCP=ghub-desk-mcp
 BUILD_DIR=./build
 GO_FILES=$(shell find . -name "*.go")
 
@@ -29,12 +28,9 @@ build:
 	@go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) .
 	@echo "✅ Build completed: $(BUILD_DIR)/$(BINARY_NAME)"
 
-# Build the MCP-enabled binary (uses go-sdk via build tag)
-build_mcp:
-	@echo "🏗️  Building $(BINARY_NAME_MCP) with MCP (go-sdk)..."
-	@mkdir -p $(BUILD_DIR)
-	@go build -tags mcp_sdk $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME_MCP) .
-	@echo "✅ MCP Build completed: $(BUILD_DIR)/$(BINARY_NAME_MCP)"
+# Backward-compatible alias (MCP support is now included in the default build)
+build_mcp: build
+	@echo "ℹ️  MCP 機能は標準バイナリに統合されました: $(BUILD_DIR)/$(BINARY_NAME)"
 
 # Install dependencies
 deps:
@@ -98,9 +94,9 @@ dev: build
 	@$(BUILD_DIR)/$(BINARY_NAME) $(ARGS)
 
 # Development mode for MCP (go-sdk version)
-dev_mcp: build_mcp
+dev_mcp: build
 	@echo "🛠️  Development mode (MCP) - building and running..."
-	@$(BUILD_DIR)/$(BINARY_NAME_MCP) $(ARGS)
+	@$(BUILD_DIR)/$(BINARY_NAME) $(ARGS)
 
 # Quick setup for development
 setup: deps build
@@ -114,14 +110,14 @@ setup: deps build
 # Check GoReleaser
 goreleaser_check:
 	@echo "🔍 Checking GoReleaser configuration..."
-	@goreleaser check --config .goreleaser_with_mcp.yaml
+	@goreleaser check --config .goreleaser.yaml
 
 # Local test build using GoReleaser (no release)
 goreleaser_build:
 	@echo "🏗️  Building locally with GoReleaser..."
-	@goreleaser build --snapshot --clean --config .goreleaser_with_mcp.yaml
+	@goreleaser build --snapshot --clean --config .goreleaser.yaml
 
 # Release using GoReleaser
 goreleaser:
 	@echo "🚀 Building release..."
-	@goreleaser release --clean --config .goreleaser_with_mcp.yaml
+	@goreleaser release --clean --config .goreleaser.yaml

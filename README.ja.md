@@ -38,8 +38,8 @@ GitHub Organization Management CLI & MCP Server
 - ビルド時に埋め込まれたバージョン/コミット/ビルド日時を表示
 
 ### MCP サーバー (mcp)
-- MCP クライアント (例: MCP Inspector) から CLI 機能を呼び出すためのサーバーを起動
-- 設定ファイルの `mcp.allow_pull` / `mcp.allow_write` で利用可能なツールを制御
+- `./ghub-desk mcp --debug` は go-sdk を組み込んだ MCP サーバーを stdio 上で起動
+- 設定ファイルの `mcp.allow_pull` / `mcp.allow_write` で公開するツールを制御
 
 ## 設定
 
@@ -194,15 +194,9 @@ mcp:
 
 
 ```bash
-# MCP サーバー用バイナリをビルド
-
-make build_mcp
-```
-
-```bash
-# MCP サーバーを起動 (許可されたツールのみ公開)
-
-./ghub-desk mcp --debug
+# MCP サーバーをビルドして起動
+make build
+./build/ghub-desk mcp --debug
 ```
 
 - MCP サーバーは設定の `mcp.allow_pull` / `allow_write` に応じて `pull.*` / `push.*` ツールを公開します。
@@ -241,7 +235,6 @@ make build_mcp
 ```bash
 make build
 
-make build_mcp
 ```
 
 ## テスト
