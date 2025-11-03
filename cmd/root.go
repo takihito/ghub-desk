@@ -319,7 +319,7 @@ func (p *PullCmd) Run(cli *CLI) error {
 			return fmt.Errorf("failed to initialize session: %w", err)
 		}
 	} else {
-		fmt.Printf("Resuming previous pull session (endpoint=%s, last page=%d, fetched count=%d)\n",
+		fmt.Printf("Resuming previous pull session (endpoint=%s, last page=%d, items fetched so far=%d)\n",
 			pullSession.Endpoint, pullSession.LastPage, pullSession.FetchedCount)
 	}
 
@@ -392,8 +392,8 @@ func printInterruptionSummary(sig os.Signal, sess *session.PullSession) {
 	if sig != nil {
 		reason = sig.String()
 	}
-	fmt.Printf("INFO: Pull interrupted due to receiving %s.\n", reason)
-	fmt.Printf("      endpoint=%s, last page=%d, fetched count=%d\n", sess.Endpoint, sess.LastPage, sess.FetchedCount)
+	fmt.Printf("INFO: Pull interrupted after receiving %s.\n", reason)
+	fmt.Printf("      endpoint=%s, last page=%d, items fetched so far=%d\n", sess.Endpoint, sess.LastPage, sess.FetchedCount)
 	if len(sess.Metadata) > 0 {
 		fmt.Printf("      metadata: %v\n", sess.Metadata)
 	}
@@ -408,7 +408,7 @@ func (v *ViewCmd) Run(cli *CLI) error {
 			return err
 		}
 		if v.TeamUser != "" && v.TeamUser != slug {
-			return fmt.Errorf("team specified by flag and argument do not match")
+			return fmt.Errorf("The team specified by the flag and the argument do not match")
 		}
 		v.TeamUser = slug
 	}

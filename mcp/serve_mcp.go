@@ -1549,7 +1549,7 @@ func resolvePushAddInput(in PushAddIn) (string, string, string, error) {
 
 	if teamUser != "" {
 		if strings.TrimSpace(in.Permission) != "" {
-			return "", "", "", fmt.Errorf("permission should be used with outside_user")
+			return "", "", "", fmt.Errorf("The permission flag can only be used with outside_user")
 		}
 		teamSlug, userName, err := v.ParseTeamUserPair(teamUser)
 		if err != nil {
