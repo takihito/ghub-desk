@@ -20,7 +20,7 @@ func ExecutePushRemove(ctx context.Context, client *github.Client, org, target, 
 		resp, err := client.Teams.DeleteTeamBySlug(ctx, org, resourceName)
 		scopePermission := FormatScopePermission(resp)
 		if err != nil {
-			return fmt.Errorf("チーム削除エラー: %v, Required permission scope: %s", err, scopePermission)
+			return fmt.Errorf("team deletion error: %v, Required permission scope: %s", err, scopePermission)
 		}
 		return nil
 
@@ -29,7 +29,7 @@ func ExecutePushRemove(ctx context.Context, client *github.Client, org, target, 
 		resp, err := client.Organizations.RemoveMember(ctx, org, resourceName)
 		scopePermission := FormatScopePermission(resp)
 		if err != nil {
-			return fmt.Errorf("ユーザー削除エラー: %v, Required permission scope: %s", err, scopePermission)
+			return fmt.Errorf("user deletion error: %v, Required permission scope: %s", err, scopePermission)
 		}
 		return nil
 
@@ -37,7 +37,7 @@ func ExecutePushRemove(ctx context.Context, client *github.Client, org, target, 
 		// Parse team/user format
 		parts := strings.Split(resourceName, "/")
 		if len(parts) != 2 {
-			return fmt.Errorf("チーム/ユーザー形式が正しくありません。{team_slug}/{user_name} の形式で指定してください")
+			return fmt.Errorf("invalid team/user format. Please specify in the format {team_slug}/{user_name}")
 		}
 		teamSlug := parts[0]
 		username := parts[1]
@@ -46,22 +46,18 @@ func ExecutePushRemove(ctx context.Context, client *github.Client, org, target, 
 		resp, err := client.Teams.RemoveTeamMembershipBySlug(ctx, org, teamSlug, username)
 		scopePermission := FormatScopePermission(resp)
 		if err != nil {
-			return fmt.Errorf("チームからのユーザー削除エラー: %v, Required permission scope: %s", err, scopePermission)
+			return fmt.Errorf("error removing user from team: %v, Required permission scope: %s", err, scopePermission)
 		}
 		return nil
 	case "outside-user", "repos-user":
 		repoName, username, err := validate.ParseRepoUserPair(resourceName)
 		if err != nil {
-			return fmt.Errorf("リポジトリ/ユーザー形式が正しくありません。{repository}/{user_name} の形式で指定してください")
+			return fmt.Errorf("invalid repository/user format. Please specify in the format {repository}/{user_name}")
 		}
 		if err := PushRemoveOutsideCollaborator(ctx, client, org, repoName, username); err != nil {
 			return err
 		}
-		return nil
-
-	default:
-		return fmt.Errorf("サポートされていない削除対象: %s", target)
-	}
+		return fmt.Errorf("unsupported removal target: %s", target)	}
 }
 
 // ExecutePushAdd executes the actual add operation via GitHub API
@@ -71,7 +67,7 @@ func ExecutePushAdd(ctx context.Context, client *github.Client, org, target, res
 		// Parse team/user format
 		parts := strings.Split(resourceName, "/")
 		if len(parts) != 2 {
-			return fmt.Errorf("チーム/ユーザー形式が正しくありません。{team_slug}/{user_name} の形式で指定してください")
+			return fmt.Errorf("invalid team/user format. Please specify in the format {team_slug}/{user_name}")
 		}
 		teamSlug := parts[0]
 		username := parts[1]
@@ -84,13 +80,13 @@ func ExecutePushAdd(ctx context.Context, client *github.Client, org, target, res
 		_, resp, err := client.Teams.AddTeamMembershipBySlug(ctx, org, teamSlug, username, membership)
 		scopePermission := FormatScopePermission(resp)
 		if err != nil {
-			return fmt.Errorf("チームへのユーザー追加エラー: %v, Required permission scope: %s", err, scopePermission)
+			return fmt.Errorf("error adding user to team: %v, Required permission scope: %s", err, scopePermission)
 		}
 		return nil
 	case "outside-user":
 		repoName, username, err := validate.ParseRepoUserPair(resourceName)
 		if err != nil {
-			return fmt.Errorf("リポジトリ/ユーザー形式が正しくありません。{repository}/{user_name} の形式で指定してください")
+			return fmt.Errorf("invalid repository/user format. Please specify in the format {repository}/{user_name}")
 		}
 		if err := PushAddOutsideCollaborator(ctx, client, org, repoName, username, permission); err != nil {
 			return err
@@ -98,7 +94,7 @@ func ExecutePushAdd(ctx context.Context, client *github.Client, org, target, res
 		return nil
 
 	default:
-		return fmt.Errorf("サポートされていない追加対象: %s", target)
+		return fmt.Errorf("unsupported add target: %s", target)
 	}
 }
 
@@ -111,7 +107,7 @@ func PushAddOutsideCollaborator(ctx context.Context, client *github.Client, org,
 	_, resp, err := client.Repositories.AddCollaborator(ctx, org, repoName, username, opts)
 	scopePermission := FormatScopePermission(resp)
 	if err != nil {
-		return fmt.Errorf("リポジトリへのユーザー追加エラー: %v, Required permission scope: %s", err, scopePermission)
+		return fmt.Errorf("error adding user to repository: %v, Required permission scope: %s", err, scopePermission)
 	}
 	return nil
 }
@@ -121,7 +117,7 @@ func PushRemoveOutsideCollaborator(ctx context.Context, client *github.Client, o
 	resp, err := client.Repositories.RemoveCollaborator(ctx, org, repoName, username)
 	scopePermission := FormatScopePermission(resp)
 	if err != nil {
-		return fmt.Errorf("リポジトリからのユーザー削除エラー: %v, Required permission scope: %s", err, scopePermission)
+		return fmt.Errorf("error removing user from repository: %v, Required permission scope: %s", err, scopePermission)
 	}
 	return nil
 }
@@ -145,21 +141,21 @@ func SyncPushAdd(ctx context.Context, client *github.Client, db *sql.DB, org, ta
 		}
 		team, _, err := client.Teams.GetTeamBySlug(ctx, org, teamSlug)
 		if err != nil {
-			return fmt.Errorf("チーム情報の取得に失敗しました: %w", err)
+			return fmt.Errorf("failed to get team information: %w", err)
 		}
 		if err := store.StoreTeams(db, []*github.Team{team}); err != nil {
-			return fmt.Errorf("チーム情報の保存に失敗しました: %w", err)
+			return fmt.Errorf("failed to save team information: %w", err)
 		}
 		user, _, err := client.Users.Get(ctx, userLogin)
 		if err != nil {
-			return fmt.Errorf("ユーザー情報の取得に失敗しました: %w", err)
+			return fmt.Errorf("failed to get user information: %w", err)
 		}
 		if err := store.StoreUsers(db, []*github.User{user}); err != nil {
-			return fmt.Errorf("ユーザー情報の保存に失敗しました: %w", err)
+			return fmt.Errorf("failed to save user information: %w", err)
 		}
 		membership, _, err := client.Teams.GetTeamMembershipBySlug(ctx, org, teamSlug, userLogin)
 		if err != nil {
-			return fmt.Errorf("チームメンバー情報の取得に失敗しました: %w", err)
+			return fmt.Errorf("failed to get team member information: %w", err)
 		}
 		role := "member"
 		if membership != nil && membership.Role != nil && membership.GetRole() != "" {
@@ -176,14 +172,14 @@ func SyncPushAdd(ctx context.Context, client *github.Client, db *sql.DB, org, ta
 		}
 		user, _, err := client.Users.Get(ctx, userLogin)
 		if err != nil {
-			return fmt.Errorf("ユーザー情報の取得に失敗しました: %w", err)
+			return fmt.Errorf("failed to get user information: %w", err)
 		}
 		if err := store.UpsertRepoUser(db, repoName, user); err != nil {
-			return fmt.Errorf("リポジトリユーザー情報の保存に失敗しました: %w", err)
+			return fmt.Errorf("failed to save repository user information: %w", err)
 		}
 		return nil
 	default:
-		return fmt.Errorf("サポートされていない追加対象: %s", target)
+		return fmt.Errorf("unsupported add target: %s", target)
 	}
 }
 
@@ -207,6 +203,6 @@ func SyncPushRemove(ctx context.Context, client *github.Client, db *sql.DB, org,
 		}
 		return store.DeleteRepoUser(db, repoName, userLogin)
 	default:
-		return fmt.Errorf("サポートされていない削除対象: %s", target)
+		return fmt.Errorf("unsupported removal target: %s", target)
 	}
 }

@@ -19,8 +19,8 @@ func setupTestDB(t *testing.T) *sql.DB {
 		t.Fatalf("Failed to open test database: %v", err)
 	}
 
-	// deferを使用してエラー時にもクリーンアップを保証
-	// ただし、正常時は呼び出し元でClose()する責任がある
+	// Use defer to ensure cleanup even on error
+	// However, the caller is responsible for Close() on success
 	var success bool
 	defer func() {
 		if !success {

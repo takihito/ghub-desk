@@ -6,9 +6,9 @@ import "ghub-desk/config"
 // by the MCP server based on configuration permissions.
 //
 // Policy:
-// - view.* は常に許可
-// - pull.* は AllowPull が true の場合のみ許可
-// - push.* は AllowWrite が true の場合のみ許可
+// - view.* is always allowed
+// - pull.* is only allowed if AllowPull is true
+// - push.* is only allowed if AllowWrite is true
 func AllowedTools(cfg *config.Config) []string {
 	var tools []string
 

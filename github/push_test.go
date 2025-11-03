@@ -20,7 +20,7 @@ func TestExecutePushRemove_InvalidTarget(t *testing.T) {
 		t.Error("Expected error for invalid target, got nil")
 	}
 
-	expectedError := "サポートされていない削除対象: invalid-target"
+	expectedError := "unsupported removal target: invalid-target"
 	if err.Error() != expectedError {
 		t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
 	}
@@ -32,12 +32,7 @@ func TestExecutePushRemove_InvalidTeamUserFormat(t *testing.T) {
 	org := "test-org"
 
 	// Test with invalid team-user format (no slash)
-	err := ExecutePushRemove(context.Background(), client, org, "team-user", "invalid-format")
-	if err == nil {
-		t.Error("Expected error for invalid team-user format, got nil")
-	}
-
-	expectedError := "チーム/ユーザー形式が正しくありません。{team_slug}/{user_name} の形式で指定してください"
+expectedError := "invalid team/user format. Please specify in the format {team_slug}/{user_name}"
 	if err.Error() != expectedError {
 		t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
 	}
@@ -64,7 +59,7 @@ func TestExecutePushAdd_InvalidTarget(t *testing.T) {
 		t.Error("Expected error for invalid target, got nil")
 	}
 
-	expectedError := "サポートされていない追加対象: invalid-target"
+	expectedError := "unsupported add target: invalid-target"
 	if err.Error() != expectedError {
 		t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
 	}
@@ -81,7 +76,7 @@ func TestExecutePushAdd_InvalidTeamUserFormat(t *testing.T) {
 		t.Error("Expected error for invalid team-user format, got nil")
 	}
 
-	expectedError := "チーム/ユーザー形式が正しくありません。{team_slug}/{user_name} の形式で指定してください"
+	expectedError := "invalid team/user format. Please specify in the format {team_slug}/{user_name}"
 	if err.Error() != expectedError {
 		t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
 	}
@@ -106,7 +101,7 @@ func TestExecutePushRemove_InvalidOutsideUserFormat(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error for invalid outside-user format, got nil")
 	}
-	expected := "リポジトリ/ユーザー形式が正しくありません。{repository}/{user_name} の形式で指定してください"
+	expected := "invalid repository/user format. Please specify in the format {repository}/{user_name}"
 	if err.Error() != expected {
 		t.Fatalf("Expected error '%s', got '%s'", expected, err.Error())
 	}
@@ -129,7 +124,7 @@ func TestExecutePushAdd_InvalidOutsideUserFormat(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error for invalid outside-user format, got nil")
 	}
-	expected := "リポジトリ/ユーザー形式が正しくありません。{repository}/{user_name} の形式で指定してください"
+	expected := "invalid repository/user format. Please specify in the format {repository}/{user_name}"
 	if err.Error() != expected {
 		t.Fatalf("Expected error '%s', got '%s'", expected, err.Error())
 	}
@@ -152,7 +147,7 @@ func TestExecutePushRemove_InvalidReposUserFormat(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error for invalid repos-user format, got nil")
 	}
-	expected := "リポジトリ/ユーザー形式が正しくありません。{repository}/{user_name} の形式で指定してください"
+	expected := "invalid repository/user format. Please specify in the format {repository}/{user_name}"
 	if err.Error() != expected {
 		t.Fatalf("Expected error '%s', got '%s'", expected, err.Error())
 	}
