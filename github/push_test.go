@@ -32,7 +32,12 @@ func TestExecutePushRemove_InvalidTeamUserFormat(t *testing.T) {
 	org := "test-org"
 
 	// Test with invalid team-user format (no slash)
-expectedError := "invalid team/user format. Please specify in the format {team_slug}/{user_name}"
+	err := ExecutePushRemove(context.Background(), client, org, "team-user", "invalid-format")
+	if err == nil {
+		t.Error("Expected error for invalid team-user format, got nil")
+	}
+
+	expectedError := "invalid team/user format. Please specify in the format {team_slug}/{user_name}"
 	if err.Error() != expectedError {
 		t.Errorf("Expected error '%s', got '%s'", expectedError, err.Error())
 	}

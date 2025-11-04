@@ -57,7 +57,10 @@ func ExecutePushRemove(ctx context.Context, client *github.Client, org, target, 
 		if err := PushRemoveOutsideCollaborator(ctx, client, org, repoName, username); err != nil {
 			return err
 		}
-		return fmt.Errorf("unsupported removal target: %s", target)	}
+		return nil
+	default:
+		return fmt.Errorf("unsupported removal target: %s", target)
+	}
 }
 
 // ExecutePushAdd executes the actual add operation via GitHub API
