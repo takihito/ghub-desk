@@ -281,19 +281,19 @@ func (p *PullCmd) Run(cli *CLI) error {
 		if err := validateUserLogin(p.UserRepos); err != nil {
 			return err
 		}
-		return fmt.Errorf("pull コマンドでは --user-repos を使用できません。view コマンドで --user-repos を指定してください")
+		return fmt.Errorf("--user-repos is not available for the pull command. Please specify --user-repos with the view command")
 	}
 	sessionKey := buildPullSessionKey(target, req, storeData, p.Stdout, p.IntervalTime)
 	pullSession, err := session.LoadPull(sessionKey)
 	resuming := err == nil
 	if err != nil && !errors.Is(err, session.ErrNotFound) {
-		return fmt.Errorf("セッションの読み込みに失敗しました: %w", err)
+		return fmt.Errorf("failed to load session: %w", err)
 	}
 	expectedInterval := p.IntervalTime
 	if resuming {
 		storedInterval, parseErr := time.ParseDuration(pullSession.Interval)
 		if parseErr != nil {
-			fmt.Printf("既存のセッションに無効な間隔値(%q)があるため、新しいセッションを開始します: %v\n", pullSession.Interval, parseErr)
+			fmt.Printf("Invalid interval value (%q) in existing session, starting a new session: %v\n", pullSession.Interval, parseErr)
 			resuming = false
 		}
 		if resuming {
@@ -303,7 +303,7 @@ func (p *PullCmd) Run(cli *CLI) error {
 				storedInterval != expectedInterval ||
 				(pullSession.TeamSlug != "" && pullSession.TeamSlug != req.TeamSlug) ||
 				(pullSession.RepoName != "" && pullSession.RepoName != req.RepoName) {
-				fmt.Println("既存のセッションと現在のオプションが異なるため、新しいセッションを開始します。")
+				fmt.Println("Existing session options differ from current options, starting a new session.")
 				resuming = false
 			}
 		}
@@ -316,10 +316,10 @@ func (p *PullCmd) Run(cli *CLI) error {
 		pullSession.TeamSlug = req.TeamSlug
 		pullSession.RepoName = req.RepoName
 		if err := session.SavePull(pullSession); err != nil {
-			return fmt.Errorf("セッションの初期化に失敗しました: %w", err)
+			return fmt.Errorf("failed to initialize session: %w", err)
 		}
 	} else {
-		fmt.Printf("前回の pull セッションを再開します (endpoint=%s, 最終ページ=%d, 取得件数=%d)\n",
+		fmt.Printf("Resuming previous pull session (endpoint=%s, last page=%d, items fetched so far=%d)\n",
 			pullSession.Endpoint, pullSession.LastPage, pullSession.FetchedCount)
 	}
 
@@ -363,7 +363,7 @@ func (p *PullCmd) Run(cli *CLI) error {
 	}
 
 	if err := session.RemovePull(sessionKey); err != nil && !errors.Is(err, session.ErrNotFound) {
-		return fmt.Errorf("セッションの削除に失敗しました: %w", err)
+		return fmt.Errorf("failed to remove session: %w", err)
 	}
 
 	return nil
@@ -392,12 +392,12 @@ func printInterruptionSummary(sig os.Signal, sess *session.PullSession) {
 	if sig != nil {
 		reason = sig.String()
 	}
-	fmt.Printf("INFO: %s を受け取ったため pull を中断しました。\n", reason)
-	fmt.Printf("      endpoint=%s, 最終ページ=%d, 取得件数=%d\n", sess.Endpoint, sess.LastPage, sess.FetchedCount)
+	fmt.Printf("INFO: Pull interrupted after receiving %s.\n", reason)
+	fmt.Printf("      endpoint=%s, last page=%d, items fetched so far=%d\n", sess.Endpoint, sess.LastPage, sess.FetchedCount)
 	if len(sess.Metadata) > 0 {
-		fmt.Printf("      メタデータ: %v\n", sess.Metadata)
+		fmt.Printf("      metadata: %v\n", sess.Metadata)
 	}
-	fmt.Printf("      中断状態は %s に保存されています。\n", session.Path())
+	fmt.Printf("      Interruption state saved to %s.\n", session.Path())
 }
 
 // Run implements the view command execution
@@ -408,7 +408,7 @@ func (v *ViewCmd) Run(cli *CLI) error {
 			return err
 		}
 		if v.TeamUser != "" && v.TeamUser != slug {
-			return fmt.Errorf("フラグと引数で指定されたチームが一致しません")
+			return fmt.Errorf("The team specified by the flag and the argument do not match")
 		}
 		v.TeamUser = slug
 	}
@@ -475,17 +475,17 @@ func (v *ViewCmd) Run(cli *CLI) error {
 func parseTeamUsersPath(path string) (string, error) {
 	cleaned := strings.TrimSpace(path)
 	if cleaned == "" {
-		return "", fmt.Errorf("表示対象の引数が空です。{team_slug}/users の形式で指定してください")
+		return "", fmt.Errorf("target argument is empty. Please specify in the format {team_slug}/users")
 	}
 
 	parts := strings.Split(cleaned, "/")
 	if len(parts) != 2 || parts[1] != "users" {
-		return "", fmt.Errorf("表示対象は {team_slug}/users の形式で指定してください")
+		return "", fmt.Errorf("target must be in the format {team_slug}/users")
 	}
 
 	teamSlug := parts[0]
 	if teamSlug == "" {
-		return "", fmt.Errorf("チームスラグが空です。{team_slug}/users の形式で指定してください")
+		return "", fmt.Errorf("team slug is empty. Please specify in the format {team_slug}/users")
 	}
 
 	return teamSlug, nil

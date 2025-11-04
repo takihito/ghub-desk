@@ -9,7 +9,7 @@ import (
 
 func validateUserName(s string) error {
 	if err := v.ValidateUserName(s); err != nil {
-		return fmt.Errorf("ユーザー名が不正です: (%w)", err)
+		return fmt.Errorf("invalid username: (%w)", err)
 	}
 	return nil
 }
@@ -20,23 +20,23 @@ func validateUserLogin(s string) error {
 
 func validateTeamName(s string) error { // team slug
 	if err := v.ValidateTeamSlug(s); err != nil {
-		return fmt.Errorf("チーム名(スラグ)が不正です: (%w)", err)
+		return fmt.Errorf("invalid team name (slug): (%w)", err)
 	}
 	return nil
 }
 
 func validateTeamUserPair(s string) (team string, user string, err error) {
-	// Keep Japanese user-facing error while delegating parsing/validation
+	// Keep user-facing error while delegating parsing/validation
 	team, user, err = v.ParseTeamUserPair(strings.TrimSpace(s))
 	if err != nil {
-		return "", "", fmt.Errorf("チーム/ユーザー形式が正しくありません。{team_slug}/{user_name} の形式で指定してください (%v)", err)
+		return "", "", fmt.Errorf("invalid team/user format. Please specify in the format {team_slug}/{user_name} (%v)", err)
 	}
 	return team, user, nil
 }
 
 func validateRepoName(s string) error {
 	if err := v.ValidateRepoName(s); err != nil {
-		return fmt.Errorf("リポジトリ名が不正です: (%w)", err)
+		return fmt.Errorf("invalid repository name: (%w)", err)
 	}
 	return nil
 }
@@ -44,7 +44,7 @@ func validateRepoName(s string) error {
 func validateRepoUserPair(s string) (repo string, user string, err error) {
 	repo, user, err = v.ParseRepoUserPair(strings.TrimSpace(s))
 	if err != nil {
-		return "", "", fmt.Errorf("リポジトリ/ユーザー形式が正しくありません。{repository}/{user_name} の形式で指定してください (%v)", err)
+		return "", "", fmt.Errorf("invalid repository/user format. Please specify in the format {repository}/{user_name} (%v)", err)
 	}
 	return repo, user, nil
 }
@@ -62,6 +62,6 @@ func validateOutsidePermission(s string) (string, error) {
 	case "write":
 		return "push", nil
 	default:
-		return "", fmt.Errorf("外部コラボレーターの権限が不正です: pull, push, admin（エイリアス: read, write）から選択してください")
+		return "", fmt.Errorf("invalid permission for outside collaborator: choose from pull, push, admin (aliases: read, write)")
 	}
 }

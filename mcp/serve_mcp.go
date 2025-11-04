@@ -1522,7 +1522,7 @@ type PushResult struct {
 }
 
 // resolvePullOptions converts MCP inputs to GitHub pull options.
-// デフォルトは保存有効、`no_store` 指定時のみ無効化する。間隔は秒指定で3秒を既定とする。
+// Default is to save, disable only when `no_store` is specified. The interval is specified in seconds, with a default of 3 seconds.
 func resolvePullOptions(noStore, stdout bool, intervalSeconds float64) gh.PullOptions {
 	interval := defaultPullInterval
 	if intervalSeconds > 0 {
@@ -1549,7 +1549,7 @@ func resolvePushAddInput(in PushAddIn) (string, string, string, error) {
 
 	if teamUser != "" {
 		if strings.TrimSpace(in.Permission) != "" {
-			return "", "", "", fmt.Errorf("permission は outside_user と併用してください")
+			return "", "", "", fmt.Errorf("The permission flag can only be used with outside_user")
 		}
 		teamSlug, userName, err := v.ParseTeamUserPair(teamUser)
 		if err != nil {
@@ -1676,10 +1676,10 @@ func resolvePushRemoveInput(in PushRemoveIn) (string, string, error) {
 	}
 
 	if count == 0 {
-		return "", "", fmt.Errorf("対象を1つ指定してください (--team, --user, --team-user, --outside-user, --repos-user のいずれか)")
+		return "", "", fmt.Errorf("Please specify one target (either --team, --user, --team-user, --outside-user, or --repos-user)")
 	}
 	if count > 1 {
-		return "", "", fmt.Errorf("対象を1つだけ指定してください (複数指定はできません)")
+		return "", "", fmt.Errorf("Please specify only one target (multiple selections are not allowed)")
 	}
 	return target, value, nil
 }
@@ -1750,6 +1750,6 @@ func normalizeOutsidePermission(p string) (string, error) {
 	case "write":
 		return "push", nil
 	default:
-		return "", fmt.Errorf("外部コラボレーターの権限が不正です: pull, push, admin（エイリアス: read, write）から選択してください")
+		return "", fmt.Errorf("invalid permission for outside collaborator: choose from pull, push, admin (aliases: read, write)")
 	}
 }

@@ -655,7 +655,7 @@ func pullTeamUsers(ctx context.Context, client *github.Client, db *sql.DB, org, 
 			return nil, fmt.Errorf("failed to clear team_users table: %w", err)
 		}
 		// TODO ? : check store.StoreTeams(db, []*github.Team{team});
-		// TODO DBを正規化して一度に組織を取得する手順(pull --all-organization-data? --cmd-list "--teams,--team-users a-team,")を考える
+		// TODO: Consider a procedure to normalize the DB and get the organization at once (pull --all-organization-data? --cmd-list "--teams,--team-users a-team,")
 	}
 
 	users, err := fetchAndStore(
@@ -905,7 +905,7 @@ func fetchAndStore[T any](
 
 		allItems = append(allItems, items...)
 		count += len(items)
-		fmt.Printf("- %d件取得しました\n", count)
+		fmt.Printf("- %d items fetched\n", count)
 
 		if len(items) > 0 {
 			if err := storeFunc(db, items); err != nil {
