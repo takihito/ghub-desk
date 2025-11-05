@@ -6,38 +6,38 @@ import "ghub-desk/config"
 // by the MCP server based on configuration permissions.
 //
 // Policy:
-// - view.* is always allowed
-// - pull.* is only allowed if AllowPull is true
-// - push.* is only allowed if AllowWrite is true
+// - view_* is always allowed
+// - pull_* is only allowed if AllowPull is true
+// - push_* is only allowed if AllowWrite is true
 func AllowedTools(cfg *config.Config) []string {
 	var tools []string
 
 	// view tools (always on)
 	tools = append(tools,
-		"view.users",
-		"view.detail-users",
-		"view.teams",
-		"view.repos",
-		"view.team-user",
-		"view.outside-users",
-		"view.token-permission",
+		"view_users",
+		"view_detail-users",
+		"view_teams",
+		"view_repos",
+		"view_team-user",
+		"view_outside-users",
+		"view_token-permission",
 	)
 
 	if cfg != nil && cfg.MCP.AllowPull {
 		tools = append(tools,
-			"pull.users",
-			"pull.teams",
-			"pull.repositories",
-			"pull.team-user",
-			"pull.outside-users",
-			"pull.token-permission",
+			"pull_users",
+			"pull_teams",
+			"pull_repositories",
+			"pull_team-user",
+			"pull_outside-users",
+			"pull_token-permission",
 		)
 	}
 
 	if cfg != nil && cfg.MCP.AllowWrite {
 		tools = append(tools,
-			"push.remove",
-			"push.add",
+			"push_remove",
+			"push_add",
 		)
 	}
 

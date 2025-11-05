@@ -214,30 +214,30 @@ make build
 ./build/ghub-desk mcp --debug
 ```
 
-- MCP サーバーは設定の `mcp.allow_pull` / `allow_write` に応じて `pull.*` / `push.*` ツールを公開します。
+- MCP サーバーは設定の `mcp.allow_pull` / `allow_write` に応じて `pull_*` / `push_*` ツールを公開します。
 - `allow_write` を有効にする場合は、`--exec` フラグの利用や DRYRUN で影響範囲を確認してから実行してください。
 
 ### MCP ツール
 
 - `health` — 入力不要のヘルスチェック。
 
-#### 参照系 (`view.*`)
-- `view.users`, `view.detail-users`, `view.teams`, `view.repos`, `view.outside-users`, `view.token-permission` — 入力なしでキャッシュ済みレコードを返却。
-- `view.team-user`（入力: `team`）— 指定チーム（slug）のメンバー一覧。
-- `view.repos-users` / `view.repos-teams`（入力: `repository`）— 特定リポジトリの直接コラボレーター / チーム権限。
-- `view.all-teams-users`, `view.all-repos-users`, `view.all-repos-teams` — 組織全体のメンバーシップを一括取得。
-- `view.user-repos`（入力: `user`）— ユーザーがアクセスできるリポジトリと経路（直接 or チーム）。
-- `view.settings` — マスク済み設定情報を返却。
+#### 参照系 (`view_*`)
+- `view_users`, `view_detail-users`, `view_teams`, `view_repos`, `view_outside-users`, `view_token-permission` — 入力なしでキャッシュ済みレコードを返却。
+- `view_team-user`（入力: `team`）— 指定チーム（slug）のメンバー一覧。
+- `view_repos-users` / `view_repos-teams`（入力: `repository`）— 特定リポジトリの直接コラボレーター / チーム権限。
+- `view_all-teams-users`, `view_all-repos-users`, `view_all-repos-teams` — 組織全体のメンバーシップを一括取得。
+- `view_user-repos`（入力: `user`）— ユーザーがアクセスできるリポジトリと経路（直接 or チーム）。
+- `view_settings` — マスク済み設定情報を返却。
 
-#### データ更新 (`pull.*`)
+#### データ更新 (`pull_*`)
 - 共通オプション: `no_store` (bool), `stdout` (bool), `interval_seconds` (number; 既定 3 秒)。
-- `pull.users`, `pull.detail-users`, `pull.teams`, `pull.repositories`, `pull.all-teams-users`, `pull.all-repos-users`, `pull.all-repos-teams`, `pull.outside-users`, `pull.token-permission` — キャッシュ対象をGitHubから更新。
-- `pull.team-user`（共通 + `team`）— 指定チームのメンバーを更新。
-- `pull.repos-users` / `pull.repos-teams`（共通 + `repository`）— 指定リポジトリのコラボレーター / チーム権限を更新。
+- `pull_users`, `pull_detail-users`, `pull_teams`, `pull_repositories`, `pull_all-teams-users`, `pull_all-repos-users`, `pull_all-repos-teams`, `pull_outside-users`, `pull_token-permission` — キャッシュ対象をGitHubから更新。
+- `pull_team-user`（共通 + `team`）— 指定チームのメンバーを更新。
+- `pull_repos-users` / `pull_repos-teams`（共通 + `repository`）— 指定リポジトリのコラボレーター / チーム権限を更新。
 
-#### 更新系 (`push.*`)
-- `push.add` — `team_user` または `outside_user` のどちらか一方を指定。`permission`（`pull`/`push`/`admin`、エイリアス `read`→`pull`, `write`→`push`）と `exec` / `no_store` は任意。
-- `push.remove` — 削除対象を1つだけ指定（`team` / `user` / `team_user` / `outside_user` / `repos_user`）。`exec` / `no_store` は任意。
+#### 更新系 (`push_*`)
+- `push_add` — `team_user` または `outside_user` のどちらか一方を指定。`permission`（`pull`/`push`/`admin`、エイリアス `read`→`pull`, `write`→`push`）と `exec` / `no_store` は任意。
+- `push_remove` — 削除対象を1つだけ指定（`team` / `user` / `team_user` / `outside_user` / `repos_user`）。`exec` / `no_store` は任意。
 
 ## 技術
 
