@@ -1,0 +1,48 @@
+# ghub-desk CLI Configuration File
+#
+# Default location: ~/.config/ghub-desk/config.yaml
+#
+# You can reference environment variables with `${VAR_NAME}` or `$VAR_NAME`.
+# Environment variables always have higher precedence than this file.
+
+# GitHub organization to manage
+organization: "my-awesome-org"
+
+# --- Authentication ---
+# Choose one authentication method: Personal Access Token (PAT) or GitHub App
+
+# Option 1: Personal Access Token (PAT)
+# Provide a PAT with sufficient permissions (e.g., admin:org).
+# For security, using environment variables is recommended.
+github_token: "${GHUB_DESK_GITHUB_TOKEN}"
+
+# Option 2: GitHub App
+# Remove/comment out `github_token` when using GitHub App auth.
+# All three values below are required.
+github_app:
+  # GitHub App ID
+  app_id: ${GHUB_DESK_APP_ID} # Example: 123456
+
+  # Installation ID for the organization
+  installation_id: ${GHUB_DESK_INSTALLATION_ID} # Example: 7890123
+
+  # Private key for the GitHub App
+  # Paste the entire .pem contents or load via environment variable.
+  # Include the -----BEGIN... and -----END... lines.
+  private_key: |
+    ${GHUB_DESK_PRIVATE_KEY}
+
+# --- MCP server settings (optional) ---
+# Controls which MCP client operations are allowed.
+# Defaults to disabled (false) for safety.
+mcp:
+  # Allow fetching data from GitHub API and saving to DB (unless --no-store)
+  allow_pull: false
+
+  # Allow write operations (push add/remove) against GitHub
+  allow_write: false
+
+# --- Store settings (optional) ---
+# SQLite database path (default: ./ghub-desk.db).
+# Accepts absolute or relative paths. Overridable via GHUB_DESK_DB_PATH.
+database_path: ""
