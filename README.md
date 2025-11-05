@@ -182,12 +182,27 @@ mcp:
 ./ghub-desk push remove --repos-user repo-name/username
 ```
 
-### init / version
+### init
+
+`init` exposes subcommands for configuring the application and preparing the database.
 
 ```bash
-# Initialize SQLite tables
-./ghub-desk init
+# Create a config skeleton at the default location (~/.config/ghub-desk/config.yaml)
+./ghub-desk init config
 
+# Create a config file at a custom path (missing directories are created automatically)
+./ghub-desk init config --target-file ~/ghub/config.yaml
+
+# Initialize the database using the path from the config (defaults to ./ghub-desk.db)
+./ghub-desk init db
+
+# Initialize the database at an explicit path (warns and skips when the file already exists)
+./ghub-desk init db --target-file ~/data/ghub-desk.db
+```
+
+### version
+
+```bash
 # Display build metadata
 ./ghub-desk version
 ```

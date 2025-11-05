@@ -180,12 +180,27 @@ mcp:
 ./ghub-desk push remove --repos-user repo-name/username
 ```
 
-### init / version
+### init
+
+`init` コマンドは設定ファイル生成とデータベース初期化のサブコマンドに分かれています。
 
 ```bash
-# SQLite テーブルを初期化
-./ghub-desk init
+# 既定パス (~/.config/ghub-desk/config.yaml) に設定ファイルのひな形を作成
+./ghub-desk init config
 
+# 任意パスに設定ファイルを作成（必要なディレクトリは自動作成）
+./ghub-desk init config --target-file ~/ghub/config.yaml
+
+# 設定ファイルの database_path（未設定なら ./ghub-desk.db）を初期化
+./ghub-desk init db
+
+# 明示的な DB パスを初期化（既存ファイルがある場合は警告を出して中断）
+./ghub-desk init db --target-file ~/data/ghub-desk.db
+```
+
+### version
+
+```bash
 # バージョン情報を表示
 ./ghub-desk version
 ```
