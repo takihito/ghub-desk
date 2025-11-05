@@ -791,7 +791,7 @@ func (i *InitDBCmd) Run(cli *CLI) error {
 		}
 	}
 
-	if explicit && dbPath != "" {
+	if explicit {
 		if _, err := os.Stat(dbPath); err == nil {
 			fmt.Fprintf(os.Stderr, "Database file already exists at %s; skipping\n", dbPath)
 			return nil
