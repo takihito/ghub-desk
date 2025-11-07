@@ -2,6 +2,55 @@
 
 GitHub Organization Management CLI & MCP Server
 
+[Read this document in English](README.md)
+
+## インストール
+
+### `go install`
+Go 1.24 以降が入っている環境で `go install` を使うと `$GOBIN`（既定は `$GOPATH/bin`）に最新版が配置されます。
+
+```bash
+GO111MODULE=on go install github.com/takihito/ghub-desk@latest
+```
+
+`$GOBIN` を `PATH` に通し、`ghub-desk version` でインストールを確認してください。
+
+### リリースアーカイブをダウンロード (curl)
+
+[Releases](https://github.com/takihito/ghub-desk/releases) からプラットフォーム別バイナリを取得できます。事前に `VERSION` を好みのリリースタグへ設定してから実行してください。
+
+
+```bash
+: "VERSION には 0.1.7 などのリリース番号を指定してください"
+version="0.1.7"
+os=${os:-darwin}            # darwin / linux / windows
+arch=${arch:-arm64}         # arm64 / x86_64
+artifact="ghub-desk_${version}_${os}_${arch}.tar.gz"
+sha256_from_release="47eca69387880636979aaeddba44184ddfee2a844b42319a0aa3958cd7d9211d"
+
+curl -l -o "${artifact}" \
+  "https://github.com/takihito/ghub-desk/releases/download/v${version}/${artifact}"
+echo "${sha256_from_release}  ${artifact}" | shasum -a 256 --check
+sudo tar -xzf "${artifact}" -c /usr/local/bin ghub-desk
+
+```
+
+プラットフォームごとのアーティファクト名と SHA-256 はリリースページに記載されています。Windows ではアーカイブ展開後に `ghub-desk.exe` を `%PATH%` 上へ配置してください。新しいバージョンへ更新する際は `VERSION` を入れ替えるだけで同じ手順を再利用できます。
+
+### ソースからビルド
+
+リポジトリをクローンして `make build` を実行すると `./build/ghub-desk` が生成されます。未リリースの変更を取り込みたい場合やコードを確認したい場合に便利です。
+
+```bash
+git clone https://github.com/takihito/ghub-desk.git
+cd ghub-desk
+make deps
+make build
+sudo cp build/ghub-desk /usr/local/bin/
+```
+
+ローカルで改修する際は `make test` を先に実行しておくことを推奨します。
+
 ## 概要
 
 `ghub-desk`は、GitHub 組織のメンバー・チーム・リポジトリ情報を整理するためのコマンドラインツールです。GitHub API と連携して組織情報を取得し、SQLite にキャッシュしてオフライン参照を支援します。また、Model Context Protocol (MCP) サーバーとして起動することで、LLM やエージェントから同じ機能を安全に呼び出すことができます。
@@ -11,7 +60,7 @@ GitHub Organization Management CLI & MCP Server
 - 設定ファイルと環境変数での柔軟な構成 (DB パス、MCP 権限など)
 - MCP ツール経由での自動化と統合
 
-## 主な機能
+## コアコマンド
 
 ### データ取得 (pull)
 - ターゲット: `users`, `detail-users`, `teams`, `repos`, `repos-users`, `all-repos-users`, `repos-teams`, `all-repos-teams`, `team-user`, `all-teams-users`, `outside-users`, `token-permission`
@@ -94,7 +143,7 @@ mcp:
 - リポジトリ/ユーザー指定
   - 形式: `{repository}/{username}` を `--outside-user` に渡してください
 
-## 基本的な使用例
+## 使い方
 
 ### pull
 
@@ -182,7 +231,7 @@ mcp:
 
 ### init
 
-`init` コマンドは設定ファイル生成とデータベース初期化のサブコマンドに分かれています。
+`init` コマンドは設定ファイル生成とデータベース初期化のサブコマンドに分かれています（英語版 README の説明と同じ構成です）。
 
 ```bash
 # 既定パス (~/.config/ghub-desk/config.yaml) に設定ファイルのひな形を作成
@@ -205,7 +254,7 @@ mcp:
 ./ghub-desk version
 ```
 
-## MCP サーバー
+## MCP サーバー (mcp)
 
 
 ```bash

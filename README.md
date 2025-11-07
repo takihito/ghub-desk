@@ -13,6 +13,52 @@ GitHub Organization Management CLI & MCP Server
 - Flexible configuration via config files and environment variables (database path, MCP permissions, etc.)
 - Easy automation through MCP tool integrations
 
+## Installation
+
+### `go install`
+Use the Go toolchain (1.24 or later) to install the latest tagged release into your `$GOBIN` (defaults to `$GOPATH/bin`).
+
+```bash
+GO111MODULE=on go install github.com/takihito/ghub-desk@latest
+```
+
+Ensure `$GOBIN` is on your `$PATH`, then run `ghub-desk version` to confirm the installation.
+
+### Download release archives (curl)
+
+Pre-built binaries are published on the [releases page](https://github.com/takihito/ghub-desk/releases). Pick a version tag and export it before running the commands below:
+
+```bash
+: {version to a release tag, e.g., 0.2.0}
+version="0.1.7"
+os=${os:-darwin}            # darwin / linux / windows
+arch=${arch:-arm64}         # arm64 / x86_64
+artifact="ghub-desk_${version}_${os}_${arch}.tar.gz"
+sha256_from_release="47eca69387880636979aaeddba44184ddfee2a844b42319a0aa3958cd7d9211d"
+
+curl -l -o "${artifact}" \
+  "https://github.com/takihito/ghub-desk/releases/download/v${version}/${artifact}"
+echo "${sha256_from_release}  ${artifact}" | shasum -a 256 --check
+sudo tar -xzf "${artifact}" -c /usr/local/bin ghub-desk
+
+```
+
+Look up the artifact name and checksum that match your platform on the releases page. On Windows, extract the archive and place `ghub-desk.exe` somewhere on your `%PATH%`. Updating to future versions only requires changing `VERSION`.
+
+### Build from source
+
+Clone the repository and run the standard build to produce `./build/ghub-desk`. This method is useful when you need unreleased changes or want to audit the source.
+
+```bash
+git clone https://github.com/takihito/ghub-desk.git
+cd ghub-desk
+make deps
+make build
+sudo cp build/ghub-desk /usr/local/bin/
+```
+
+Run `make test` before installing if you are modifying the codebase locally.
+
 ## Core Commands
 
 ### Data collection (pull)
