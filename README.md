@@ -13,6 +13,51 @@ GitHub Organization Management CLI & MCP Server
 - Flexible configuration via config files and environment variables (database path, MCP permissions, etc.)
 - Easy automation through MCP tool integrations
 
+## Installation
+
+### `go install`
+Use the Go toolchain (1.24 or later) to install the latest tagged release into your `$GOBIN` (defaults to `$GOPATH/bin`).
+
+```bash
+GO111MODULE=on go install github.com/takihito/ghub-desk@latest
+```
+
+Ensure `$GOBIN` is on your `$PATH`, then run `ghub-desk version` to confirm the installation.
+
+### Download release archives (curl)
+
+Pre-built binaries are published on the [releases page](https://github.com/takihito/ghub-desk/releases). Pick a version tag and export it before running the commands below:
+
+```
+# Set VERSION to a release tag before running these commands, for example:
+# export VERSION=0.2.0
+OS=${OS:-Darwin}            # Darwin, Linux, or Windows
+ARCH=${ARCH:-arm64}         # arm64 or x86_64
+ARTIFACT="ghub-desk_${VERSION}_${OS}_${ARCH}.tar.gz"
+
+curl -L -o "${ARTIFACT}" \
+  "https://github.com/takihito/ghub-desk/releases/download/v${VERSION}/${ARTIFACT}"
+# Replace SHA256_FROM_RELEASE with the checksum published for your artifact
+echo "SHA256_FROM_RELEASE  ${ARTIFACT}" | shasum -a 256 --check
+sudo tar -xzf "${ARTIFACT}" -C /usr/local/bin ghub-desk
+```
+
+Look up the artifact name and checksum that match your platform on the releases page. On Windows, extract the archive and place `ghub-desk.exe` somewhere on your `%PATH%`. Updating to future versions only requires changing `VERSION`.
+
+### Build from source
+
+Clone the repository and run the standard build to produce `./build/ghub-desk`. This method is useful when you need unreleased changes or want to audit the source.
+
+```bash
+git clone https://github.com/takihito/ghub-desk.git
+cd ghub-desk
+make deps
+make build
+sudo cp build/ghub-desk /usr/local/bin/
+```
+
+Run `make test` before installing if you are modifying the codebase locally.
+
 ## Core Commands
 
 ### Data collection (pull)
