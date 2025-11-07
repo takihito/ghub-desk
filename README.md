@@ -215,30 +215,30 @@ make build
 ./build/ghub-desk mcp --debug
 ```
 
-- The server exposes `pull.*` and `push.*` tools based on `mcp.allow_pull` and `mcp.allow_write`.
+- The server exposes `pull_*` and `push_*` tools based on `mcp.allow_pull` and `mcp.allow_write`.
 - When enabling write operations, run with `--exec` and review the DRYRUN output first.
 
 ### MCP tools
 
 - `health` — readiness probe with no inputs.
 
-#### Read-only (`view.*`)
-- `view.users`, `view.detail-users`, `view.teams`, `view.repos`, `view.outside-users`, `view.token-permission` — return cached records without inputs.
-- `view.team-user` (input: `team`) — members for a specific team slug.
-- `view.repos-users` / `view.repos-teams` (input: `repository`) — direct collaborators or team permissions for one repository.
-- `view.all-teams-users`, `view.all-repos-users`, `view.all-repos-teams` — organization-wide membership snapshots.
-- `view.user-repos` (input: `user`) — repositories a user can access with direct/team paths.
-- `view.settings` — configuration values with secrets masked.
+#### Read-only (`view_*`)
+- `view_users`, `view_detail-users`, `view_teams`, `view_repos`, `view_outside-users`, `view_token-permission` — return cached records without inputs.
+- `view_team-user` (input: `team`) — members for a specific team slug.
+- `view_repos-users` / `view_repos-teams` (input: `repository`) — direct collaborators or team permissions for one repository.
+- `view_all-teams-users`, `view_all-repos-users`, `view_all-repos-teams` — organization-wide membership snapshots.
+- `view_user-repos` (input: `user`) — repositories a user can access with direct/team paths.
+- `view_settings` — configuration values with secrets masked.
 
-#### Data refresh (`pull.*`)
+#### Data refresh (`pull_*`)
 - Common optional inputs: `no_store` (bool), `stdout` (bool), `interval_seconds` (number; defaults to 3 seconds).
-- `pull.users`, `pull.detail-users`, `pull.teams`, `pull.repositories`, `pull.all-teams-users`, `pull.all-repos-users`, `pull.all-repos-teams`, `pull.outside-users`, `pull.token-permission` — operate on cached scopes.
-- `pull.team-user` (inputs: common + `team`) — refresh one team membership list.
-- `pull.repos-users` / `pull.repos-teams` (inputs: common + `repository`) — refresh collaborators or team permissions for one repository.
+- `pull_users`, `pull_detail-users`, `pull_teams`, `pull_repositories`, `pull_all-teams-users`, `pull_all-repos-users`, `pull_all-repos-teams`, `pull_outside-users`, `pull_token-permission` — operate on cached scopes.
+- `pull_team-user` (inputs: common + `team`) — refresh one team membership list.
+- `pull_repos-users` / `pull_repos-teams` (inputs: common + `repository`) — refresh collaborators or team permissions for one repository.
 
-#### Write operations (`push.*`)
-- `push.add` — accepts either `team_user` *or* `outside_user`; optional `permission` (`pull`/`push`/`admin`, aliases `read`→`pull`, `write`→`push`), plus `exec`/`no_store`.
-- `push.remove` — accepts a single target (`team`, `user`, `team_user`, `outside_user`, or `repos_user`) with optional `exec`/`no_store`.
+#### Write operations (`push_*`)
+- `push_add` — accepts either `team_user` *or* `outside_user`; optional `permission` (`pull`/`push`/`admin`, aliases `read`→`pull`, `write`→`push`), plus `exec`/`no_store`.
+- `push_remove` — accepts a single target (`team`, `user`, `team_user`, `outside_user`, or `repos_user`) with optional `exec`/`no_store`.
 
 ## Technology
 

@@ -10,10 +10,10 @@ func TestAllowedTools_Default(t *testing.T) {
 	cfg := &config.Config{}
 	tools := AllowedTools(cfg)
 
-	mustContain(t, tools, "view.users")
-	mustContain(t, tools, "view.detail-users")
-	mustNotContain(t, tools, "pull.users")
-	mustNotContain(t, tools, "push.add")
+	mustContain(t, tools, "view_users")
+	mustContain(t, tools, "view_detail-users")
+	mustNotContain(t, tools, "pull_users")
+	mustNotContain(t, tools, "push_add")
 }
 
 func TestAllowedTools_PullOnly(t *testing.T) {
@@ -21,9 +21,9 @@ func TestAllowedTools_PullOnly(t *testing.T) {
 	cfg.MCP.AllowPull = true
 	tools := AllowedTools(cfg)
 
-	mustContain(t, tools, "pull.users")
-	mustContain(t, tools, "pull.token-permission")
-	mustNotContain(t, tools, "push.remove")
+	mustContain(t, tools, "pull_users")
+	mustContain(t, tools, "pull_token-permission")
+	mustNotContain(t, tools, "push_remove")
 }
 
 func TestAllowedTools_WriteOnly(t *testing.T) {
@@ -31,9 +31,9 @@ func TestAllowedTools_WriteOnly(t *testing.T) {
 	cfg.MCP.AllowWrite = true
 	tools := AllowedTools(cfg)
 
-	mustContain(t, tools, "push.add")
-	mustContain(t, tools, "push.remove")
-	mustNotContain(t, tools, "pull.teams")
+	mustContain(t, tools, "push_add")
+	mustContain(t, tools, "push_remove")
+	mustNotContain(t, tools, "pull_teams")
 }
 
 func mustContain(t *testing.T, list []string, v string) {
