@@ -31,7 +31,6 @@ curl -L -o "${ARTIFACT}" \
 # SHA256_FROM_RELEASE をリリースページ記載の値へ差し替えて検証
 echo "SHA256_FROM_RELEASE  ${ARTIFACT}" | shasum -a 256 --check
 sudo tar -xzf "${ARTIFACT}" -C /usr/local/bin ghub-desk
-
 ```
 
 プラットフォームごとのアーティファクト名と SHA-256 はリリースページに記載されています。Windows ではアーカイブ展開後に `ghub-desk.exe` を `%PATH%` 上へ配置してください。新しいバージョンへ更新する際は `VERSION` を入れ替えるだけで同じ手順を再利用できます。

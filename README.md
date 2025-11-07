@@ -28,7 +28,7 @@ Ensure `$GOBIN` is on your `$PATH`, then run `ghub-desk version` to confirm the 
 
 Pre-built binaries are published on the [releases page](https://github.com/takihito/ghub-desk/releases). Pick a version tag and export it before running the commands below:
 
-```bash
+```
 # Set VERSION to a release tag before running these commands, for example:
 # export VERSION=0.2.0
 OS=${OS:-Darwin}            # Darwin, Linux, or Windows
@@ -40,7 +40,6 @@ curl -L -o "${ARTIFACT}" \
 # Replace SHA256_FROM_RELEASE with the checksum published for your artifact
 echo "SHA256_FROM_RELEASE  ${ARTIFACT}" | shasum -a 256 --check
 sudo tar -xzf "${ARTIFACT}" -C /usr/local/bin ghub-desk
-
 ```
 
 Look up the artifact name and checksum that match your platform on the releases page. On Windows, extract the archive and place `ghub-desk.exe` somewhere on your `%PATH%`. Updating to future versions only requires changing `VERSION`.
