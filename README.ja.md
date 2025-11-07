@@ -21,17 +21,16 @@ GO111MODULE=on go install github.com/takihito/ghub-desk@latest
 
 
 ```bash
-: "VERSION には 0.1.7 などのリリース番号を指定してください"
-version="0.1.7"
-os=${os:-darwin}            # darwin / linux / windows
-arch=${arch:-arm64}         # arm64 / x86_64
-artifact="ghub-desk_${version}_${os}_${arch}.tar.gz"
-sha256_from_release="47eca69387880636979aaeddba44184ddfee2a844b42319a0aa3958cd7d9211d"
+# 事前に VERSION をリリースタグへ設定してください（例: export VERSION=0.2.0）
+OS=${OS:-Darwin}            # Darwin / Linux / Windows
+ARCH=${ARCH:-arm64}         # arm64 / x86_64
+ARTIFACT="ghub-desk_${VERSION}_${OS}_${ARCH}.tar.gz"
 
-curl -l -o "${artifact}" \
-  "https://github.com/takihito/ghub-desk/releases/download/v${version}/${artifact}"
-echo "${sha256_from_release}  ${artifact}" | shasum -a 256 --check
-sudo tar -xzf "${artifact}" -c /usr/local/bin ghub-desk
+curl -L -o "${ARTIFACT}" \
+  "https://github.com/takihito/ghub-desk/releases/download/v${VERSION}/${ARTIFACT}"
+# SHA256_FROM_RELEASE をリリースページ記載の値へ差し替えて検証
+echo "SHA256_FROM_RELEASE  ${ARTIFACT}" | shasum -a 256 --check
+sudo tar -xzf "${ARTIFACT}" -C /usr/local/bin ghub-desk
 
 ```
 

@@ -29,17 +29,17 @@ Ensure `$GOBIN` is on your `$PATH`, then run `ghub-desk version` to confirm the 
 Pre-built binaries are published on the [releases page](https://github.com/takihito/ghub-desk/releases). Pick a version tag and export it before running the commands below:
 
 ```bash
-: {version to a release tag, e.g., 0.2.0}
-version="0.1.7"
-os=${os:-darwin}            # darwin / linux / windows
-arch=${arch:-arm64}         # arm64 / x86_64
-artifact="ghub-desk_${version}_${os}_${arch}.tar.gz"
-sha256_from_release="47eca69387880636979aaeddba44184ddfee2a844b42319a0aa3958cd7d9211d"
+# Set VERSION to a release tag before running these commands, for example:
+# export VERSION=0.2.0
+OS=${OS:-Darwin}            # Darwin, Linux, or Windows
+ARCH=${ARCH:-arm64}         # arm64 or x86_64
+ARTIFACT="ghub-desk_${VERSION}_${OS}_${ARCH}.tar.gz"
 
-curl -l -o "${artifact}" \
-  "https://github.com/takihito/ghub-desk/releases/download/v${version}/${artifact}"
-echo "${sha256_from_release}  ${artifact}" | shasum -a 256 --check
-sudo tar -xzf "${artifact}" -c /usr/local/bin ghub-desk
+curl -L -o "${ARTIFACT}" \
+  "https://github.com/takihito/ghub-desk/releases/download/v${VERSION}/${ARTIFACT}"
+# Replace SHA256_FROM_RELEASE with the checksum published for your artifact
+echo "SHA256_FROM_RELEASE  ${ARTIFACT}" | shasum -a 256 --check
+sudo tar -xzf "${ARTIFACT}" -C /usr/local/bin ghub-desk
 
 ```
 
