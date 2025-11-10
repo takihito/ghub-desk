@@ -4,6 +4,8 @@ GitHub Organization Management CLI & MCP Server
 
 [Read this document in English](README.md)
 
+**Author:** Takeda Akihito
+
 ## インストール
 
 ### `go install`

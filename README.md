@@ -4,6 +4,8 @@ GitHub Organization Management CLI & MCP Server
 
 [Read this document in Japanese](README.ja.md)
 
+**Author:** Takeda Akihito
+
 ## Overview
 
 `ghub-desk` is a command-line tool for managing members, teams, and repositories in a GitHub organization. It communicates with the GitHub API to fetch organization data, caches the responses in SQLite for offline access, and can run as a Model Context Protocol (MCP) server so that LLMs and agents can safely reuse the same capabilities.
