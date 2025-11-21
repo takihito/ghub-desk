@@ -39,7 +39,7 @@ func SetVersionInfo(version, commit, date string) {
 
 // CLI represents the command line interface structure using Kong
 type CLI struct {
-	Debug      bool   `help:"Enable debug mode."`
+	Debug      bool   `help:"Enable debug logging."`
 	ConfigPath string `name:"config" short:"c" help:"Path to config file." type:"path"`
 
 	Pull    PullCmd    `cmd:"" help:"Fetch data from GitHub API (resumable; session_path stores progress and validation ensures repository/team names still exist)"`
@@ -212,6 +212,9 @@ func Execute() error {
 			Compact: true,
 		}),
 	)
+	if cli.Debug {
+		session.EnableDebug()
+	}
 	// Preload config once for commands that require GitHub access.
 	// Keep view/init/version free from config requirement.
 	cmdPath := ctx.Command()
@@ -271,9 +274,9 @@ func (p *PullCmd) Run(cli *CLI) error {
 
 	var db *sql.DB
 	if storeData || target == "all-teams-users" || target == "all-repos-teams" || target == "all-repos-users" {
-		db, err = store.InitDatabase()
+		db, err = store.Connect()
 		if err != nil {
-			return fmt.Errorf("failed to initialize database: %w", err)
+			return fmt.Errorf("failed to connect to database: %w", err)
 		}
 		defer db.Close()
 	}
@@ -475,9 +478,9 @@ func (v *ViewCmd) Run(cli *CLI) error {
 		store.SetDBPath(cfgNV.DatabasePath)
 	}
 	// Initialize database for non-config views
-	db, err := store.InitDatabase()
+	db, err := store.Connect()
 	if err != nil {
-		return fmt.Errorf("failed to initialize database: %w", err)
+		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 	defer db.Close()
 
@@ -563,9 +566,9 @@ func (r *RemoveCmd) Run(cli *CLI) error {
 		}
 		fmt.Println("Successfully removed.")
 		if !r.NoStore {
-			db, err := store.InitDatabase()
+			db, err := store.Connect()
 			if err != nil {
-				return fmt.Errorf("failed to initialize database: %w", err)
+				return fmt.Errorf("failed to connect to database: %w", err)
 			}
 			defer db.Close()
 			if err := github.SyncPushRemove(ctx, client, db, cfg.Organization, target, targetValue); err != nil {
@@ -680,9 +683,9 @@ func (a *AddCmd) Run(cli *CLI) error {
 		}
 		fmt.Println("Successfully added.")
 		if !a.NoStore {
-			db, err := store.InitDatabase()
+			db, err := store.Connect()
 			if err != nil {
-				return fmt.Errorf("failed to initialize database: %w", err)
+				return fmt.Errorf("failed to connect to database: %w", err)
 			}
 			defer db.Close()
 			if err := github.SyncPushAdd(ctx, client, db, cfg.Organization, target, targetValue); err != nil {

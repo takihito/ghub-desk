@@ -13,6 +13,7 @@ GitHub Organization Management CLI & MCP Server
 - GitHub API powered `pull`, `view`, and `push` commands
 - Mutating commands run in DRYRUN mode by default and require `--exec` to perform changes
 - Flexible configuration via config files and environment variables (database path, MCP permissions, etc.)
+- Use the global `--debug` flag to enable verbose logging (SQL queries, API requests)
 - Easy automation through MCP tool integrations
 
 ## Installation
