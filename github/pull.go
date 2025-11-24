@@ -585,9 +585,29 @@ func pullTeamUsers(ctx context.Context, client *github.Client, db *sql.DB, org, 
 		if _, err := tx.Exec(query, teamSlug); err != nil {
 			return nil, fmt.Errorf("failed to clear team_users for team %s: %w", teamSlug, err)
 		}
-		if err := store.StoreTeamUsers(tx, users, teamSlug); err != nil {
-			return nil, fmt.Errorf("failed to store team users for %s: %w", teamSlug, err)
+
+		err = store.StoreTeamUsers(tx, users, teamSlug)
+		if err != nil {
+			// If the team doesn't exist locally, fetch it from the API and try again.
+			if strings.Contains(err.Error(), "data not found") {
+				fmt.Printf("Team '%s' not found locally, fetching from API...\n", teamSlug)
+				team, _, apiErr := client.Teams.GetTeamBySlug(ctx, org, teamSlug)
+				if apiErr != nil {
+					return nil, fmt.Errorf("failed to fetch team details for '%s' from API: %w", teamSlug, apiErr)
+				}
+				if storeErr := store.StoreTeams(tx, []*github.Team{team}); storeErr != nil {
+					return nil, fmt.Errorf("failed to store fetched team details: %w", storeErr)
+				}
+				// Retry storing the users
+				if storeErr := store.StoreTeamUsers(tx, users, teamSlug); storeErr != nil {
+					return nil, fmt.Errorf("failed to store team users after fetching team details: %w", storeErr)
+				}
+			} else {
+				// For other errors, return them directly.
+				return nil, fmt.Errorf("failed to store team users for %s: %w", teamSlug, err)
+			}
 		}
+
 		if err := tx.Commit(); err != nil {
 			return nil, fmt.Errorf("failed to commit transaction for team %s: %w", teamSlug, err)
 		}
