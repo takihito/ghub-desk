@@ -13,13 +13,21 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// DBTX is an interface that abstracts *sql.DB and *sql.Tx.
+type DBTX interface {
+	Exec(query string, args ...interface{}) (sql.Result, error)
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+	QueryRow(query string, args ...interface{}) *sql.Row
+}
+
+
 const (
 	// Database configuration
 	DBFileName         = "ghub-desk.db"
 	sqliteMaxVariables = 999
 )
 
-func insertOrReplaceBatch(db *sql.DB, table string, columns []string, rows [][]any) error {
+func insertOrReplaceBatch(db DBTX, table string, columns []string, rows [][]any) error {
 	if len(rows) == 0 {
 		return nil
 	}
@@ -115,7 +123,7 @@ func InitDatabase() (*sql.DB, error) {
 }
 
 // createTables creates all required database tables if they don't exist
-func createTables(db *sql.DB) error {
+func createTables(db DBTX) error {
 	tables := []string{
 		`CREATE TABLE IF NOT EXISTS ghub_users (
 			id INTEGER PRIMARY KEY,
@@ -266,7 +274,7 @@ func resolvedCollaboratorPermission(u *github.User) string {
 }
 
 // ListRepositoryNames returns repository names stored in ghub_repos ordered alphabetically.
-func ListRepositoryNames(db *sql.DB) ([]string, error) {
+func ListRepositoryNames(db DBTX) ([]string, error) {
 	if db == nil {
 		return nil, fmt.Errorf("database connection is required to list repositories")
 	}
@@ -321,7 +329,7 @@ func maxPermission(current, candidate string) string {
 }
 
 // StoreUsers stores GitHub users in the database
-func StoreUsers(db *sql.DB, users []*github.User) error {
+func StoreUsers(db DBTX, users []*github.User) error {
 	if len(users) == 0 {
 		return nil
 	}
@@ -350,12 +358,12 @@ func StoreUsers(db *sql.DB, users []*github.User) error {
 
 // StoreUsersWithDetails stores GitHub users with detailed information
 // This function expects that detailed user information has already been fetched by the caller
-func StoreUsersWithDetails(db *sql.DB, users []*github.User) error {
+func StoreUsersWithDetails(db DBTX, users []*github.User) error {
 	return StoreUsers(db, users)
 }
 
 // StoreTeams stores GitHub teams in the database
-func StoreTeams(db *sql.DB, teams []*github.Team) error {
+func StoreTeams(db DBTX, teams []*github.Team) error {
 	if len(teams) == 0 {
 		return nil
 	}
@@ -383,7 +391,7 @@ func StoreTeams(db *sql.DB, teams []*github.Team) error {
 }
 
 // StoreRepositories stores GitHub repositories in the database
-func StoreRepositories(db *sql.DB, repos []*github.Repository) error {
+func StoreRepositories(db DBTX, repos []*github.Repository) error {
 	if len(repos) == 0 {
 		return nil
 	}
@@ -415,7 +423,7 @@ func StoreRepositories(db *sql.DB, repos []*github.Repository) error {
 }
 
 // StoreTeamUsers stores team users in the database
-func StoreTeamUsers(db *sql.DB, users []*github.User, teamSlug string) error {
+func StoreTeamUsers(db DBTX, users []*github.User, teamSlug string) error {
 	// First get team ID from slug
 	var teamID int64
 	query := `SELECT id FROM ghub_teams WHERE slug = ?`
@@ -454,7 +462,7 @@ func StoreTeamUsers(db *sql.DB, users []*github.User, teamSlug string) error {
 }
 
 // UpsertTeamUser adds or updates a single team membership relation in the local database.
-func UpsertTeamUser(db *sql.DB, teamSlug string, teamID int64, user *github.User, role string) error {
+func UpsertTeamUser(db DBTX, teamSlug string, teamID int64, user *github.User, role string) error {
 	if db == nil {
 		return fmt.Errorf("database connection is required to upsert team user")
 	}
@@ -479,7 +487,7 @@ func UpsertTeamUser(db *sql.DB, teamSlug string, teamID int64, user *github.User
 }
 
 // DeleteTeamBySlug removes a team and its memberships from the local database.
-func DeleteTeamBySlug(db *sql.DB, teamSlug string) error {
+func DeleteTeamBySlug(db DBTX, teamSlug string) error {
 	if db == nil {
 		return fmt.Errorf("database connection is required to delete team")
 	}
@@ -497,7 +505,7 @@ func DeleteTeamBySlug(db *sql.DB, teamSlug string) error {
 }
 
 // DeleteUserByLogin removes a user and related memberships from the local database.
-func DeleteUserByLogin(db *sql.DB, login string) error {
+func DeleteUserByLogin(db DBTX, login string) error {
 	if db == nil {
 		return fmt.Errorf("database connection is required to delete user")
 	}
@@ -515,7 +523,7 @@ func DeleteUserByLogin(db *sql.DB, login string) error {
 }
 
 // DeleteTeamUser removes a membership relation between a team and a user from the local database.
-func DeleteTeamUser(db *sql.DB, teamSlug, userLogin string) error {
+func DeleteTeamUser(db DBTX, teamSlug, userLogin string) error {
 	if db == nil {
 		return fmt.Errorf("database connection is required to delete team user relation")
 	}
@@ -528,7 +536,7 @@ func DeleteTeamUser(db *sql.DB, teamSlug, userLogin string) error {
 }
 
 // StoreOutsideUsers stores GitHub outside collaborators in the database
-func StoreOutsideUsers(db *sql.DB, users []*github.User) error {
+func StoreOutsideUsers(db DBTX, users []*github.User) error {
 	if len(users) == 0 {
 		return nil
 	}
@@ -556,7 +564,7 @@ func StoreOutsideUsers(db *sql.DB, users []*github.User) error {
 }
 
 // StoreRepoUsers stores collaborators for a specific repository in the database.
-func StoreRepoUsers(db *sql.DB, repoName string, users []*github.User) error {
+func StoreRepoUsers(db DBTX, repoName string, users []*github.User) error {
 	if db == nil {
 		return fmt.Errorf("database connection is required to store repository users")
 	}
@@ -602,7 +610,7 @@ func StoreRepoUsers(db *sql.DB, repoName string, users []*github.User) error {
 }
 
 // StoreRepoTeams stores repository teams in the database.
-func StoreRepoTeams(db *sql.DB, repoName string, teams []*github.Team) error {
+func StoreRepoTeams(db DBTX, repoName string, teams []*github.Team) error {
 	if db == nil {
 		return fmt.Errorf("database connection is required to store repository teams")
 	}
@@ -665,7 +673,7 @@ func StoreRepoTeams(db *sql.DB, repoName string, teams []*github.Team) error {
 }
 
 // UpsertRepoUser adds or updates a single repository collaborator entry.
-func UpsertRepoUser(db *sql.DB, repoName string, user *github.User) error {
+func UpsertRepoUser(db DBTX, repoName string, user *github.User) error {
 	if db == nil {
 		return fmt.Errorf("database connection is required to upsert repository user")
 	}
@@ -698,7 +706,7 @@ func UpsertRepoUser(db *sql.DB, repoName string, user *github.User) error {
 }
 
 // DeleteRepoUser removes a repository collaborator entry from the database.
-func DeleteRepoUser(db *sql.DB, repoName, userLogin string) error {
+func DeleteRepoUser(db DBTX, repoName, userLogin string) error {
 	if db == nil {
 		return fmt.Errorf("database connection is required to delete repository user")
 	}
@@ -721,7 +729,7 @@ func formatTime(t github.Timestamp) string {
 	return t.Format("2006-01-02 15:04:05")
 }
 
-func lookupRepositoryID(db *sql.DB, repoName string) (int64, bool, error) {
+func lookupRepositoryID(db DBTX, repoName string) (int64, bool, error) {
 	if db == nil {
 		return 0, false, fmt.Errorf("database connection is required to look up repository ID")
 	}
@@ -738,7 +746,7 @@ func lookupRepositoryID(db *sql.DB, repoName string) (int64, bool, error) {
 	return repoID, true, nil
 }
 
-func lookupTeamID(db *sql.DB, teamSlug string) (int64, bool, error) {
+func lookupTeamID(db DBTX, teamSlug string) (int64, bool, error) {
 	if db == nil {
 		return 0, false, fmt.Errorf("database connection is required to look up team ID")
 	}
@@ -753,4 +761,14 @@ func lookupTeamID(db *sql.DB, teamSlug string) (int64, bool, error) {
 		return 0, false, err
 	}
 	return teamID, true, nil
+}
+
+// ClearTable deletes all rows from a specified table.
+func ClearTable(db DBTX, tableName string) error {
+	query := "DELETE FROM " + tableName
+	session.Debugf("SQL: %s", query)
+	if _, err := db.Exec(query); err != nil {
+		return fmt.Errorf("failed to clear table %s: %w", tableName, err)
+	}
+	return nil
 }
