@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"ghub-desk/session"
 	"ghub-desk/store"
 	"ghub-desk/validate"
 
@@ -310,7 +311,9 @@ func PullRepoUsers(ctx context.Context, client *github.Client, db *sql.DB, org, 
 		}
 		defer tx.Rollback()
 
-		if _, err := tx.Exec(`DELETE FROM ghub_repos_users WHERE repos_name = ?`, repoName); err != nil {
+		query := `DELETE FROM ghub_repos_users WHERE repos_name = ?`
+		session.Debugf("SQL: %s, ARGS: [%s]", query, repoName)
+		if _, err := tx.Exec(query, repoName); err != nil {
 			return fmt.Errorf("failed to clear repository users for %s: %w", repoName, err)
 		}
 		if err := store.StoreRepoUsers(tx, repoName, users); err != nil {
@@ -353,7 +356,9 @@ func PullRepoTeams(ctx context.Context, client *github.Client, db *sql.DB, org, 
 		}
 		defer tx.Rollback()
 
-		if _, err := tx.Exec(`DELETE FROM ghub_repos_teams WHERE repos_name = ?`, repoName); err != nil {
+		query := `DELETE FROM ghub_repos_teams WHERE repos_name = ?`
+		session.Debugf("SQL: %s, ARGS: [%s]", query, repoName)
+		if _, err := tx.Exec(query, repoName); err != nil {
 			return fmt.Errorf("failed to clear repository teams for %s: %w", repoName, err)
 		}
 		if err := store.StoreRepoTeams(tx, repoName, teams); err != nil {
@@ -430,8 +435,7 @@ func PullAllReposUsers(ctx context.Context, client *github.Client, db *sql.DB, o
 		baseOpts := opts
 		baseOpts.Resume = resumeState
 
-		err = PullRepoUsers(ctx, client, db, org, repoName, baseOpts)
-		if err != nil {
+		if err := PullRepoUsers(ctx, client, db, org, repoName, baseOpts); err != nil {
 			return fmt.Errorf("failed to fetch repository users for %s: %w", repoName, err)
 		}
 
@@ -502,13 +506,12 @@ func PullAllReposTeams(ctx context.Context, client *github.Client, db *sql.DB, o
 			continue
 		}
 
-				fmt.Printf("Fetching teams for repository %d/%d: %s\n", idx+1, len(uniqueRepos), repoName)
+		fmt.Printf("Fetching teams for repository %d/%d: %s\n", idx+1, len(uniqueRepos), repoName)
 
 		baseOpts := opts
 		baseOpts.Resume = resumeState
 
-		err = PullRepoTeams(ctx, client, db, org, repoName, baseOpts)
-		if err != nil {
+		if err := PullRepoTeams(ctx, client, db, org, repoName, baseOpts); err != nil {
 			return fmt.Errorf("failed to fetch repository teams for %s: %w", repoName, err)
 		}
 
@@ -577,7 +580,9 @@ func pullTeamUsers(ctx context.Context, client *github.Client, db *sql.DB, org, 
 		}
 		defer tx.Rollback()
 
-		if _, err := tx.Exec(`DELETE FROM ghub_team_users WHERE team_slug = ?`, teamSlug); err != nil {
+		query := `DELETE FROM ghub_team_users WHERE team_slug = ?`
+		session.Debugf("SQL: %s, ARGS: [%s]", query, teamSlug)
+		if _, err := tx.Exec(query, teamSlug); err != nil {
 			return nil, fmt.Errorf("failed to clear team_users for team %s: %w", teamSlug, err)
 		}
 		if err := store.StoreTeamUsers(tx, users, teamSlug); err != nil {
