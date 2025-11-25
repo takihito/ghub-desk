@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"ghub-desk/session"
 	"ghub-desk/validate"
 )
 
@@ -99,7 +100,9 @@ func printTableHeader(columns ...string) {
 
 // ViewUsers displays users from the database
 func ViewUsers(db *sql.DB, format OutputFormat) error {
-	rows, err := db.Query(`SELECT id, login, name, email, company, location FROM ghub_users ORDER BY login`)
+	query := `SELECT id, login, name, email, company, location FROM ghub_users ORDER BY login`
+	session.Debugf("SQL: %s", query)
+	rows, err := db.Query(query)
 	if err != nil {
 		return fmt.Errorf("failed to query users: %w", err)
 	}
@@ -158,7 +161,9 @@ func ViewUsers(db *sql.DB, format OutputFormat) error {
 
 // ViewTeams displays teams from the database
 func ViewTeams(db *sql.DB, format OutputFormat) error {
-	rows, err := db.Query(`SELECT id, slug, name, description, privacy FROM ghub_teams ORDER BY slug`)
+	query := `SELECT id, slug, name, description, privacy FROM ghub_teams ORDER BY slug`
+	session.Debugf("SQL: %s", query)
+	rows, err := db.Query(query)
 	if err != nil {
 		return fmt.Errorf("failed to query teams: %w", err)
 	}
@@ -214,9 +219,11 @@ func ViewTeams(db *sql.DB, format OutputFormat) error {
 
 // ViewRepositories displays repositories from the database
 func ViewRepositories(db *sql.DB, format OutputFormat) error {
-	rows, err := db.Query(`
+	query := `
 		SELECT id, name, full_name, description, private, language, stargazers_count 
-		FROM ghub_repos ORDER BY name`)
+		FROM ghub_repos ORDER BY name`
+	session.Debugf("SQL: %s", query)
+	rows, err := db.Query(query)
 	if err != nil {
 		return fmt.Errorf("failed to query repositories: %w", err)
 	}
@@ -280,11 +287,13 @@ func ViewRepositories(db *sql.DB, format OutputFormat) error {
 
 // ViewRepoUsers displays direct repository collaborators from the database
 func ViewRepoUsers(db *sql.DB, repoName string, format OutputFormat) error {
-	rows, err := db.Query(`
+	query := `
 		SELECT ghub_user_id, user_login
 		FROM ghub_repos_users
 		WHERE repos_name = ?
-		ORDER BY user_login`, repoName)
+		ORDER BY user_login`
+	session.Debugf("SQL: %s, ARGS: [%s]", query, repoName)
+	rows, err := db.Query(query, repoName)
 	if err != nil {
 		return fmt.Errorf("failed to query repository users: %w", err)
 	}
@@ -335,11 +344,13 @@ func ViewRepoUsers(db *sql.DB, repoName string, format OutputFormat) error {
 
 // ViewRepoTeams displays repository teams from the database
 func ViewRepoTeams(db *sql.DB, repoName string, format OutputFormat) error {
-	rows, err := db.Query(`
+	query := `
 		SELECT id, team_name, team_slug, description, privacy, permission
 		FROM ghub_repos_teams
 		WHERE repos_name = ?
-		ORDER BY team_slug`, repoName)
+		ORDER BY team_slug`
+	session.Debugf("SQL: %s, ARGS: [%s]", query, repoName)
+	rows, err := db.Query(query, repoName)
 	if err != nil {
 		return fmt.Errorf("failed to query repository teams: %w", err)
 	}
@@ -406,7 +417,7 @@ func ViewRepoTeams(db *sql.DB, repoName string, format OutputFormat) error {
 
 // ViewAllRepositoriesUsers displays direct collaborators for all repositories in the database.
 func ViewAllRepositoriesUsers(db *sql.DB, format OutputFormat) error {
-	rows, err := db.Query(`
+	query := `
 		SELECT 
 			COALESCE(r.name, ru.repos_name) AS repo_name,
 			COALESCE(r.full_name, '') AS repo_full_name,
@@ -417,7 +428,9 @@ func ViewAllRepositoriesUsers(db *sql.DB, format OutputFormat) error {
 		LEFT JOIN ghub_repos r ON r.name = ru.repos_name
 		LEFT JOIN ghub_users u ON u.login = ru.user_login
 		ORDER BY LOWER(repo_name), LOWER(ru.user_login)
-	`)
+	`
+	session.Debugf("SQL: %s", query)
+	rows, err := db.Query(query)
 	if err != nil {
 		return fmt.Errorf("failed to query repository users: %w", err)
 	}
@@ -501,7 +514,7 @@ func ViewAllRepositoriesUsers(db *sql.DB, format OutputFormat) error {
 
 // ViewAllRepositoriesTeams displays all repository team assignments alongside repository metadata.
 func ViewAllRepositoriesTeams(db *sql.DB, format OutputFormat) error {
-	rows, err := db.Query(`
+	query := `
 		SELECT 
 			COALESCE(r.name, rt.repos_name) AS repo_name,
 			COALESCE(r.full_name, '') AS repo_full_name,
@@ -513,7 +526,9 @@ func ViewAllRepositoriesTeams(db *sql.DB, format OutputFormat) error {
 		FROM ghub_repos_teams rt
 		LEFT JOIN ghub_repos r ON r.name = rt.repos_name
 		ORDER BY LOWER(repo_name), LOWER(rt.team_slug)
-	`)
+	`
+	session.Debugf("SQL: %s", query)
+	rows, err := db.Query(query)
 	if err != nil {
 		return fmt.Errorf("failed to query repository teams: %w", err)
 	}
@@ -611,7 +626,7 @@ func ViewAllRepositoriesTeams(db *sql.DB, format OutputFormat) error {
 
 // ViewAllTeamsUsers displays all team membership entries from the database.
 func ViewAllTeamsUsers(db *sql.DB, format OutputFormat) error {
-	rows, err := db.Query(`
+	query := `
 		SELECT 
 			tu.team_slug,
 			COALESCE(t.name, '') AS team_name,
@@ -622,7 +637,9 @@ func ViewAllTeamsUsers(db *sql.DB, format OutputFormat) error {
 		LEFT JOIN ghub_teams t ON t.slug = tu.team_slug
 		LEFT JOIN ghub_users u ON u.login = tu.user_login
 		ORDER BY LOWER(tu.team_slug), LOWER(tu.user_login)
-	`)
+	`
+	session.Debugf("SQL: %s", query)
+	rows, err := db.Query(query)
 	if err != nil {
 		return fmt.Errorf("failed to query team users: %w", err)
 	}
@@ -744,14 +761,16 @@ func ViewUserRepositories(db *sql.DB, userLogin string, format OutputFormat) err
 		}
 	}
 
-	directRows, err := db.Query(`
+	directQuery := `
 		SELECT COALESCE(r.name, ru.repos_name) AS repo_name,
 		       COALESCE(ru.permission, ''),
 		       ru.repos_name
 	FROM ghub_repos_users ru
 	LEFT JOIN ghub_repos r ON r.name = ru.repos_name
 		WHERE ru.user_login = ?
-	`, cleanLogin)
+	`
+	session.Debugf("SQL: %s, ARGS: [%s]", directQuery, cleanLogin)
+	directRows, err := db.Query(directQuery, cleanLogin)
 	if err != nil {
 		return fmt.Errorf("failed to query direct repository access: %w", err)
 	}
@@ -772,7 +791,7 @@ func ViewUserRepositories(db *sql.DB, userLogin string, format OutputFormat) err
 		return fmt.Errorf("failed to iterate direct access rows: %w", err)
 	}
 
-	teamRows, err := db.Query(`
+	teamQuery := `
 		SELECT COALESCE(r.name, rt.repos_name) AS repo_name,
 		       rt.team_slug,
 		       COALESCE(rt.team_name, ''),
@@ -782,7 +801,9 @@ func ViewUserRepositories(db *sql.DB, userLogin string, format OutputFormat) err
 	JOIN ghub_repos_teams rt ON rt.team_slug = tu.team_slug
 	LEFT JOIN ghub_repos r ON r.name = rt.repos_name
 		WHERE tu.user_login = ?
-	`, cleanLogin)
+	`
+	session.Debugf("SQL: %s, ARGS: [%s]", teamQuery, cleanLogin)
+	teamRows, err := db.Query(teamQuery, cleanLogin)
 	if err != nil {
 		return fmt.Errorf("failed to query team-derived repository access: %w", err)
 	}
@@ -899,11 +920,13 @@ func ViewUserRepositories(db *sql.DB, userLogin string, format OutputFormat) err
 
 // ViewTeamUsers displays team members from the database
 func ViewTeamUsers(db *sql.DB, teamSlug string, format OutputFormat) error {
-	rows, err := db.Query(`
+	query := `
 		SELECT ghub_user_id, user_login, role 
 		FROM ghub_team_users 
 		WHERE team_slug = ? 
-		ORDER BY user_login`, teamSlug)
+		ORDER BY user_login`
+	session.Debugf("SQL: %s, ARGS: [%s]", query, teamSlug)
+	rows, err := db.Query(query, teamSlug)
 	if err != nil {
 		return fmt.Errorf("failed to query team users: %w", err)
 	}
@@ -958,13 +981,15 @@ func ViewTeamUsers(db *sql.DB, teamSlug string, format OutputFormat) error {
 
 // ViewTokenPermission displays token permissions from the database
 func ViewTokenPermission(db *sql.DB, format OutputFormat) error {
-	rows, err := db.Query(`
+	query := `
 		SELECT scopes, x_oauth_scopes, x_accepted_oauth_scopes, x_accepted_github_permissions, x_github_media_type,
 		       x_ratelimit_limit, x_ratelimit_remaining, x_ratelimit_reset,
 		       created_at, updated_at
 		FROM ghub_token_permissions 
 		ORDER BY created_at DESC 
-		LIMIT 1`)
+		LIMIT 1`
+	session.Debugf("SQL: %s", query)
+	rows, err := db.Query(query)
 	if err != nil {
 		return fmt.Errorf("failed to query token permissions: %w", err)
 	}
@@ -1034,7 +1059,9 @@ func ViewTokenPermission(db *sql.DB, format OutputFormat) error {
 
 // ViewOutsideUsers displays outside users from the database
 func ViewOutsideUsers(db *sql.DB, format OutputFormat) error {
-	rows, err := db.Query(`SELECT id, login, name, email, company, location FROM ghub_outside_users ORDER BY login`)
+	query := `SELECT id, login, name, email, company, location FROM ghub_outside_users ORDER BY login`
+	session.Debugf("SQL: %s", query)
+	rows, err := db.Query(query)
 	if err != nil {
 		return fmt.Errorf("failed to query outside users: %w", err)
 	}
