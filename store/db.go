@@ -20,6 +20,12 @@ type DBTX interface {
 	QueryRow(query string, args ...interface{}) *sql.Row
 }
 
+var (
+	// ErrRepoNotFound is returned when a repository is not found in the local database.
+	ErrRepoNotFound = errors.New("repository not found")
+)
+
+
 
 const (
 	// Database configuration
@@ -628,7 +634,7 @@ func StoreRepoTeams(db DBTX, repoName string, teams []*github.Team) error {
 		return fmt.Errorf("failed to look up repository ID for %s: %w", repoName, err)
 	}
 	if !repoFound {
-		fmt.Printf("WARNING: repository '%s' not found in ghub_repos. Run 'ghub-desk pull --repos' first to populate repository metadata.\n", repoName)
+		return fmt.Errorf("repository '%s' not found: %w", repoName, ErrRepoNotFound)
 	}
 	var repoIDValue any
 	if repoFound {

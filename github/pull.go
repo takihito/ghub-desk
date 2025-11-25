@@ -361,9 +361,27 @@ func PullRepoTeams(ctx context.Context, client *github.Client, db *sql.DB, org, 
 		if _, err := tx.Exec(query, repoName); err != nil {
 			return fmt.Errorf("failed to clear repository teams for %s: %w", repoName, err)
 		}
-		if err := store.StoreRepoTeams(tx, repoName, teams); err != nil {
-			return fmt.Errorf("failed to store repository teams for %s: %w", repoName, err)
+
+		err = store.StoreRepoTeams(tx, repoName, teams)
+		if err != nil {
+			if errors.Is(err, store.ErrRepoNotFound) {
+				fmt.Printf("Repository '%s' not found locally, fetching from API...\n", repoName)
+				repo, _, apiErr := client.Repositories.Get(ctx, org, repoName)
+				if apiErr != nil {
+					return fmt.Errorf("failed to fetch repository details for '%s' from API: %w", repoName, apiErr)
+				}
+				if storeErr := store.StoreRepositories(tx, []*github.Repository{repo}); storeErr != nil {
+					return fmt.Errorf("failed to store fetched repository details: %w", storeErr)
+				}
+				// Retry storing the teams
+				if storeErr := store.StoreRepoTeams(tx, repoName, teams); storeErr != nil {
+					return fmt.Errorf("failed to store repository teams after fetching repository details: %w", storeErr)
+				}
+			} else {
+				return fmt.Errorf("failed to store repository teams for %s: %w", repoName, err)
+			}
 		}
+
 		if err := tx.Commit(); err != nil {
 			return fmt.Errorf("failed to commit transaction for repo %s: %w", repoName, err)
 		}
