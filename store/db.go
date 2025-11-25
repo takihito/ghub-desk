@@ -23,9 +23,19 @@ type DBTX interface {
 var (
 	// ErrRepoNotFound is returned when a repository is not found in the local database.
 	ErrRepoNotFound = errors.New("repository not found")
+
+	// allowedClearTables limits ClearTable to known table names to avoid SQL injection.
+	allowedClearTables = map[string]struct{}{
+		"ghub_users":             {},
+		"ghub_teams":             {},
+		"ghub_repos":             {},
+		"ghub_team_users":        {},
+		"ghub_token_permissions": {},
+		"ghub_outside_users":     {},
+		"ghub_repos_users":       {},
+		"ghub_repos_teams":       {},
+	}
 )
-
-
 
 const (
 	// Database configuration
@@ -771,7 +781,10 @@ func lookupTeamID(db DBTX, teamSlug string) (int64, bool, error) {
 
 // ClearTable deletes all rows from a specified table.
 func ClearTable(db DBTX, tableName string) error {
-	query := "DELETE FROM " + tableName
+	if _, ok := allowedClearTables[tableName]; !ok {
+		return fmt.Errorf("invalid table name %q", tableName)
+	}
+	query := fmt.Sprintf("DELETE FROM %s", tableName)
 	session.Debugf("SQL: %s", query)
 	if _, err := db.Exec(query); err != nil {
 		return fmt.Errorf("failed to clear table %s: %w", tableName, err)
