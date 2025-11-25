@@ -141,7 +141,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 	sdk.AddTool[ViewTeamUsersIn, ViewTeamUsersOut](srv, &sdk.Tool{
 		Name:        "view_team-user",
 		Title:       "View Team Users",
-		Description: "List users in a specific team from local database.",
+		Description: "List users in a specific team from local database. Pass {\"team\":\"team-slug\"} using the lowercase-slug format (alnum + hyphen).",
 		InputSchema: &jsonschema.Schema{
 			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
@@ -174,7 +174,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 	sdk.AddTool[ViewRepoUsersIn, ViewRepoUsersOut](srv, &sdk.Tool{
 		Name:        "view_repos-users",
 		Title:       "View Repository Collaborators",
-		Description: "List direct collaborators for a repository from the local cache.",
+		Description: "List direct collaborators for a repository from the local cache. Pass {\"repository\":\"repo-name\"} (1-100 chars, alnum/underscore/hyphen).",
 		InputSchema: &jsonschema.Schema{
 			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
@@ -208,7 +208,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 	sdk.AddTool[ViewRepoTeamsIn, ViewRepoTeamsOut](srv, &sdk.Tool{
 		Name:        "view_repos-teams",
 		Title:       "View Repository Teams",
-		Description: "List teams with access to a repository from the local cache.",
+		Description: "List teams with access to a repository from the local cache. Pass {\"repository\":\"repo-name\"} (1-100 chars, alnum/underscore/hyphen).",
 		InputSchema: &jsonschema.Schema{
 			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
@@ -284,7 +284,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 	sdk.AddTool[ViewUserReposIn, ViewUserReposOut](srv, &sdk.Tool{
 		Name:        "view_user-repos",
 		Title:       "View User Repository Access",
-		Description: "List repositories a user can access and how the access is granted.",
+		Description: "List repositories a user can access and how the access is granted. Pass {\"user\":\"github-login\"} (1-39 chars, alnum or hyphen).",
 		InputSchema: &jsonschema.Schema{
 			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
@@ -468,7 +468,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		sdk.AddTool[PullTeamUsersIn, PullResult](srv, &sdk.Tool{
 			Name:        "pull_team-user",
 			Title:       "Pull Team Users",
-			Description: "Fetch members for a specific team; optionally store them in SQLite.",
+			Description: "Fetch members for a specific team; optionally store them in SQLite. Provide {\"team\":\"team-slug\"} plus optional pull flags (no_store/stdout/interval_seconds).",
 			InputSchema: pullSchema(map[string]*jsonschema.Schema{
 				"team": {
 					Type:        "string",
@@ -498,7 +498,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		sdk.AddTool[PullRepoTargetIn, PullResult](srv, &sdk.Tool{
 			Name:        "pull_repos-users",
 			Title:       "Pull Repository Collaborators",
-			Description: "Fetch direct collaborators for a repository; optionally store them in SQLite.",
+			Description: "Fetch direct collaborators for a repository; optionally store them in SQLite. Provide {\"repository\":\"repo-name\"} plus optional pull flags.",
 			InputSchema: pullSchema(map[string]*jsonschema.Schema{
 				"repository": {
 					Type:        "string",
@@ -528,7 +528,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		sdk.AddTool[PullRepoTargetIn, PullResult](srv, &sdk.Tool{
 			Name:        "pull_repos-teams",
 			Title:       "Pull Repository Teams",
-			Description: "Fetch team permissions for a repository; optionally store them in SQLite.",
+			Description: "Fetch team permissions for a repository; optionally store them in SQLite. Provide {\"repository\":\"repo-name\"} plus optional pull flags.",
 			InputSchema: pullSchema(map[string]*jsonschema.Schema{
 				"repository": {
 					Type:        "string",
@@ -590,7 +590,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		sdk.AddTool[PushAddIn, PushResult](srv, &sdk.Tool{
 			Name:        "push_add",
 			Title:       "Push Add",
-			Description: "Add users to teams or invite outside collaborators. Dry-run unless exec=true.",
+			Description: "Add users to teams or invite outside collaborators. Use team_user=\"team-slug/username\" or outside_user=\"repository/username\"; dry-run unless exec=true.",
 			InputSchema: &jsonschema.Schema{
 				Type:        "object",
 				Description: "Provide exactly one of team_user or outside_user.",
@@ -642,7 +642,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		sdk.AddTool[PushRemoveIn, PushResult](srv, &sdk.Tool{
 			Name:        "push_remove",
 			Title:       "Push Remove",
-			Description: "Remove teams, users, or team members. Dry-run unless exec=true.",
+			Description: "Remove teams, users, or collaborators. Choose one target (team, user, team_user, outside_user, repos_user); dry-run unless exec=true.",
 			InputSchema: &jsonschema.Schema{
 				Type:        "object",
 				Description: "Provide exactly one removal target (team, user, team_user, outside_user, or repos_user).",
