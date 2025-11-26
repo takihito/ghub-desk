@@ -68,7 +68,8 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		Title:   "ghub-desk MCP",
 		Version: "dev",
 	}
-	srv := sdk.NewServer(impl, &sdk.ServerOptions{HasTools: true})
+	srv := sdk.NewServer(impl, &sdk.ServerOptions{HasTools: true, HasResources: true})
+	registerDocsResources(srv)
 
 	// health tool (no input)
 	sdk.AddTool[struct{}, HealthOut](srv, &sdk.Tool{
@@ -84,7 +85,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 	sdk.AddTool[struct{}, ViewUsersOut](srv, &sdk.Tool{
 		Name:        "view_users",
 		Title:       "View Users",
-		Description: "List users from local database.",
+		Description: "List users from local database. Usage: " + docsToolsURI + "#view_users.",
 		InputSchema: &jsonschema.Schema{Type: "object"},
 	}, func(_ context.Context, _ *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewUsersOut, error) {
 		users, err := listUsers()
@@ -99,7 +100,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 	sdk.AddTool[struct{}, ViewUsersOut](srv, &sdk.Tool{
 		Name:        "view_detail-users",
 		Title:       "View Detail Users",
-		Description: "List users with details from local database.",
+		Description: "List users with details from local database. Usage: " + docsToolsURI + "#view_detail-users.",
 		InputSchema: &jsonschema.Schema{Type: "object"},
 	}, func(_ context.Context, _ *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewUsersOut, error) {
 		users, err := listUsers()
@@ -113,7 +114,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 	sdk.AddTool[struct{}, ViewTeamsOut](srv, &sdk.Tool{
 		Name:        "view_teams",
 		Title:       "View Teams",
-		Description: "List teams from local database.",
+		Description: "List teams from local database. Usage: " + docsToolsURI + "#view_teams.",
 		InputSchema: &jsonschema.Schema{Type: "object"},
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewTeamsOut, error) {
 		teams, err := listTeams()
@@ -127,7 +128,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 	sdk.AddTool[struct{}, ViewReposOut](srv, &sdk.Tool{
 		Name:        "view_repos",
 		Title:       "View Repositories",
-		Description: "List repositories from local database.",
+		Description: "List repositories from local database. Usage: " + docsToolsURI + "#view_repos.",
 		InputSchema: &jsonschema.Schema{Type: "object"},
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewReposOut, error) {
 		repos, err := listRepositories()
@@ -141,7 +142,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 	sdk.AddTool[ViewTeamUsersIn, ViewTeamUsersOut](srv, &sdk.Tool{
 		Name:        "view_team-user",
 		Title:       "View Team Users",
-		Description: "List users in a specific team from local database. Pass {\"team\":\"team-slug\"} using the lowercase-slug format (alnum + hyphen).",
+		Description: "List users in a specific team from local database. Pass {\"team\":\"team-slug\"} using the lowercase-slug format (alnum + hyphen). Usage: " + docsToolsURI + "#view_team-user.",
 		InputSchema: &jsonschema.Schema{
 			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
@@ -174,7 +175,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 	sdk.AddTool[ViewRepoUsersIn, ViewRepoUsersOut](srv, &sdk.Tool{
 		Name:        "view_repos-users",
 		Title:       "View Repository Collaborators",
-		Description: "List direct collaborators for a repository from the local cache. Pass {\"repository\":\"repo-name\"} (1-100 chars, alnum/underscore/hyphen).",
+		Description: "List direct collaborators for a repository from the local cache. Pass {\"repository\":\"repo-name\"} (1-100 chars, alnum/underscore/hyphen). Usage: " + docsToolsURI + "#view_repos-users.",
 		InputSchema: &jsonschema.Schema{
 			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
@@ -208,7 +209,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 	sdk.AddTool[ViewRepoTeamsIn, ViewRepoTeamsOut](srv, &sdk.Tool{
 		Name:        "view_repos-teams",
 		Title:       "View Repository Teams",
-		Description: "List teams with access to a repository from the local cache. Pass {\"repository\":\"repo-name\"} (1-100 chars, alnum/underscore/hyphen).",
+		Description: "List teams with access to a repository from the local cache. Pass {\"repository\":\"repo-name\"} (1-100 chars, alnum/underscore/hyphen). Usage: " + docsToolsURI + "#view_repos-teams.",
 		InputSchema: &jsonschema.Schema{
 			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
@@ -242,7 +243,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 	sdk.AddTool[struct{}, ViewAllTeamsUsersOut](srv, &sdk.Tool{
 		Name:        "view_all-teams-users",
 		Title:       "View All Team Memberships",
-		Description: "Enumerate every team membership entry stored in the local database.",
+		Description: "Enumerate every team membership entry stored in the local database. Usage: " + docsToolsURI + "#view_all-teams-users.",
 		InputSchema: &jsonschema.Schema{Type: "object"},
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewAllTeamsUsersOut, error) {
 		entries, err := listAllTeamsUsers()
@@ -256,7 +257,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 	sdk.AddTool[struct{}, ViewAllReposUsersOut](srv, &sdk.Tool{
 		Name:        "view_all-repos-users",
 		Title:       "View All Repository Collaborators",
-		Description: "Enumerate collaborators for every repository stored in the local database.",
+		Description: "Enumerate collaborators for every repository stored in the local database. Usage: " + docsToolsURI + "#view_all-repos-users.",
 		InputSchema: &jsonschema.Schema{Type: "object"},
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewAllReposUsersOut, error) {
 		entries, err := listAllRepositoriesUsers()
@@ -270,7 +271,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 	sdk.AddTool[struct{}, ViewAllReposTeamsOut](srv, &sdk.Tool{
 		Name:        "view_all-repos-teams",
 		Title:       "View All Repository Teams",
-		Description: "Enumerate team access for every repository stored in the local database.",
+		Description: "Enumerate team access for every repository stored in the local database. Usage: " + docsToolsURI + "#view_all-repos-teams.",
 		InputSchema: &jsonschema.Schema{Type: "object"},
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewAllReposTeamsOut, error) {
 		entries, err := listAllRepositoriesTeams()
@@ -284,7 +285,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 	sdk.AddTool[ViewUserReposIn, ViewUserReposOut](srv, &sdk.Tool{
 		Name:        "view_user-repos",
 		Title:       "View User Repository Access",
-		Description: "List repositories a user can access and how the access is granted. Pass {\"user\":\"github-login\"} (1-39 chars, alnum or hyphen).",
+		Description: "List repositories a user can access and how the access is granted. Pass {\"user\":\"github-login\"} (1-39 chars, alnum or hyphen). Usage: " + docsToolsURI + "#view_user-repos.",
 		InputSchema: &jsonschema.Schema{
 			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
@@ -318,7 +319,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 	sdk.AddTool[struct{}, ViewOutsideUsersOut](srv, &sdk.Tool{
 		Name:        "view_outside-users",
 		Title:       "View Outside Collaborators",
-		Description: "List outside collaborators from local database.",
+		Description: "List outside collaborators from local database. Usage: " + docsToolsURI + "#view_outside-users.",
 		InputSchema: &jsonschema.Schema{Type: "object"},
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewOutsideUsersOut, error) {
 		users, err := listOutsideUsers()
@@ -332,7 +333,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 	sdk.AddTool[struct{}, ViewSettingsOut](srv, &sdk.Tool{
 		Name:        "view_settings",
 		Title:       "View Masked Settings",
-		Description: "Show application configuration with secrets masked, useful for confirming MCP permissions.",
+		Description: "Show application configuration with secrets masked, useful for confirming MCP permissions. Usage: " + docsToolsURI + "#view_settings.",
 		InputSchema: &jsonschema.Schema{Type: "object"},
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewSettingsOut, error) {
 		out := maskConfig(cfg)
@@ -343,7 +344,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 	sdk.AddTool[struct{}, ViewTokenPermissionOut](srv, &sdk.Tool{
 		Name:        "view_token-permission",
 		Title:       "View Token Permission",
-		Description: "Show token permission info from local database.",
+		Description: "Show token permission info from local database. Usage: " + docsToolsURI + "#view_token-permission.",
 		InputSchema: &jsonschema.Schema{Type: "object"},
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewTokenPermissionOut, error) {
 		tp, err := getTokenPermission()
@@ -370,7 +371,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
 			Name:        "pull_users",
 			Title:       "Pull Users",
-			Description: "Fetch organization members from GitHub; optionally store them in SQLite.",
+			Description: "Fetch organization members from GitHub; optionally store them in SQLite. Usage: " + docsToolsURI + "#pull_users.",
 			InputSchema: pullSchema(nil, nil),
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
 			opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
@@ -384,7 +385,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
 			Name:        "pull_detail-users",
 			Title:       "Pull Detailed Users",
-			Description: "Fetch organization members with profile details; optionally store them in SQLite.",
+			Description: "Fetch organization members with profile details; optionally store them in SQLite. Usage: " + docsToolsURI + "#pull_detail-users.",
 			InputSchema: pullSchema(nil, nil),
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
 			opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
@@ -398,7 +399,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
 			Name:        "pull_teams",
 			Title:       "Pull Teams",
-			Description: "Fetch organization teams from GitHub; optionally store them in SQLite.",
+			Description: "Fetch organization teams from GitHub; optionally store them in SQLite. Usage: " + docsToolsURI + "#pull_teams.",
 			InputSchema: pullSchema(nil, nil),
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
 			opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
@@ -412,7 +413,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
 			Name:        "pull_repositories",
 			Title:       "Pull Repositories",
-			Description: "Fetch repositories from GitHub; optionally store them in SQLite.",
+			Description: "Fetch repositories from GitHub; optionally store them in SQLite. Usage: " + docsToolsURI + "#pull_repositories.",
 			InputSchema: pullSchema(nil, nil),
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
 			opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
@@ -426,7 +427,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
 			Name:        "pull_all-teams-users",
 			Title:       "Pull All Team Memberships",
-			Description: "Fetch every team membership from GitHub; optionally store them in SQLite.",
+			Description: "Fetch every team membership from GitHub; optionally store them in SQLite. Usage: " + docsToolsURI + "#pull_all-teams-users.",
 			InputSchema: pullSchema(nil, nil),
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
 			opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
@@ -440,7 +441,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
 			Name:        "pull_all-repos-users",
 			Title:       "Pull All Repository Collaborators",
-			Description: "Fetch collaborators for every repository; optionally store them in SQLite.",
+			Description: "Fetch collaborators for every repository; optionally store them in SQLite. Usage: " + docsToolsURI + "#pull_all-repos-users.",
 			InputSchema: pullSchema(nil, nil),
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
 			opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
@@ -454,7 +455,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
 			Name:        "pull_all-repos-teams",
 			Title:       "Pull All Repository Teams",
-			Description: "Fetch team access for every repository; optionally store them in SQLite.",
+			Description: "Fetch team access for every repository; optionally store them in SQLite. Usage: " + docsToolsURI + "#pull_all-repos-teams.",
 			InputSchema: pullSchema(nil, nil),
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
 			opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
@@ -468,7 +469,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		sdk.AddTool[PullTeamUsersIn, PullResult](srv, &sdk.Tool{
 			Name:        "pull_team-user",
 			Title:       "Pull Team Users",
-			Description: "Fetch members for a specific team; optionally store them in SQLite. Provide {\"team\":\"team-slug\"} plus optional pull flags (no_store/stdout/interval_seconds).",
+			Description: "Fetch members for a specific team; optionally store them in SQLite. Provide {\"team\":\"team-slug\"} plus optional pull flags (no_store/stdout/interval_seconds). Usage: " + docsToolsURI + "#pull_team-user.",
 			InputSchema: pullSchema(map[string]*jsonschema.Schema{
 				"team": {
 					Type:        "string",
@@ -498,7 +499,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		sdk.AddTool[PullRepoTargetIn, PullResult](srv, &sdk.Tool{
 			Name:        "pull_repos-users",
 			Title:       "Pull Repository Collaborators",
-			Description: "Fetch direct collaborators for a repository; optionally store them in SQLite. Provide {\"repository\":\"repo-name\"} plus optional pull flags.",
+			Description: "Fetch direct collaborators for a repository; optionally store them in SQLite. Provide {\"repository\":\"repo-name\"} plus optional pull flags. Usage: " + docsToolsURI + "#pull_repos-users.",
 			InputSchema: pullSchema(map[string]*jsonschema.Schema{
 				"repository": {
 					Type:        "string",
@@ -528,7 +529,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		sdk.AddTool[PullRepoTargetIn, PullResult](srv, &sdk.Tool{
 			Name:        "pull_repos-teams",
 			Title:       "Pull Repository Teams",
-			Description: "Fetch team permissions for a repository; optionally store them in SQLite. Provide {\"repository\":\"repo-name\"} plus optional pull flags.",
+			Description: "Fetch team permissions for a repository; optionally store them in SQLite. Provide {\"repository\":\"repo-name\"} plus optional pull flags. Usage: " + docsToolsURI + "#pull_repos-teams.",
 			InputSchema: pullSchema(map[string]*jsonschema.Schema{
 				"repository": {
 					Type:        "string",
@@ -558,7 +559,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
 			Name:        "pull_outside-users",
 			Title:       "Pull Outside Collaborators",
-			Description: "Fetch outside collaborators; optionally store them in SQLite.",
+			Description: "Fetch outside collaborators; optionally store them in SQLite. Usage: " + docsToolsURI + "#pull_outside-users.",
 			InputSchema: pullSchema(nil, nil),
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
 			opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
@@ -572,7 +573,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
 			Name:        "pull_token-permission",
 			Title:       "Pull Token Permission",
-			Description: "Fetch GitHub token permission headers; optionally store them in SQLite.",
+			Description: "Fetch GitHub token permission headers; optionally store them in SQLite. Usage: " + docsToolsURI + "#pull_token-permission.",
 			InputSchema: pullSchema(nil, nil),
 		}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
 			opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
@@ -590,7 +591,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		sdk.AddTool[PushAddIn, PushResult](srv, &sdk.Tool{
 			Name:        "push_add",
 			Title:       "Push Add",
-			Description: "Add users to teams or invite outside collaborators. Use team_user=\"team-slug/username\" or outside_user=\"repository/username\"; dry-run unless exec=true.",
+			Description: "Add users to teams or invite outside collaborators. Use team_user=\"team-slug/username\" or outside_user=\"repository/username\"; dry-run unless exec=true. Usage: " + docsToolsURI + "#push_add. Safety: " + docsSafetyURI + ".",
 			InputSchema: &jsonschema.Schema{
 				Type:        "object",
 				Description: "Provide exactly one of team_user or outside_user.",
@@ -642,7 +643,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		sdk.AddTool[PushRemoveIn, PushResult](srv, &sdk.Tool{
 			Name:        "push_remove",
 			Title:       "Push Remove",
-			Description: "Remove teams, users, or collaborators. Choose one target (team, user, team_user, outside_user, repos_user); dry-run unless exec=true.",
+			Description: "Remove teams, users, or collaborators. Choose one target (team, user, team_user, outside_user, repos_user); dry-run unless exec=true. Usage: " + docsToolsURI + "#push_remove. Safety: " + docsSafetyURI + ".",
 			InputSchema: &jsonschema.Schema{
 				Type:        "object",
 				Description: "Provide exactly one removal target (team, user, team_user, outside_user, or repos_user).",
