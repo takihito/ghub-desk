@@ -82,6 +82,23 @@ make build
 ## Integrating with AI Agents
 MCP-compatible agents such as Gemini or Codex can invoke `ghub-desk` by registering its MCP server command in their configuration. Adjust paths to match your environment and reuse the CLI configuration file for consistency.
 
+### Using resources/list
+- Call `resources/list` followed by `resources/read` to fetch the built-in usage guides before invoking risky tools.
+- Each tool description now ends with a `resource://ghub-desk/...` link. Resolve that URI via `resources/read` (anchors such as `#view_team-user`) to retrieve JSON examples and guardrails.
+
+| Resource URI | Purpose |
+| --- | --- |
+| `resource://ghub-desk/mcp-overview` | Startup checklist, configuration knobs, and SQLite handling notes. |
+| `resource://ghub-desk/mcp-tools` | Detailed reference for every tool including sample JSON payloads and response hints. |
+| `resource://ghub-desk/mcp-safety` | Guidance for DRYRUN vs exec, allow_write usage, and local store synchronization. |
+
+Recommended flow: inspect `tools/list`, look up the linked URI via `resources/read`, then run `tools/call` with the confirmed payload.
+
+### Resource URI Handling
+It is important to note that `resource://ghub-desk/...` URIs are **not** file paths and do not read from the `docs/` directory. The content for these resources is embedded directly as markdown strings within the Go source code at `mcp/docs.go`. The server handles these URIs by returning the corresponding embedded string.
+
+The markdown files in the `docs/` directory are intended for human developers to understand the project structure and are separate from the content served to the agent via MCP.
+
 ### Gemini
 Add the `ghub-desk` MCP server to the `mcpServers` section of `~/.gemini/settings.json`.
 

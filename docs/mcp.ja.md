@@ -95,6 +95,23 @@ make build
 
 Gemini や Codex などの AI エージェントから MCP サーバーを利用する場合、各クライアントの設定に MCP サーバーの起動コマンドを登録します。以下は代表的な設定例です。
 
+### resources/list と公開リソース
+- `resources/list` → `resources/read` の順に呼び出すと、MCP サーバーに組み込まれた使い方ガイドを取得できます。
+- 各 `tools` の Description 末尾にも `resource://ghub-desk/...` の URI を記載しているため、エージェントはリンク先を `resources/read` で取得してから `tools/call` を実行してください。
+
+| リソース URI | 説明 |
+| --- | --- |
+| `resource://ghub-desk/mcp-overview` | 起動手順、`allow_pull`/`allow_write` の意味、SQLite の扱いをまとめた概要。 |
+| `resource://ghub-desk/mcp-tools` | 各ツールごとの入力例、レスポンス概要、利用時の注意点。アンカー `#view_team-user` などで特定ツールに直接ジャンプできます。 |
+| `resource://ghub-desk/mcp-safety` | `push_*` 実行時の DRYRUN/exec の切り替えや `no_store` などの運用上の注意点。 |
+
+`tools/list` で Description に含まれる URI を確認 → `resources/list` で公開リソース ID を学習 → `resources/read {"uri":"resource://ghub-desk/mcp-tools#pull_users"}` のように読み取る、という流れを推奨します。
+
+### リソース URI の扱い
+`resource://ghub-desk/...` というURIはファイルパスではなく、`docs/` ディレクトリからファイルを読み込むものではない点に注意してください。これらのリソースの内容は、`mcp/docs.go` のGoソースコード内にマークダウン文字列として直接埋め込まれています。サーバーはこれらのURIへのリクエストに対し、対応する埋め込み文字列を返します。
+
+`docs/` ディレクトリ内のマークダウンファイルは、開発者がプロジェクトの構造を理解するために用意されたものであり、MCP経由でエージェントに提供されるコンテンツとは区別されます。
+
 ### Gemini
 
 `~/.gemini/settings.json` の `mcpServers` セクションに `ghub-desk` MCP サーバーを追加します。
