@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"strings"
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -57,6 +58,9 @@ func staticMarkdownResource(uri, body string) sdk.ResourceHandler {
 	return func(_ context.Context, req *sdk.ReadResourceRequest) (*sdk.ReadResourceResult, error) {
 		if req != nil && req.Params != nil {
 			target := req.Params.URI
+			if idx := strings.IndexByte(target, '#'); idx >= 0 {
+				target = target[:idx]
+			}
 			if target != "" && target != uri {
 				return nil, sdk.ResourceNotFoundError(target)
 			}
