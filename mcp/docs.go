@@ -125,11 +125,14 @@ The tables below describe every published tool. Copy the sample JSON into tools/
 | --- | --- | --- | --- |
 | view_users | Cached organization members | {} | users[] with id, login, name, email, timestamps |
 | view_detail-users | Same payload as view_users for now | {} | Identical schema to view_users |
+| view_user | One cached user profile | {"user":"octocat"} | Returns user with timestamps; found=false when missing |
+| view_user-teams | Teams for one user | {"user":"octocat"} | Lists team_slug, team_name, role |
 | view_teams | Cached teams | {} | teams[] with slug, description, privacy, permission |
 | view_repos | Cached repositories | {} | repositories[] with name, language, private, counters |
 | view_team-user | Members of one team (slug) | {"team":"platform-team"} | users[] plus role, filter by slug |
 | view_repos-users | Direct collaborators for one repo | {"repository":"admin-console"} | Includes permission and user_login |
 | view_repos-teams | Teams mapped to a repo | {"repository":"admin-console"} | Shows team_slug, permission, timestamps |
+| view_team-repos | Repositories for one team | {"team":"platform-team"} | Lists repo_name/full_name with permission |
 | view_user-repos | Access map for one user | {"user":"octocat"} | Response lists repositories and how access is granted |
 | view_outside-users | Outside collaborators snapshot | {} | Lists collaborators captured by pull_outside-users |
 | view_token-permission | Token permission cache | {} | Latest PAT or GitHub App headers; errors when empty |

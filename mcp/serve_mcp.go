@@ -110,6 +110,74 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		return nil, ViewUsersOut{Users: users}, nil
 	})
 
+	// view_user {user}
+	sdk.AddTool[ViewUserIn, ViewUserOut](srv, &sdk.Tool{
+		Name:        "view_user",
+		Title:       "View Single User",
+		Description: "Show one user profile from local database. Pass {\"user\":\"github-login\"}. Usage: " + docsToolsURI + "#view_user.",
+		InputSchema: &jsonschema.Schema{
+			Type: "object",
+			Properties: map[string]*jsonschema.Schema{
+				"user": {
+					Type:        "string",
+					Title:       "User Login",
+					Description: "GitHub username (1-39 chars, alnum or hyphen).",
+					MinLength:   intPtr(v.UserNameMin),
+					MaxLength:   intPtr(v.UserNameMax),
+					Pattern:     v.UserNamePattern,
+				},
+			},
+			Required: []string{"user"},
+		},
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in ViewUserIn) (*sdk.CallToolResult, ViewUserOut, error) {
+		login := strings.TrimSpace(in.User)
+		if login == "" {
+			return &sdk.CallToolResult{}, ViewUserOut{}, fmt.Errorf("user is required")
+		}
+		if err := v.ValidateUserName(login); err != nil {
+			return &sdk.CallToolResult{}, ViewUserOut{}, err
+		}
+		out, err := getUserProfile(login)
+		if err != nil {
+			return &sdk.CallToolResult{}, ViewUserOut{}, fmt.Errorf("failed to get user: %w", err)
+		}
+		return nil, out, nil
+	})
+
+	// view_user-teams {user}
+	sdk.AddTool[ViewUserTeamsIn, ViewUserTeamsOut](srv, &sdk.Tool{
+		Name:        "view_user-teams",
+		Title:       "View User Teams",
+		Description: "List teams a user belongs to from local database. Pass {\"user\":\"github-login\"}. Usage: " + docsToolsURI + "#view_user-teams.",
+		InputSchema: &jsonschema.Schema{
+			Type: "object",
+			Properties: map[string]*jsonschema.Schema{
+				"user": {
+					Type:        "string",
+					Title:       "User Login",
+					Description: "GitHub username (1-39 chars, alnum or hyphen).",
+					MinLength:   intPtr(v.UserNameMin),
+					MaxLength:   intPtr(v.UserNameMax),
+					Pattern:     v.UserNamePattern,
+				},
+			},
+			Required: []string{"user"},
+		},
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in ViewUserTeamsIn) (*sdk.CallToolResult, ViewUserTeamsOut, error) {
+		login := strings.TrimSpace(in.User)
+		if login == "" {
+			return &sdk.CallToolResult{}, ViewUserTeamsOut{}, fmt.Errorf("user is required")
+		}
+		if err := v.ValidateUserName(login); err != nil {
+			return &sdk.CallToolResult{}, ViewUserTeamsOut{}, err
+		}
+		out, err := listUserTeams(login)
+		if err != nil {
+			return &sdk.CallToolResult{}, ViewUserTeamsOut{}, fmt.Errorf("failed to list user teams: %w", err)
+		}
+		return nil, out, nil
+	})
+
 	// view_teams
 	sdk.AddTool[struct{}, ViewTeamsOut](srv, &sdk.Tool{
 		Name:        "view_teams",
@@ -235,6 +303,40 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 		out, err := listRepoTeams(repo)
 		if err != nil {
 			return &sdk.CallToolResult{}, ViewRepoTeamsOut{}, fmt.Errorf("failed to list repository teams: %w", err)
+		}
+		return nil, out, nil
+	})
+
+	// view_team-repos {team}
+	sdk.AddTool[ViewTeamReposIn, ViewTeamReposOut](srv, &sdk.Tool{
+		Name:        "view_team-repos",
+		Title:       "View Team Repositories",
+		Description: "List repositories a team can access from local database. Pass {\"team\":\"team-slug\"}. Usage: " + docsToolsURI + "#view_team-repos.",
+		InputSchema: &jsonschema.Schema{
+			Type: "object",
+			Properties: map[string]*jsonschema.Schema{
+				"team": {
+					Type:        "string",
+					Title:       "Team Slug",
+					Description: "Team slug (lowercase alnum + hyphen).",
+					MinLength:   intPtr(v.TeamSlugMin),
+					MaxLength:   intPtr(v.TeamSlugMax),
+					Pattern:     v.TeamSlugPattern,
+				},
+			},
+			Required: []string{"team"},
+		},
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in ViewTeamReposIn) (*sdk.CallToolResult, ViewTeamReposOut, error) {
+		team := strings.TrimSpace(in.Team)
+		if team == "" {
+			return &sdk.CallToolResult{}, ViewTeamReposOut{}, fmt.Errorf("team is required")
+		}
+		if err := v.ValidateTeamSlug(team); err != nil {
+			return &sdk.CallToolResult{}, ViewTeamReposOut{}, err
+		}
+		out, err := listTeamRepositories(team)
+		if err != nil {
+			return &sdk.CallToolResult{}, ViewTeamReposOut{}, fmt.Errorf("failed to list team repositories: %w", err)
 		}
 		return nil, out, nil
 	})
@@ -723,6 +825,26 @@ type User struct {
 	Location string `json:"location,omitempty" jsonschema:"location (may be empty)"`
 }
 
+type UserProfile struct {
+	ID        int64  `json:"id" jsonschema:"GitHub user ID"`
+	Login     string `json:"login" jsonschema:"GitHub login"`
+	Name      string `json:"name,omitempty" jsonschema:"display name"`
+	Email     string `json:"email,omitempty" jsonschema:"email address (may be empty)"`
+	Company   string `json:"company,omitempty" jsonschema:"company (may be empty)"`
+	Location  string `json:"location,omitempty" jsonschema:"location (may be empty)"`
+	CreatedAt string `json:"created_at,omitempty" jsonschema:"record created at (local DB)"`
+	UpdatedAt string `json:"updated_at,omitempty" jsonschema:"record updated at (local DB)"`
+}
+
+type ViewUserIn struct {
+	User string `json:"user" jsonschema:"user login (1-39 chars, alnum or hyphen)"`
+}
+
+type ViewUserOut struct {
+	Found bool        `json:"found" jsonschema:"true when user record exists"`
+	User  UserProfile `json:"user" jsonschema:"user profile"`
+}
+
 func listUsers() ([]User, error) {
 	db, err := store.InitDatabase()
 	if err != nil {
@@ -753,6 +875,47 @@ func listUsers() ([]User, error) {
 		})
 	}
 	return res, nil
+}
+
+func getUserProfile(login string) (ViewUserOut, error) {
+	db, err := store.InitDatabase()
+	if err != nil {
+		return ViewUserOut{}, err
+	}
+	defer db.Close()
+
+	cleanLogin := strings.TrimSpace(login)
+	if cleanLogin == "" {
+		return ViewUserOut{}, fmt.Errorf("user login is required")
+	}
+
+	query := `
+		SELECT id, login, COALESCE(name, ''), COALESCE(email, ''), COALESCE(company, ''), COALESCE(location, ''), COALESCE(created_at, ''), COALESCE(updated_at, '')
+		FROM ghub_users
+		WHERE login = ?
+		LIMIT 1`
+	row := db.QueryRow(query, cleanLogin)
+
+	var rec UserProfile
+	if err := row.Scan(&rec.ID, &rec.Login, &rec.Name, &rec.Email, &rec.Company, &rec.Location, &rec.CreatedAt, &rec.UpdatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return ViewUserOut{Found: false, User: UserProfile{Login: cleanLogin}}, nil
+		}
+		return ViewUserOut{}, err
+	}
+
+	rec.Login = strings.TrimSpace(rec.Login)
+	rec.Name = strings.TrimSpace(rec.Name)
+	rec.Email = strings.TrimSpace(rec.Email)
+	rec.Company = strings.TrimSpace(rec.Company)
+	rec.Location = strings.TrimSpace(rec.Location)
+	rec.CreatedAt = strings.TrimSpace(rec.CreatedAt)
+	rec.UpdatedAt = strings.TrimSpace(rec.UpdatedAt)
+
+	return ViewUserOut{
+		Found: true,
+		User:  rec,
+	}, nil
 }
 
 type Team struct {
@@ -844,6 +1007,21 @@ type ViewTeamUsersOut struct {
 	Users []TeamUser `json:"users"`
 }
 
+type ViewUserTeamsIn struct {
+	User string `json:"user" jsonschema:"user login (1-39 chars, alnum or hyphen)"`
+}
+
+type UserTeam struct {
+	TeamSlug string `json:"team_slug" jsonschema:"team slug"`
+	TeamName string `json:"team_name" jsonschema:"team name"`
+	Role     string `json:"role,omitempty" jsonschema:"membership role"`
+}
+
+type ViewUserTeamsOut struct {
+	User  string     `json:"user"`
+	Teams []UserTeam `json:"teams"`
+}
+
 func listTeamUsers(teamSlug string) ([]TeamUser, error) {
 	db, err := store.InitDatabase()
 	if err != nil {
@@ -865,6 +1043,52 @@ func listTeamUsers(teamSlug string) ([]TeamUser, error) {
 		res = append(res, TeamUser{UserID: id, Login: login.String, Role: role.String})
 	}
 	return res, nil
+}
+
+func listUserTeams(userLogin string) (ViewUserTeamsOut, error) {
+	db, err := store.InitDatabase()
+	if err != nil {
+		return ViewUserTeamsOut{}, err
+	}
+	defer db.Close()
+
+	cleanLogin := strings.TrimSpace(userLogin)
+	if cleanLogin == "" {
+		return ViewUserTeamsOut{}, fmt.Errorf("user login is required")
+	}
+
+	rows, err := db.Query(`
+		SELECT 
+			tu.team_slug,
+			COALESCE(t.name, '') AS team_name,
+			COALESCE(tu.role, '') AS role
+		FROM ghub_team_users tu
+		LEFT JOIN ghub_teams t ON t.slug = tu.team_slug
+		WHERE tu.user_login = ?
+		ORDER BY LOWER(tu.team_slug)
+	`, cleanLogin)
+	if err != nil {
+		return ViewUserTeamsOut{}, err
+	}
+	defer rows.Close()
+
+	out := ViewUserTeamsOut{User: cleanLogin}
+	for rows.Next() {
+		var teamSlug, teamName, role sql.NullString
+		if err := rows.Scan(&teamSlug, &teamName, &role); err != nil {
+			return ViewUserTeamsOut{}, err
+		}
+		out.Teams = append(out.Teams, UserTeam{
+			TeamSlug: strings.TrimSpace(teamSlug.String),
+			TeamName: strings.TrimSpace(teamName.String),
+			Role:     strings.TrimSpace(role.String),
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return ViewUserTeamsOut{}, err
+	}
+
+	return out, nil
 }
 
 type RepoUser struct {
@@ -955,6 +1179,23 @@ type ViewRepoTeamsOut struct {
 	Teams      []RepoTeam `json:"teams"`
 }
 
+type ViewTeamReposIn struct {
+	Team string `json:"team" jsonschema:"team slug"`
+}
+
+type TeamRepository struct {
+	RepoName    string `json:"repo_name" jsonschema:"repository name"`
+	FullName    string `json:"full_name,omitempty" jsonschema:"repository full name"`
+	Permission  string `json:"permission,omitempty" jsonschema:"permission granted to team"`
+	Privacy     string `json:"privacy,omitempty" jsonschema:"team privacy"`
+	Description string `json:"description,omitempty" jsonschema:"team description"`
+}
+
+type ViewTeamReposOut struct {
+	Team         string           `json:"team"`
+	Repositories []TeamRepository `json:"repositories"`
+}
+
 func listRepoTeams(repoName string) (ViewRepoTeamsOut, error) {
 	db, err := store.InitDatabase()
 	if err != nil {
@@ -1012,6 +1253,61 @@ func listRepoTeams(repoName string) (ViewRepoTeamsOut, error) {
 	}
 	if err := rows.Err(); err != nil {
 		return ViewRepoTeamsOut{}, err
+	}
+
+	return out, nil
+}
+
+func listTeamRepositories(teamSlug string) (ViewTeamReposOut, error) {
+	db, err := store.InitDatabase()
+	if err != nil {
+		return ViewTeamReposOut{}, err
+	}
+	defer db.Close()
+
+	cleanSlug := strings.TrimSpace(teamSlug)
+	if cleanSlug == "" {
+		return ViewTeamReposOut{}, fmt.Errorf("team slug is required")
+	}
+
+	rows, err := db.Query(`
+		SELECT 
+			COALESCE(r.name, rt.repos_name) AS repo_name,
+			COALESCE(r.full_name, '') AS repo_full_name,
+			COALESCE(rt.permission, '') AS permission,
+			COALESCE(rt.privacy, '') AS privacy,
+			COALESCE(rt.description, '') AS description,
+			rt.repos_name
+		FROM ghub_repos_teams rt
+		LEFT JOIN ghub_repos r ON r.name = rt.repos_name
+		WHERE rt.team_slug = ?
+		ORDER BY LOWER(repo_name)
+	`, cleanSlug)
+	if err != nil {
+		return ViewTeamReposOut{}, err
+	}
+	defer rows.Close()
+
+	out := ViewTeamReposOut{Team: cleanSlug}
+	for rows.Next() {
+		var repoName, fullName, permission, privacy, description, fallbackRepo sql.NullString
+		if err := rows.Scan(&repoName, &fullName, &permission, &privacy, &description, &fallbackRepo); err != nil {
+			return ViewTeamReposOut{}, err
+		}
+		name := strings.TrimSpace(repoName.String)
+		if name == "" {
+			name = strings.TrimSpace(fallbackRepo.String)
+		}
+		out.Repositories = append(out.Repositories, TeamRepository{
+			RepoName:    name,
+			FullName:    strings.TrimSpace(fullName.String),
+			Permission:  normalizePermissionValue(permission.String),
+			Privacy:     strings.TrimSpace(privacy.String),
+			Description: strings.TrimSpace(description.String),
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return ViewTeamReposOut{}, err
 	}
 
 	return out, nil
