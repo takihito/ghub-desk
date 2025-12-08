@@ -177,6 +177,12 @@ mcp:
 # Show stored user information
 ./ghub-desk view --users
 
+# Show a single user's profile
+./ghub-desk view --user user-login
+
+# List teams a user belongs to
+./ghub-desk view --user-teams user-login
+
 # Inspect members of a specific team slug
 ./ghub-desk view --team-user team-slug
 
@@ -188,6 +194,9 @@ mcp:
 
 # Inspect repository teams across every repository in the database
 ./ghub-desk view --all-repos-teams
+
+# List repositories a team can access
+./ghub-desk view --team-repos team-slug
 
 # List repositories a user can access (run pull --repos-users, --repos-teams, and --team-users beforehand)
 ./ghub-desk view --user-repos user-login

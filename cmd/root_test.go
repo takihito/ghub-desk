@@ -62,6 +62,24 @@ func TestPullCmdGetTarget(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "user target",
+			cmd:         PullCmd{CommonTargetOptions: CommonTargetOptions{User: "octocat"}},
+			expected:    "user",
+			expectError: false,
+		},
+		{
+			name:        "user-teams target",
+			cmd:         PullCmd{CommonTargetOptions: CommonTargetOptions{UserTeams: "octocat"}},
+			expected:    "user-teams",
+			expectError: false,
+		},
+		{
+			name:        "team-repos target",
+			cmd:         PullCmd{CommonTargetOptions: CommonTargetOptions{TeamRepos: "team-slug"}},
+			expected:    "team-repos",
+			expectError: false,
+		},
+		{
 			name:        "all-repos-teams target",
 			cmd:         PullCmd{CommonTargetOptions: CommonTargetOptions{AllReposTeams: true}},
 			expected:    "all-repos-teams",

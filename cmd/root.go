@@ -77,7 +77,10 @@ type CommonTargetOptions struct {
 	RepoUsers       string `name:"repos-users" help:"Target: repos-users (provide repository name)"`
 	RepoTeams       string `name:"repos-teams" help:"Target: repos-teams (provide repository name)"`
 	AllReposTeams   bool   `name:"all-repos-teams" help:"Target: all-repos-teams"`
+	User            string `name:"user" help:"Target: user (provide user login)"`
+	UserTeams       string `name:"user-teams" help:"Target: user-teams (provide user login)"`
 	UserRepos       string `name:"user-repos" help:"Target: user-repos (provide user login)"`
+	TeamRepos       string `name:"team-repos" help:"Target: team-repos (provide team slug)"`
 	TokenPermission bool   `name:"token-permission" help:"Target: token-permission"`
 	OutsideUsers    bool   `name:"outside-users" help:"Target: outside-users"`
 }
@@ -104,7 +107,10 @@ func (c *CommonTargetOptions) GetTarget(extraTargets ...TargetFlag) (string, err
 		{c.RepoUsers != "", "repos-users"},
 		{c.RepoTeams != "", "repos-teams"},
 		{c.AllReposTeams, "all-repos-teams"},
+		{c.User != "", "user"},
+		{c.UserTeams != "", "user-teams"},
 		{c.UserRepos != "", "user-repos"},
+		{c.TeamRepos != "", "team-repos"},
 		{c.TokenPermission, "token-permission"},
 		{c.OutsideUsers, "outside-users"},
 	}
@@ -303,6 +309,21 @@ func (p *PullCmd) Run(cli *CLI) error {
 			return err
 		}
 		return fmt.Errorf("--user-repos is not available for the pull command. Please specify --user-repos with the view command")
+	case "user":
+		if err := validateUserLogin(p.User); err != nil {
+			return err
+		}
+		return fmt.Errorf("--user is not available for the pull command. Please specify --user with the view command")
+	case "user-teams":
+		if err := validateUserLogin(p.UserTeams); err != nil {
+			return err
+		}
+		return fmt.Errorf("--user-teams is not available for the pull command. Please specify --user-teams with the view command")
+	case "team-repos":
+		if err := validateTeamName(p.TeamRepos); err != nil {
+			return err
+		}
+		return fmt.Errorf("--team-repos is not available for the pull command. Please specify --team-repos with the view command")
 	}
 	sessionKey := buildPullSessionKey(target, req, storeData, p.Stdout, p.IntervalTime)
 	pullSession, err := session.LoadPull(sessionKey)
@@ -491,6 +512,16 @@ func (v *ViewCmd) Run(cli *CLI) error {
 			return err
 		}
 		req.TeamSlug = v.TeamUser
+	case "user":
+		if err := validateUserLogin(v.User); err != nil {
+			return err
+		}
+		req.UserLogin = v.User
+	case "user-teams":
+		if err := validateUserLogin(v.UserTeams); err != nil {
+			return err
+		}
+		req.UserLogin = v.UserTeams
 	case "repos-users":
 		if err := validateRepoName(v.RepoUsers); err != nil {
 			return err
@@ -506,6 +537,11 @@ func (v *ViewCmd) Run(cli *CLI) error {
 			return err
 		}
 		req.UserLogin = v.UserRepos
+	case "team-repos":
+		if err := validateTeamName(v.TeamRepos); err != nil {
+			return err
+		}
+		req.TeamSlug = v.TeamRepos
 	}
 
 	return store.HandleViewTarget(db, req, store.ViewOptions{Format: selectedFormat})

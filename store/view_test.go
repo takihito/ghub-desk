@@ -80,8 +80,11 @@ func TestHandleViewTarget(t *testing.T) {
 		{"repositories target", TargetRequest{Kind: "repositories"}, false},
 		{"token-permission target", TargetRequest{Kind: "token-permission"}, false},
 		{"outside-users target", TargetRequest{Kind: "outside-users"}, false},
+		{"user target", TargetRequest{Kind: "user", UserLogin: "octocat"}, false},
+		{"user teams target", TargetRequest{Kind: "user-teams", UserLogin: "octocat"}, false},
 		{"repos users target", TargetRequest{Kind: "repos-users", RepoName: "test-repo"}, false},
 		{"repo teams target", TargetRequest{Kind: "repos-teams", RepoName: "test-repo"}, false},
+		{"team repos target", TargetRequest{Kind: "team-repos", TeamSlug: "team-slug"}, false},
 		{"all repo users target", TargetRequest{Kind: "all-repos-users"}, false},
 		{"all repo teams target", TargetRequest{Kind: "all-repos-teams"}, false},
 		{"all teams users target", TargetRequest{Kind: "all-teams-users"}, false},
@@ -131,6 +134,30 @@ func TestViewUsers(t *testing.T) {
 	}
 }
 
+func TestViewUser(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	users := []*github.User{
+		{
+			ID:       github.Int64(1),
+			Login:    github.String("testuser1"),
+			Name:     github.String("Test User 1"),
+			Email:    github.String("test1@example.com"),
+			Company:  github.String("Test Company"),
+			Location: github.String("Test Location"),
+		},
+	}
+
+	if err := StoreUsers(db, users); err != nil {
+		t.Fatalf("Failed to store test users: %v", err)
+	}
+
+	if err := ViewUser(db, "testuser1", FormatTable); err != nil {
+		t.Errorf("ViewUser() error = %v", err)
+	}
+}
+
 func TestViewTeams(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
@@ -154,6 +181,42 @@ func TestViewTeams(t *testing.T) {
 	err = ViewTeams(db, FormatTable)
 	if err != nil {
 		t.Errorf("ViewTeams() error = %v", err)
+	}
+}
+
+func TestViewUserTeams(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	teams := []*github.Team{
+		{
+			ID:          github.Int64(1),
+			Name:        github.String("Test Team 1"),
+			Slug:        github.String("test-team-1"),
+			Description: github.String("Test team description"),
+			Privacy:     github.String("closed"),
+		},
+	}
+	users := []*github.User{
+		{
+			ID:    github.Int64(100),
+			Login: github.String("octocat"),
+			Name:  github.String("Mona"),
+		},
+	}
+
+	if err := StoreTeams(db, teams); err != nil {
+		t.Fatalf("Failed to store test teams: %v", err)
+	}
+	if err := StoreUsers(db, users); err != nil {
+		t.Fatalf("Failed to store test users: %v", err)
+	}
+	if err := StoreTeamUsers(db, users, "test-team-1"); err != nil {
+		t.Fatalf("Failed to store team users: %v", err)
+	}
+
+	if err := ViewUserTeams(db, "octocat", FormatTable); err != nil {
+		t.Errorf("ViewUserTeams() error = %v", err)
 	}
 }
 
@@ -356,6 +419,30 @@ func TestViewRepoTeams(t *testing.T) {
 
 	if err := ViewRepoTeams(db, repoName, FormatTable); err != nil {
 		t.Errorf("ViewRepoTeams() error = %v", err)
+	}
+}
+
+func TestViewTeamRepositories(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repo := &github.Repository{ID: github.Int64(10), Name: github.String("sample-repo"), FullName: github.String("org/sample-repo")}
+	team := &github.Team{
+		ID:         github.Int64(20),
+		Name:       github.String("Eng Team"),
+		Slug:       github.String("eng-team"),
+		Permission: github.String("push"),
+	}
+
+	if err := StoreRepositories(db, []*github.Repository{repo}); err != nil {
+		t.Fatalf("failed to store repository: %v", err)
+	}
+	if err := StoreRepoTeams(db, repo.GetName(), []*github.Team{team}); err != nil {
+		t.Fatalf("failed to store repo teams: %v", err)
+	}
+
+	if err := ViewTeamRepositories(db, "eng-team", FormatTable); err != nil {
+		t.Errorf("ViewTeamRepositories() error = %v", err)
 	}
 }
 
