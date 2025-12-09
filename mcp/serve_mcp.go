@@ -20,6 +20,7 @@ import (
 
 const (
 	// defaultListLimit is the common LIMIT used for list views.
+	// TODO: add paging (Page parameter) so MCP view tools can fetch beyond this limit.
 	defaultListLimit    = 200
 	teamUsersListLimit  = 500
 	defaultPullInterval = 3 * time.Second
