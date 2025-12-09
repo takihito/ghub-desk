@@ -177,6 +177,12 @@ mcp:
 # 保存済みのユーザー情報を表示
 ./ghub-desk view --users
 
+# 個別ユーザーのプロファイルを表示
+./ghub-desk view --user user-login
+
+# 指定ユーザーの所属チームを表示
+./ghub-desk view --user-teams user-login
+
 # チーム slug を指定してメンバーを表示
 ./ghub-desk view --team-user team-slug
 
@@ -188,6 +194,9 @@ mcp:
 
 # 全リポジトリのチーム情報を表示
 ./ghub-desk view --all-repos-teams
+
+# チームがアクセスできるリポジトリ一覧を表示
+./ghub-desk view --team-repos team-slug
 
 # ユーザーがアクセスできるリポジトリと権限を表示（事前に pull --repos-users, --repos-teams, --team-users を実行）
 ./ghub-desk view --user-repos user-login
