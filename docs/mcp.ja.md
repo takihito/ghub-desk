@@ -77,6 +77,27 @@ GitHub 側へ変更を加える操作です。既定では DRYRUN として実�
 | `push_add` | チームへのユーザー追加 or 外部コラボ招待 | `{ "team_user"?, "outside_user"?, "permission"?, "exec"?, "no_store"? }` | `team_user` は `team-slug/username`、`outside_user` は `repo-name/username`。`permission` で `pull`/`push`/`admin` を指定可能 |
 | `push_remove` | チーム削除 / 組織ユーザー削除 / 各種コラボ削除 | `{ "team"?, "user"?, "team_user"?, "outside_user"?, "repos_user"?, "exec"?, "no_store"? }` | いずれか 1 つだけ対象を指定（`team_user`/`outside_user`/`repos_user` は `repo-or-team/username` 形式）。`exec:false` は DRYRUN |
 
+## ドキュメントリソース（resources/*）
+MCP の `resources/list` と `resources/read` で、ツールの使い方ガイドを取得できます。`tools/list` にも各ツールの Description 末尾へリソース URI を付与しているので、エージェントは URI をたどって詳細を読む前提で設計しています。
+
+| リソース URI | 内容 |
+| --- | --- |
+| `resource://ghub-desk/mcp-overview` | サーバー概要、`allow_pull` / `allow_write`、DB の扱い、起動例の要約。 |
+| `resource://ghub-desk/mcp-tools` | 各ツールの入力例・必須/任意パラメータ・レスポンス概要。`#view_team-user` などのアンカーで特定ツールへジャンプ可能。 |
+| `resource://ghub-desk/mcp-safety` | `push_*` の DRYRUN/exec、`no_store`、権限設定の注意点。 |
+
+呼び出し例:
+```json
+// リソース一覧を取得
+{ "method": "resources/list" }
+
+// 特定リソースを読む（例: pull_users の詳細）
+{
+  "method": "resources/read",
+  "params": { "uri": "resource://ghub-desk/mcp-tools#pull_users" }
+}
+```
+
 ## 起動例
 ```bash
 make build
