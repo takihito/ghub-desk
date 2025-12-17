@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -57,19 +58,17 @@ type CLI struct {
 	cfgErr  error
 
 	debugWriter io.Writer
+	logger      *slog.Logger
 }
 
-// debugf writes debug messages either to stdout (default) or to the configured
-// error log file when specified.
+// debugf writes debug messages via the configured slog logger.
 func (cli *CLI) debugf(format string, args ...interface{}) {
-	if !cli.Debug {
+	if !cli.Debug || cli.logger == nil {
 		return
 	}
-	if cli.ErrorLogPath != "" && cli.debugWriter != nil {
-		fmt.Fprintf(cli.debugWriter, format, args...)
-		return
-	}
-	fmt.Printf(format, args...)
+	msg := fmt.Sprintf(format, args...)
+	msg = strings.TrimSuffix(msg, "\n")
+	cli.logger.Debug(msg)
 }
 
 // Config returns the app configuration, loading it once per process.
@@ -223,7 +222,7 @@ var exampleConfigTemplate string
 type VersionCmd struct{}
 
 // Execute is the main entry point for all commands
-func Execute() error {
+func Execute() (io.Writer, func(), error) {
 	var cli CLI
 	ctx := kong.Parse(&cli,
 		kong.Name("ghub-desk"),
@@ -235,38 +234,49 @@ func Execute() error {
 			Compact: true,
 		}),
 	)
-	var debugWriter io.Writer = os.Stderr
-	var debugCloser io.Closer
+	logWriter := os.Stderr
+	var logCloser io.Closer
 	if cli.ErrorLogPath != "" {
 		f, err := os.OpenFile(cli.ErrorLogPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 		if err != nil {
-			return fmt.Errorf("failed to open debug log file: %w", err)
+			return logWriter, nil, fmt.Errorf("failed to open debug log file: %w", err)
 		}
-		debugWriter = f
-		debugCloser = f
-		// Redirect all stderr output to the debug log file.
-		os.Stderr = f
+		logWriter = f
+		logCloser = f
 	}
 	if cli.ErrorLogPath != "" && !cli.Debug {
 		cli.Debug = true
 	}
+
+	handlerLevel := slog.LevelInfo
 	if cli.Debug {
-		session.EnableDebugWithWriter(debugWriter)
+		handlerLevel = slog.LevelDebug
 	}
-	cli.debugWriter = debugWriter
-	if debugCloser != nil {
-		defer debugCloser.Close()
+	logger := slog.New(slog.NewTextHandler(logWriter, &slog.HandlerOptions{
+		Level: handlerLevel,
+	}))
+	cli.logger = logger
+	cli.debugWriter = logWriter
+
+	if cli.Debug {
+		session.EnableDebugWithWriter(logWriter)
+	}
+
+	cleanup := func() {
+		if logCloser != nil {
+			logCloser.Close()
+		}
 	}
 	// Preload config once for commands that require GitHub access.
 	// Keep view/init/version free from config requirement.
 	cmdPath := ctx.Command()
 	if cmdPath == "pull" || strings.HasPrefix(cmdPath, "push") {
 		if _, err := cli.Config(); err != nil {
-			return fmt.Errorf("configuration error: %w", err)
+			return logWriter, cleanup, fmt.Errorf("configuration error: %w", err)
 		}
 	}
 
-	return ctx.Run(&cli)
+	return logWriter, cleanup, ctx.Run(&cli)
 }
 
 // Run implements the pull command execution
