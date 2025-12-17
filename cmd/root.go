@@ -244,9 +244,6 @@ func Execute() (io.Writer, func(), error) {
 		logWriter = f
 		logCloser = f
 	}
-	if cli.ErrorLogPath != "" && !cli.Debug {
-		cli.Debug = true
-	}
 
 	handlerLevel := slog.LevelInfo
 	if cli.Debug {
