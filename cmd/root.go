@@ -42,7 +42,7 @@ func SetVersionInfo(version, commit, date string) {
 // CLI represents the command line interface structure using Kong
 type CLI struct {
 	Debug        bool   `help:"Enable debug logging."`
-	ErrorLogPath string `name:"error-log-path" help:"Write debug logs and stderr to the given file (appends); implies --debug." type:"path"`
+	ErrorLogPath string `name:"log-path" aliases:"error-log-path" help:"Write logs to the given file (appends); implies --debug." type:"path"`
 	ConfigPath   string `name:"config" short:"c" help:"Path to config file." type:"path"`
 
 	Pull    PullCmd    `cmd:"" help:"Fetch data from GitHub API (resumable; session_path stores progress and validation ensures repository/team names still exist)"`
