@@ -58,7 +58,7 @@ sudo cp build/ghub-desk /usr/local/bin/
 - GitHub API を利用した `pull` / `view` / `push` コマンド
 - 変更系コマンドは DRYRUN を標準とし、`--exec` 指定時のみ実行
 - 設定ファイルと環境変数での柔軟な構成 (DB パス、MCP 権限など)
-- グローバルな `--debug` フラグで詳細ログ（SQL クエリ、API リクエスト）を有効化。`--log-path <file>`（エイリアス: `--error-log-path`）でログをファイルに追記し、`--debug` を暗黙有効化
+- グローバルな `--debug` フラグで詳細ログ（SQL クエリ、API リクエスト）を有効化。`--log-path <file>` でログをファイルに追記
 - MCP ツール経由での自動化と統合
 
 ## コアコマンド

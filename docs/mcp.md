@@ -74,7 +74,7 @@ These operations modify GitHub state. They run in DRYRUN mode by default, return
 ## Launch Example
 ```bash
 make build
-./build/ghub-desk mcp --debug --log-path /tmp/ghub-desk.log  # redirect stderr + debug logs to a file (alias: --error-log-path)
+./build/ghub-desk mcp --debug --log-path /tmp/ghub-desk.log  # redirect stderr + debug logs to a file
 ```
 
 `make build_mcp` produces the same binary (`./build/ghub-desk`). Run an MCP client (for example, MCP Inspector) as a subprocess to call `health`, `view_*`, `pull_*`, and `push_*`. Validate DRYRUN output before enabling `allow_write`.

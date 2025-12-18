@@ -101,7 +101,7 @@ MCP の `resources/list` と `resources/read` で、ツールの使い方ガイ�
 ## 起動例
 ```bash
 make build
-./build/ghub-desk mcp --debug --log-path /tmp/ghub-desk.log  # stderr/デバッグログをファイルへ出力（エイリアス: --error-log-path）
+./build/ghub-desk mcp --debug --log-path /tmp/ghub-desk.log  # stderr/デバッグログをファイルへ出力
 ```
 
 `make build_mcp` を使用しても同じバイナリ (`./build/ghub-desk`) が生成されます。MCP クライアント（例: MCP Inspector）をサブプロセスとして起動すると、`health` / `view_*` / `pull_*` / `push_*` を呼び出せます。`allow_write` を有効にする前に DRYRUN 出力で影響範囲を確認してください。
