@@ -41,9 +41,9 @@ func SetVersionInfo(version, commit, date string) {
 
 // CLI represents the command line interface structure using Kong
 type CLI struct {
-	Debug        bool   `help:"Enable debug logging."`
-	ErrorLogPath string `name:"log-path" help:"Write logs to the given file (appends)." type:"path"`
-	ConfigPath   string `name:"config" short:"c" help:"Path to config file." type:"path"`
+	Debug      bool   `help:"Enable debug logging."`
+	LogPath    string `name:"log-path" help:"Write logs to the given file (appends)." type:"path"`
+	ConfigPath string `name:"config" short:"c" help:"Path to config file." type:"path"`
 
 	Pull    PullCmd    `cmd:"" help:"Fetch data from GitHub API (resumable; session_path stores progress and validation ensures repository/team names still exist)"`
 	View    ViewCmd    `cmd:"" help:"Display data from local database"`
@@ -236,8 +236,8 @@ func Execute() (io.Writer, func(), error) {
 	)
 	logWriter := os.Stderr
 	var logCloser io.Closer
-	if cli.ErrorLogPath != "" {
-		f, err := os.OpenFile(cli.ErrorLogPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if cli.LogPath != "" {
+		f, err := os.OpenFile(cli.LogPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 		if err != nil {
 			return logWriter, nil, fmt.Errorf("failed to open log file: %w", err)
 		}
