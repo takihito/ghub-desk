@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -160,6 +163,63 @@ func TestParseTeamUsersPath(t *testing.T) {
 	}
 }
 
-// Note: Testing the full Execute() function with Kong is complex due to
-// Kong's parser behavior and process exit handling. The above tests cover
-// the core logic without triggering Kong's parser.
+func TestExecuteCreatesLogFileWithCleanup(t *testing.T) {
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "cli.log")
+
+	origArgs := os.Args
+	t.Cleanup(func() { os.Args = origArgs })
+	os.Args = []string{"ghub-desk", "--log-path", logPath, "version"}
+
+	writer, cleanup, err := Execute()
+	if err != nil {
+		t.Fatalf("Execute returned error: %v", err)
+	}
+	if cleanup == nil {
+		t.Fatalf("expected cleanup function, got nil")
+	}
+
+	info, err := os.Stat(logPath)
+	if err != nil {
+		t.Fatalf("log file not created: %v", err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Fatalf("expected log file permissions 0o600, got %v", info.Mode().Perm())
+	}
+
+	file, ok := writer.(*os.File)
+	if !ok {
+		t.Fatalf("expected writer to be *os.File, got %T", writer)
+	}
+
+	cleanup()
+	if _, err := file.Write([]byte("x")); err == nil {
+		t.Fatalf("expected write to closed log file to fail")
+	}
+}
+
+func TestExecuteLogFileOpenError(t *testing.T) {
+	tmpDir := t.TempDir()
+	logPath := tmpDir // OpenFile should fail on directory
+
+	origArgs := os.Args
+	t.Cleanup(func() { os.Args = origArgs })
+	os.Args = []string{"ghub-desk", "--log-path", logPath, "version"}
+
+	writer, cleanup, err := Execute()
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to open log file") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cleanup != nil {
+		t.Fatalf("cleanup should be nil when log open fails")
+	}
+	if writer != os.Stderr {
+		t.Fatalf("expected logWriter to be stderr on failure")
+	}
+}
+
+// Note: Execute is exercised with the version command to avoid Kong exits;
+// more complex parser behaviors remain outside these tests.
