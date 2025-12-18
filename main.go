@@ -14,8 +14,12 @@ func main() {
 	// Set version information in cmd package
 	cmd.SetVersionInfo(Version, Commit, Date)
 
-	if err := cmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	errWriter, cleanup, err := cmd.Execute()
+	if cleanup != nil {
+		defer cleanup()
+	}
+	if err != nil {
+		fmt.Fprintf(errWriter, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }

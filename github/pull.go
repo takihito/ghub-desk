@@ -448,7 +448,7 @@ func PullAllReposUsers(ctx context.Context, client *github.Client, db *sql.DB, o
 			continue
 		}
 
-				fmt.Printf("Fetching users for repository %d/%d: %s\n", idx+1, len(uniqueRepos), repoName)
+		fmt.Printf("Fetching users for repository %d/%d: %s\n", idx+1, len(uniqueRepos), repoName)
 
 		baseOpts := opts
 		baseOpts.Resume = resumeState

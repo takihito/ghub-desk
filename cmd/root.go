@@ -6,6 +6,8 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -40,6 +42,7 @@ func SetVersionInfo(version, commit, date string) {
 // CLI represents the command line interface structure using Kong
 type CLI struct {
 	Debug      bool   `help:"Enable debug logging."`
+	LogPath    string `name:"log-path" help:"Write logs to the given file (appends)." type:"path"`
 	ConfigPath string `name:"config" short:"c" help:"Path to config file." type:"path"`
 
 	Pull    PullCmd    `cmd:"" help:"Fetch data from GitHub API (resumable; session_path stores progress and validation ensures repository/team names still exist)"`
@@ -53,6 +56,19 @@ type CLI struct {
 	cfgOnce sync.Once
 	cfg     *config.Config
 	cfgErr  error
+
+	debugWriter io.Writer
+	logger      *slog.Logger
+}
+
+// debugf writes debug messages via the configured slog logger.
+func (cli *CLI) debugf(format string, args ...interface{}) {
+	if !cli.Debug || cli.logger == nil {
+		return
+	}
+	msg := fmt.Sprintf(format, args...)
+	msg = strings.TrimSuffix(msg, "\n")
+	cli.logger.Debug(msg)
 }
 
 // Config returns the app configuration, loading it once per process.
@@ -206,7 +222,7 @@ var exampleConfigTemplate string
 type VersionCmd struct{}
 
 // Execute is the main entry point for all commands
-func Execute() error {
+func Execute() (io.Writer, func(), error) {
 	var cli CLI
 	ctx := kong.Parse(&cli,
 		kong.Name("ghub-desk"),
@@ -218,19 +234,46 @@ func Execute() error {
 			Compact: true,
 		}),
 	)
+	logWriter := os.Stderr
+	var logCloser io.Closer
+	if cli.LogPath != "" {
+		f, err := os.OpenFile(cli.LogPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+		if err != nil {
+			return logWriter, nil, fmt.Errorf("failed to open log file: %w", err)
+		}
+		logWriter = f
+		logCloser = f
+	}
+
+	handlerLevel := slog.LevelInfo
 	if cli.Debug {
-		session.EnableDebug()
+		handlerLevel = slog.LevelDebug
+	}
+	logger := slog.New(slog.NewTextHandler(logWriter, &slog.HandlerOptions{
+		Level: handlerLevel,
+	}))
+	cli.logger = logger
+	cli.debugWriter = logWriter
+
+	if cli.Debug {
+		session.EnableDebugWithWriter(logWriter)
+	}
+
+	cleanup := func() {
+		if logCloser != nil {
+			logCloser.Close()
+		}
 	}
 	// Preload config once for commands that require GitHub access.
 	// Keep view/init/version free from config requirement.
 	cmdPath := ctx.Command()
 	if cmdPath == "pull" || strings.HasPrefix(cmdPath, "push") {
 		if _, err := cli.Config(); err != nil {
-			return fmt.Errorf("configuration error: %w", err)
+			return logWriter, cleanup, fmt.Errorf("configuration error: %w", err)
 		}
 	}
 
-	return ctx.Run(&cli)
+	return logWriter, cleanup, ctx.Run(&cli)
 }
 
 // Run implements the pull command execution
@@ -242,9 +285,7 @@ func (p *PullCmd) Run(cli *CLI) error {
 	}
 
 	storeData := !p.NoStore
-	if cli.Debug {
-		fmt.Printf("DEBUG: Pulling target='%s', store=%v, stdout=%v, interval=%v\n", target, storeData, p.Stdout, p.IntervalTime)
-	}
+	cli.debugf("DEBUG: Pulling target='%s', store=%v, stdout=%v, interval=%v\n", target, storeData, p.Stdout, p.IntervalTime)
 
 	// Load configuration once via CLI helper
 	cfg, err := cli.Config()
@@ -486,9 +527,7 @@ func (v *ViewCmd) Run(cli *CLI) error {
 		return err
 	}
 
-	if cli.Debug {
-		fmt.Printf("DEBUG: Viewing target='%s', format='%s'\n", target, selectedFormat)
-	}
+	cli.debugf("DEBUG: Viewing target='%s', format='%s'\n", target, selectedFormat)
 
 	if target == "settings" {
 		return ShowSettings(cli)
@@ -574,9 +613,7 @@ func (r *RemoveCmd) Run(cli *CLI) error {
 		return err
 	}
 
-	if cli.Debug {
-		fmt.Printf("DEBUG: Push/Remove target='%s', value='%s', exec=%v\n", target, targetValue, r.Exec)
-	}
+	cli.debugf("DEBUG: Push/Remove target='%s', value='%s', exec=%v\n", target, targetValue, r.Exec)
 
 	// Load configuration once via CLI helper
 	cfg, err := cli.Config()
@@ -686,12 +723,10 @@ func (a *AddCmd) Run(cli *CLI) error {
 		return err
 	}
 
-	if cli.Debug {
-		if permission != "" {
-			fmt.Printf("DEBUG: Push/Add target='%s', value='%s', permission='%s', exec=%v\n", target, targetValue, permission, a.Exec)
-		} else {
-			fmt.Printf("DEBUG: Push/Add target='%s', value='%s', exec=%v\n", target, targetValue, a.Exec)
-		}
+	if permission != "" {
+		cli.debugf("DEBUG: Push/Add target='%s', value='%s', permission='%s', exec=%v\n", target, targetValue, permission, a.Exec)
+	} else {
+		cli.debugf("DEBUG: Push/Add target='%s', value='%s', exec=%v\n", target, targetValue, a.Exec)
 	}
 
 	// Load configuration once via CLI helper
@@ -921,10 +956,8 @@ func (m *McpCmd) Run(cli *CLI) error {
 	if err != nil {
 		return fmt.Errorf("configuration error: %w", err)
 	}
-	if cli.Debug {
-		fmt.Printf("DEBUG: Starting MCP server (allow_pull=%v, allow_write=%v)\n", cfg.MCP.AllowPull, cfg.MCP.AllowWrite)
-		fmt.Printf("DEBUG: Exposing tools: %v\n", mcp.AllowedTools(cfg))
-	}
+	cli.debugf("DEBUG: Starting MCP server (allow_pull=%v, allow_write=%v)\n", cfg.MCP.AllowPull, cfg.MCP.AllowWrite)
+	cli.debugf("DEBUG: Exposing tools: %v\n", mcp.AllowedTools(cfg))
 	ctx := context.Background()
-	return mcp.Serve(ctx, cfg)
+	return mcp.Serve(ctx, cfg, cli.Debug, cli.debugWriter)
 }

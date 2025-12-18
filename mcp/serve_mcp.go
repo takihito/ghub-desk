@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"math"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -55,7 +57,7 @@ func pullOptionProperties(extra map[string]*jsonschema.Schema) map[string]*jsons
 // Tools provided in phase 1:
 // - health: simple readiness check
 // - view_users: return users from local SQLite DB
-func Serve(ctx context.Context, cfg *appcfg.Config) error {
+func Serve(ctx context.Context, cfg *appcfg.Config, debug bool, debugWriter io.Writer) error {
 	// Apply DB path from config if provided
 	if cfg != nil && cfg.DatabasePath != "" {
 		store.SetDBPath(cfg.DatabasePath)
@@ -805,7 +807,19 @@ func Serve(ctx context.Context, cfg *appcfg.Config) error {
 	}
 
 	// Run server over stdio transport
-	return srv.Run(ctx, &sdk.StdioTransport{})
+	var transport sdk.Transport = &sdk.StdioTransport{}
+	if debug {
+		writer := debugWriter
+		if writer == nil {
+			writer = os.Stderr
+		}
+		transport = &sdk.LoggingTransport{
+			Transport: &sdk.StdioTransport{},
+			Writer:    writer,
+		}
+	}
+
+	return srv.Run(ctx, transport)
 }
 
 type HealthOut struct {

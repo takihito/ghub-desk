@@ -25,7 +25,6 @@ func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	return t.transport.RoundTrip(req)
 }
 
-
 // InitClient initializes and returns a GitHub client based on the provided configuration.
 func InitClient(cfg *config.Config) (*github.Client, error) {
 	patConfigured := cfg.GitHubToken != ""
