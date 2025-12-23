@@ -19,6 +19,18 @@ type TargetRequest struct {
 	UserLogin string
 }
 
+// RepoTeamUserEntry represents a team member associated with a repository.
+type RepoTeamUserEntry struct {
+	TeamSlug       string
+	TeamPermission string
+	UserLogin      string
+	Role           string
+	Name           string
+	Email          string
+	Company        string
+	Location       string
+}
+
 // HandleViewTarget processes different types of view targets
 func HandleViewTarget(db *sql.DB, req TargetRequest, opts ViewOptions) error {
 	format := opts.formatOrDefault()
@@ -539,8 +551,30 @@ func ViewRepoTeams(db *sql.DB, repoName string, format OutputFormat) error {
 	return renderByFormat(format, tableFn, payload)
 }
 
-// ViewRepoTeamUsers displays users belonging to teams associated with a repository.
-func ViewRepoTeamUsers(db *sql.DB, repoName string, format OutputFormat) error {
+// FetchRepoTeamUsers retrieves team members linked to a repository along with display names.
+func FetchRepoTeamUsers(db *sql.DB, repoName string) (string, string, []RepoTeamUserEntry, error) {
+	repoDisplay := repoName
+	var fullName string
+
+	if db == nil {
+		return repoDisplay, fullName, nil, fmt.Errorf("database connection is required to fetch repository team users")
+	}
+
+	var (
+		displayName sql.NullString
+		fullRepo    sql.NullString
+	)
+	err := db.QueryRow(`SELECT name, full_name FROM ghub_repos WHERE name = ? LIMIT 1`, repoName).Scan(&displayName, &fullRepo)
+	if err != nil && err != sql.ErrNoRows {
+		return repoDisplay, fullName, nil, fmt.Errorf("failed to fetch repository metadata: %w", err)
+	}
+	if err == nil {
+		if trimmed := strings.TrimSpace(displayName.String); trimmed != "" {
+			repoDisplay = trimmed
+		}
+		fullName = strings.TrimSpace(fullRepo.String)
+	}
+
 	query := `
 		SELECT rt.team_slug,
 		       COALESCE(rt.permission, ''),
@@ -559,45 +593,43 @@ func ViewRepoTeamUsers(db *sql.DB, repoName string, format OutputFormat) error {
 	session.Debugf("SQL: %s, ARGS: [%s]", query, repoName)
 	rows, err := db.Query(query, repoName)
 	if err != nil {
-		return fmt.Errorf("failed to query repository team users: %w", err)
+		return repoDisplay, fullName, nil, fmt.Errorf("failed to query repository team users: %w", err)
 	}
 	defer rows.Close()
 
-	type repoTeamUserRecord struct {
-		TeamSlug       string `json:"team_slug" yaml:"team_slug"`
-		TeamPermission string `json:"team_permission" yaml:"team_permission"`
-		UserLogin      string `json:"user_login" yaml:"user_login"`
-		Role           string `json:"role" yaml:"role"`
-		Name           string `json:"name" yaml:"name"`
-		Email          string `json:"email" yaml:"email"`
-		Company        string `json:"company" yaml:"company"`
-		Location       string `json:"location" yaml:"location"`
-	}
-
-	var records []repoTeamUserRecord
+	var records []RepoTeamUserEntry
 	for rows.Next() {
 		var teamSlug, permission, login, role, name, email, company, location sql.NullString
 		if err := rows.Scan(&teamSlug, &permission, &login, &role, &name, &email, &company, &location); err != nil {
-			return fmt.Errorf("failed to scan repository team user row: %w", err)
+			return repoDisplay, fullName, nil, fmt.Errorf("failed to scan repository team user row: %w", err)
 		}
-		record := repoTeamUserRecord{
-			TeamSlug:       teamSlug.String,
-			TeamPermission: permission.String,
-			UserLogin:      login.String,
-			Role:           role.String,
-			Name:           name.String,
-			Email:          email.String,
-			Company:        company.String,
-			Location:       location.String,
-		}
-		records = append(records, record)
+		records = append(records, RepoTeamUserEntry{
+			TeamSlug:       strings.TrimSpace(teamSlug.String),
+			TeamPermission: strings.TrimSpace(permission.String),
+			UserLogin:      strings.TrimSpace(login.String),
+			Role:           strings.TrimSpace(role.String),
+			Name:           strings.TrimSpace(name.String),
+			Email:          strings.TrimSpace(email.String),
+			Company:        strings.TrimSpace(company.String),
+			Location:       strings.TrimSpace(location.String),
+		})
 	}
 	if err := rows.Err(); err != nil {
-		return fmt.Errorf("failed to iterate repository team user rows: %w", err)
+		return repoDisplay, fullName, nil, fmt.Errorf("failed to iterate repository team user rows: %w", err)
+	}
+
+	return repoDisplay, fullName, records, nil
+}
+
+// ViewRepoTeamUsers displays users belonging to teams associated with a repository.
+func ViewRepoTeamUsers(db *sql.DB, repoName string, format OutputFormat) error {
+	repoDisplay, _, records, err := FetchRepoTeamUsers(db, repoName)
+	if err != nil {
+		return err
 	}
 
 	tableFn := func() error {
-		fmt.Printf("Repository: %s\n", repoName)
+		fmt.Printf("Repository: %s\n", repoDisplay)
 		printTableHeader("Team Slug", "Team Permission", "User Login", "Role", "Name", "Email", "Company", "Location")
 
 		for _, record := range records {
@@ -616,10 +648,10 @@ func ViewRepoTeamUsers(db *sql.DB, repoName string, format OutputFormat) error {
 	}
 
 	payload := struct {
-		Repository string               `json:"repository" yaml:"repository"`
-		Members    []repoTeamUserRecord `json:"members" yaml:"members"`
+		Repository string              `json:"repository" yaml:"repository"`
+		Members    []RepoTeamUserEntry `json:"members" yaml:"members"`
 	}{
-		Repository: repoName,
+		Repository: repoDisplay,
 		Members:    records,
 	}
 

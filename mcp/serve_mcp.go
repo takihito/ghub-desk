@@ -1335,59 +1335,26 @@ func listRepoTeamsUsers(repoName string) (ViewRepoTeamsUsersOut, error) {
 	}
 	defer db.Close()
 
-	out := ViewRepoTeamsUsersOut{Repository: repoName}
-
-	var displayName, fullName sql.NullString
-	err = db.QueryRow(`SELECT name, full_name FROM ghub_repos WHERE name = ? LIMIT 1`, repoName).Scan(&displayName, &fullName)
-	if err != nil && err != sql.ErrNoRows {
-		return ViewRepoTeamsUsersOut{}, err
-	}
-	if err == nil {
-		if trimmed := strings.TrimSpace(displayName.String); trimmed != "" {
-			out.Repository = trimmed
-		}
-		out.FullName = strings.TrimSpace(fullName.String)
-	}
-
-	rows, err := db.Query(`
-		SELECT 
-			rt.team_slug,
-			COALESCE(rt.permission, ''),
-			COALESCE(u.login, tu.user_login),
-			COALESCE(tu.role, ''),
-			COALESCE(u.name, ''),
-			COALESCE(u.email, ''),
-			COALESCE(u.company, ''),
-			COALESCE(u.location, '')
-		FROM ghub_repos_teams rt
-		JOIN ghub_team_users tu ON tu.team_slug = rt.team_slug
-		LEFT JOIN ghub_users u ON u.id = tu.ghub_user_id
-		WHERE rt.repos_name = ?
-		ORDER BY LOWER(rt.team_slug), LOWER(COALESCE(u.login, tu.user_login))
-	`, repoName)
+	repoDisplay, fullName, entries, err := store.FetchRepoTeamUsers(db, repoName)
 	if err != nil {
 		return ViewRepoTeamsUsersOut{}, err
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var teamSlug, permission, login, role, name, email, company, location sql.NullString
-		if err := rows.Scan(&teamSlug, &permission, &login, &role, &name, &email, &company, &location); err != nil {
-			return ViewRepoTeamsUsersOut{}, err
-		}
-		out.Members = append(out.Members, RepoTeamUser{
-			TeamSlug:       strings.TrimSpace(teamSlug.String),
-			TeamPermission: normalizePermissionValue(permission.String),
-			UserLogin:      strings.TrimSpace(login.String),
-			Role:           strings.TrimSpace(role.String),
-			Name:           strings.TrimSpace(name.String),
-			Email:          strings.TrimSpace(email.String),
-			Company:        strings.TrimSpace(company.String),
-			Location:       strings.TrimSpace(location.String),
-		})
+	out := ViewRepoTeamsUsersOut{
+		Repository: repoDisplay,
+		FullName:   fullName,
 	}
-	if err := rows.Err(); err != nil {
-		return ViewRepoTeamsUsersOut{}, err
+	for _, e := range entries {
+		out.Members = append(out.Members, RepoTeamUser{
+			TeamSlug:       e.TeamSlug,
+			TeamPermission: normalizePermissionValue(e.TeamPermission),
+			UserLogin:      e.UserLogin,
+			Role:           e.Role,
+			Name:           e.Name,
+			Email:          e.Email,
+			Company:        e.Company,
+			Location:       e.Location,
+		})
 	}
 
 	return out, nil
