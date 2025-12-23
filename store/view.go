@@ -66,6 +66,14 @@ func HandleViewTarget(db *sql.DB, req TargetRequest, opts ViewOptions) error {
 			return fmt.Errorf("invalid repository name: %w", err)
 		}
 		return ViewRepoTeams(db, req.RepoName, format)
+	case "repos-teams-users":
+		if req.RepoName == "" {
+			return fmt.Errorf("repository name must be specified when using repos-teams-users target")
+		}
+		if err := validate.ValidateRepoName(req.RepoName); err != nil {
+			return fmt.Errorf("invalid repository name: %w", err)
+		}
+		return ViewRepoTeamUsers(db, req.RepoName, format)
 	case "all-repos-users":
 		return ViewAllRepositoriesUsers(db, format)
 	case "all-repos-teams":
@@ -526,6 +534,93 @@ func ViewRepoTeams(db *sql.DB, repoName string, format OutputFormat) error {
 	}{
 		Repository: repoName,
 		Teams:      records,
+	}
+
+	return renderByFormat(format, tableFn, payload)
+}
+
+// ViewRepoTeamUsers displays users belonging to teams associated with a repository.
+func ViewRepoTeamUsers(db *sql.DB, repoName string, format OutputFormat) error {
+	query := `
+		SELECT rt.team_slug,
+		       COALESCE(rt.permission, ''),
+		       COALESCE(u.login, tu.user_login),
+		       COALESCE(tu.role, ''),
+		       COALESCE(u.name, ''),
+		       COALESCE(u.email, ''),
+		       COALESCE(u.company, ''),
+		       COALESCE(u.location, '')
+		FROM ghub_repos_teams rt
+		JOIN ghub_team_users tu ON tu.team_slug = rt.team_slug
+		LEFT JOIN ghub_users u ON u.id = tu.ghub_user_id
+		WHERE rt.repos_name = ?
+		ORDER BY LOWER(rt.team_slug), LOWER(COALESCE(u.login, tu.user_login))
+	`
+	session.Debugf("SQL: %s, ARGS: [%s]", query, repoName)
+	rows, err := db.Query(query, repoName)
+	if err != nil {
+		return fmt.Errorf("failed to query repository team users: %w", err)
+	}
+	defer rows.Close()
+
+	type repoTeamUserRecord struct {
+		TeamSlug       string `json:"team_slug" yaml:"team_slug"`
+		TeamPermission string `json:"team_permission" yaml:"team_permission"`
+		UserLogin      string `json:"user_login" yaml:"user_login"`
+		Role           string `json:"role" yaml:"role"`
+		Name           string `json:"name" yaml:"name"`
+		Email          string `json:"email" yaml:"email"`
+		Company        string `json:"company" yaml:"company"`
+		Location       string `json:"location" yaml:"location"`
+	}
+
+	var records []repoTeamUserRecord
+	for rows.Next() {
+		var teamSlug, permission, login, role, name, email, company, location sql.NullString
+		if err := rows.Scan(&teamSlug, &permission, &login, &role, &name, &email, &company, &location); err != nil {
+			return fmt.Errorf("failed to scan repository team user row: %w", err)
+		}
+		record := repoTeamUserRecord{
+			TeamSlug:       teamSlug.String,
+			TeamPermission: permission.String,
+			UserLogin:      login.String,
+			Role:           role.String,
+			Name:           name.String,
+			Email:          email.String,
+			Company:        company.String,
+			Location:       location.String,
+		}
+		records = append(records, record)
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("failed to iterate repository team user rows: %w", err)
+	}
+
+	tableFn := func() error {
+		fmt.Printf("Repository: %s\n", repoName)
+		printTableHeader("Team Slug", "Team Permission", "User Login", "Role", "Name", "Email", "Company", "Location")
+
+		for _, record := range records {
+			fmt.Printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+				record.TeamSlug,
+				record.TeamPermission,
+				record.UserLogin,
+				record.Role,
+				record.Name,
+				record.Email,
+				record.Company,
+				record.Location,
+			)
+		}
+		return nil
+	}
+
+	payload := struct {
+		Repository string               `json:"repository" yaml:"repository"`
+		Members    []repoTeamUserRecord `json:"members" yaml:"members"`
+	}{
+		Repository: repoName,
+		Members:    records,
 	}
 
 	return renderByFormat(format, tableFn, payload)
