@@ -1,5 +1,15 @@
 # Changelog
 
+## [v0.2.1](https://github.com/takihito/ghub-desk/compare/v0.2.0...v0.2.1) - 2025-12-24
+- implement debug option for query log  by @takihito in https://github.com/takihito/ghub-desk/pull/71
+- update tool description by @takihito in https://github.com/takihito/ghub-desk/pull/73
+- Bump golang.org/x/crypto from 0.35.0 to 0.45.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/70
+- implement tools description by @takihito in https://github.com/takihito/ghub-desk/pull/74
+- Potential fix for code scanning alert no. 1: Workflow does not contain permissions by @takihito in https://github.com/takihito/ghub-desk/pull/75
+- Add view options by @takihito in https://github.com/takihito/ghub-desk/pull/76
+- implement debug log. output log file by @takihito in https://github.com/takihito/ghub-desk/pull/77
+- implement repos-teams-user. added store/view_fetch.go by @takihito in https://github.com/takihito/ghub-desk/pull/78
+
 ## [v0.2.0](https://github.com/takihito/ghub-desk/compare/v0.1.7...v0.2.0) - 2025-11-10
 - implement: add subcommand option to MCP by @takihito in https://github.com/takihito/ghub-desk/pull/61
 - implement unify binary by @takihito in https://github.com/takihito/ghub-desk/pull/63
