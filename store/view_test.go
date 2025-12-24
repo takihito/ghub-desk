@@ -84,6 +84,7 @@ func TestHandleViewTarget(t *testing.T) {
 		{"user teams target", TargetRequest{Kind: "user-teams", UserLogin: "octocat"}, false},
 		{"repos users target", TargetRequest{Kind: "repos-users", RepoName: "test-repo"}, false},
 		{"repo teams target", TargetRequest{Kind: "repos-teams", RepoName: "test-repo"}, false},
+		{"repo team users target", TargetRequest{Kind: "repos-teams-users", RepoName: "test-repo"}, false},
 		{"team repos target", TargetRequest{Kind: "team-repos", TeamSlug: "team-slug"}, false},
 		{"all repo users target", TargetRequest{Kind: "all-repos-users"}, false},
 		{"all repo teams target", TargetRequest{Kind: "all-repos-teams"}, false},
@@ -419,6 +420,63 @@ func TestViewRepoTeams(t *testing.T) {
 
 	if err := ViewRepoTeams(db, repoName, FormatTable); err != nil {
 		t.Errorf("ViewRepoTeams() error = %v", err)
+	}
+}
+
+func TestViewRepoTeamUsers(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repoName := "demo-repo"
+	repo := &github.Repository{ID: github.Int64(1001), Name: github.String(repoName)}
+	team := &github.Team{
+		ID:         github.Int64(201),
+		Name:       github.String("Dev Team"),
+		Slug:       github.String("dev-team"),
+		Permission: github.String("maintain"),
+	}
+	users := []*github.User{
+		{
+			ID:    github.Int64(301),
+			Login: github.String("alice"),
+			Name:  github.String("Alice"),
+		},
+		{
+			ID:    github.Int64(302),
+			Login: github.String("bob"),
+			Name:  github.String("Bob"),
+		},
+	}
+
+	if err := StoreRepositories(db, []*github.Repository{repo}); err != nil {
+		t.Fatalf("failed to store repository: %v", err)
+	}
+	if err := StoreTeams(db, []*github.Team{team}); err != nil {
+		t.Fatalf("failed to store team: %v", err)
+	}
+	if err := StoreTeamUsers(db, users, team.GetSlug()); err != nil {
+		t.Fatalf("failed to store team users: %v", err)
+	}
+	if err := StoreRepoTeams(db, repoName, []*github.Team{team}); err != nil {
+		t.Fatalf("failed to store repo teams: %v", err)
+	}
+
+	output, err := captureOutput(t, func() error {
+		return ViewRepoTeamUsers(db, repoName, FormatTable)
+	})
+	if err != nil {
+		t.Fatalf("ViewRepoTeamUsers returned error: %v", err)
+	}
+
+	expectMarkers := []string{
+		"Repository: demo-repo",
+		"dev-team\tmaintain\talice",
+		"dev-team\tmaintain\tbob",
+	}
+	for _, marker := range expectMarkers {
+		if !strings.Contains(output, marker) {
+			t.Fatalf("expected %q in output: %s", marker, output)
+		}
 	}
 }
 

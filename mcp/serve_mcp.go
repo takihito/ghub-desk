@@ -7,7 +7,6 @@ import (
 	"io"
 	"math"
 	"os"
-	"sort"
 	"strings"
 	"time"
 
@@ -21,10 +20,6 @@ import (
 )
 
 const (
-	// defaultListLimit is the common LIMIT used for list views.
-	// TODO: add paging (Page parameter) so MCP view tools can fetch beyond this limit.
-	defaultListLimit    = 200
-	teamUsersListLimit  = 500
 	defaultPullInterval = 3 * time.Second
 )
 
@@ -306,6 +301,40 @@ func Serve(ctx context.Context, cfg *appcfg.Config, debug bool, debugWriter io.W
 		out, err := listRepoTeams(repo)
 		if err != nil {
 			return &sdk.CallToolResult{}, ViewRepoTeamsOut{}, fmt.Errorf("failed to list repository teams: %w", err)
+		}
+		return nil, out, nil
+	})
+
+	// view_repos-teams-users {repository}
+	sdk.AddTool[ViewRepoTeamsUsersIn, ViewRepoTeamsUsersOut](srv, &sdk.Tool{
+		Name:        "view_repos-teams-users",
+		Title:       "View Repository Team Users",
+		Description: "List members of teams linked to a repository from the local cache. Pass {\"repository\":\"repo-name\"} (1-100 chars, alnum/underscore/hyphen). Usage: " + docsToolsURI + "#view_repos-teams-users.",
+		InputSchema: &jsonschema.Schema{
+			Type: "object",
+			Properties: map[string]*jsonschema.Schema{
+				"repository": {
+					Type:        "string",
+					Title:       "Repository Name",
+					Description: "Repository name (1-100 chars, alnum/underscore/hyphen).",
+					MinLength:   intPtr(v.RepoNameMin),
+					MaxLength:   intPtr(v.RepoNameMax),
+					Pattern:     v.RepoNamePattern,
+				},
+			},
+			Required: []string{"repository"},
+		},
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in ViewRepoTeamsUsersIn) (*sdk.CallToolResult, ViewRepoTeamsUsersOut, error) {
+		repo := strings.TrimSpace(in.Repository)
+		if repo == "" {
+			return &sdk.CallToolResult{}, ViewRepoTeamsUsersOut{}, fmt.Errorf("repository is required")
+		}
+		if err := v.ValidateRepoName(repo); err != nil {
+			return &sdk.CallToolResult{}, ViewRepoTeamsUsersOut{}, err
+		}
+		out, err := listRepoTeamsUsers(repo)
+		if err != nil {
+			return &sdk.CallToolResult{}, ViewRepoTeamsUsersOut{}, fmt.Errorf("failed to list repository team users: %w", err)
 		}
 		return nil, out, nil
 	})
@@ -866,27 +895,19 @@ func listUsers() ([]User, error) {
 		return nil, err
 	}
 	defer db.Close()
-	rows, err := db.Query(`SELECT id, login, name, email, company, location FROM ghub_users ORDER BY login LIMIT ?`, defaultListLimit)
+	entries, err := store.FetchUsers(db)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	var res []User
-	for rows.Next() {
-		var (
-			id                                    int64
-			login, name, email, company, location sql.NullString
-		)
-		if err := rows.Scan(&id, &login, &name, &email, &company, &location); err != nil {
-			return nil, err
-		}
+	res := make([]User, 0, len(entries))
+	for _, entry := range entries {
 		res = append(res, User{
-			ID:       id,
-			Login:    login.String,
-			Name:     name.String,
-			Email:    email.String,
-			Company:  company.String,
-			Location: location.String,
+			ID:       entry.ID,
+			Login:    entry.Login,
+			Name:     entry.Name,
+			Email:    entry.Email,
+			Company:  entry.Company,
+			Location: entry.Location,
 		})
 	}
 	return res, nil
@@ -899,38 +920,24 @@ func getUserProfile(login string) (ViewUserOut, error) {
 	}
 	defer db.Close()
 
-	cleanLogin := strings.TrimSpace(login)
-	if cleanLogin == "" {
-		return ViewUserOut{}, fmt.Errorf("user login is required")
-	}
-
-	query := `
-		SELECT id, login, COALESCE(name, ''), COALESCE(email, ''), COALESCE(company, ''), COALESCE(location, ''), COALESCE(created_at, ''), COALESCE(updated_at, '')
-		FROM ghub_users
-		WHERE login = ?
-		LIMIT 1`
-	row := db.QueryRow(query, cleanLogin)
-
-	var rec UserProfile
-	if err := row.Scan(&rec.ID, &rec.Login, &rec.Name, &rec.Email, &rec.Company, &rec.Location, &rec.CreatedAt, &rec.UpdatedAt); err != nil {
-		if err == sql.ErrNoRows {
-			return ViewUserOut{Found: false, User: UserProfile{Login: cleanLogin}}, nil
-		}
+	rec, found, err := store.FetchUserProfile(db, login)
+	if err != nil {
 		return ViewUserOut{}, err
 	}
-
-	rec.Login = strings.TrimSpace(rec.Login)
-	rec.Name = strings.TrimSpace(rec.Name)
-	rec.Email = strings.TrimSpace(rec.Email)
-	rec.Company = strings.TrimSpace(rec.Company)
-	rec.Location = strings.TrimSpace(rec.Location)
-	rec.CreatedAt = strings.TrimSpace(rec.CreatedAt)
-	rec.UpdatedAt = strings.TrimSpace(rec.UpdatedAt)
-
-	return ViewUserOut{
-		Found: true,
-		User:  rec,
-	}, nil
+	out := ViewUserOut{
+		Found: found,
+		User: UserProfile{
+			ID:        rec.ID,
+			Login:     rec.Login,
+			Name:      rec.Name,
+			Email:     rec.Email,
+			Company:   rec.Company,
+			Location:  rec.Location,
+			CreatedAt: rec.CreatedAt,
+			UpdatedAt: rec.UpdatedAt,
+		},
+	}
+	return out, nil
 }
 
 type Team struct {
@@ -951,19 +958,19 @@ func listTeams() ([]Team, error) {
 		return nil, err
 	}
 	defer db.Close()
-	rows, err := db.Query(`SELECT id, slug, name, description, privacy FROM ghub_teams ORDER BY slug LIMIT ?`, defaultListLimit)
+	entries, err := store.FetchTeams(db)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 	var res []Team
-	for rows.Next() {
-		var id int64
-		var slug, name, description, privacy sql.NullString
-		if err := rows.Scan(&id, &slug, &name, &description, &privacy); err != nil {
-			return nil, err
-		}
-		res = append(res, Team{ID: id, Slug: slug.String, Name: name.String, Description: description.String, Privacy: privacy.String})
+	for _, entry := range entries {
+		res = append(res, Team{
+			ID:          entry.ID,
+			Slug:        entry.Slug,
+			Name:        entry.Name,
+			Description: entry.Description,
+			Privacy:     entry.Privacy,
+		})
 	}
 	return res, nil
 }
@@ -988,21 +995,21 @@ func listRepositories() ([]Repo, error) {
 		return nil, err
 	}
 	defer db.Close()
-	rows, err := db.Query(`SELECT id, name, full_name, description, private, language, stargazers_count FROM ghub_repos ORDER BY name LIMIT ?`, defaultListLimit)
+	entries, err := store.FetchRepositories(db)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 	var res []Repo
-	for rows.Next() {
-		var id int64
-		var name, fullName, description, language sql.NullString
-		var private bool
-		var stars int
-		if err := rows.Scan(&id, &name, &fullName, &description, &private, &language, &stars); err != nil {
-			return nil, err
-		}
-		res = append(res, Repo{ID: id, Name: name.String, FullName: fullName.String, Description: description.String, Private: private, Language: language.String, Stars: stars})
+	for _, entry := range entries {
+		res = append(res, Repo{
+			ID:          entry.ID,
+			Name:        entry.Name,
+			FullName:    entry.FullName,
+			Description: entry.Description,
+			Private:     entry.Private,
+			Language:    entry.Language,
+			Stars:       entry.Stars,
+		})
 	}
 	return res, nil
 }
@@ -1043,19 +1050,17 @@ func listTeamUsers(teamSlug string) ([]TeamUser, error) {
 		return nil, err
 	}
 	defer db.Close()
-	rows, err := db.Query(`SELECT ghub_user_id, user_login, role FROM ghub_team_users WHERE team_slug = ? ORDER BY user_login LIMIT ?`, teamSlug, teamUsersListLimit)
+	entries, err := store.FetchTeamUsers(db, teamSlug)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 	var res []TeamUser
-	for rows.Next() {
-		var id int64
-		var login, role sql.NullString
-		if err := rows.Scan(&id, &login, &role); err != nil {
-			return nil, err
-		}
-		res = append(res, TeamUser{UserID: id, Login: login.String, Role: role.String})
+	for _, entry := range entries {
+		res = append(res, TeamUser{
+			UserID: entry.UserID,
+			Login:  entry.Login,
+			Role:   entry.Role,
+		})
 	}
 	return res, nil
 }
@@ -1067,40 +1072,18 @@ func listUserTeams(userLogin string) (ViewUserTeamsOut, error) {
 	}
 	defer db.Close()
 
-	cleanLogin := strings.TrimSpace(userLogin)
-	if cleanLogin == "" {
-		return ViewUserTeamsOut{}, fmt.Errorf("user login is required")
-	}
-
-	rows, err := db.Query(`
-		SELECT 
-			tu.team_slug,
-			COALESCE(t.name, '') AS team_name,
-			COALESCE(tu.role, '') AS role
-		FROM ghub_team_users tu
-		LEFT JOIN ghub_teams t ON t.slug = tu.team_slug
-		WHERE tu.user_login = ?
-		ORDER BY LOWER(tu.team_slug)
-	`, cleanLogin)
+	entries, err := store.FetchUserTeams(db, userLogin)
 	if err != nil {
 		return ViewUserTeamsOut{}, err
 	}
-	defer rows.Close()
 
-	out := ViewUserTeamsOut{User: cleanLogin}
-	for rows.Next() {
-		var teamSlug, teamName, role sql.NullString
-		if err := rows.Scan(&teamSlug, &teamName, &role); err != nil {
-			return ViewUserTeamsOut{}, err
-		}
+	out := ViewUserTeamsOut{User: strings.TrimSpace(userLogin)}
+	for _, entry := range entries {
 		out.Teams = append(out.Teams, UserTeam{
-			TeamSlug: strings.TrimSpace(teamSlug.String),
-			TeamName: strings.TrimSpace(teamName.String),
-			Role:     strings.TrimSpace(role.String),
+			TeamSlug: entry.TeamSlug,
+			TeamName: entry.TeamName,
+			Role:     entry.Role,
 		})
-	}
-	if err := rows.Err(); err != nil {
-		return ViewUserTeamsOut{}, err
 	}
 
 	return out, nil
@@ -1129,47 +1112,22 @@ func listRepoUsers(repoName string) (ViewRepoUsersOut, error) {
 	}
 	defer db.Close()
 
-	out := ViewRepoUsersOut{Repository: repoName}
-
-	var (
-		displayName sql.NullString
-		fullName    sql.NullString
-	)
-	err = db.QueryRow(`SELECT name, full_name FROM ghub_repos WHERE name = ? LIMIT 1`, repoName).Scan(&displayName, &fullName)
-	if err != nil && err != sql.ErrNoRows {
-		return ViewRepoUsersOut{}, err
-	}
-	if err == nil {
-		if trimmed := strings.TrimSpace(displayName.String); trimmed != "" {
-			out.Repository = trimmed
-		}
-		out.FullName = strings.TrimSpace(fullName.String)
-	}
-
-	rows, err := db.Query(`
-		SELECT ghub_user_id, user_login, COALESCE(permission, '')
-		FROM ghub_repos_users
-		WHERE repos_name = ?
-		ORDER BY user_login`, repoName)
+	repoDisplay, fullName, entries, err := store.FetchRepoUsers(db, repoName)
 	if err != nil {
 		return ViewRepoUsersOut{}, err
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var userID sql.NullInt64
-		var login, permission sql.NullString
-		if err := rows.Scan(&userID, &login, &permission); err != nil {
-			return ViewRepoUsersOut{}, err
-		}
-		out.Users = append(out.Users, RepoUser{
-			UserID:     userID.Int64,
-			Login:      strings.TrimSpace(login.String),
-			Permission: normalizePermissionValue(permission.String),
-		})
+	out := ViewRepoUsersOut{
+		Repository: repoDisplay,
+		FullName:   fullName,
 	}
-	if err := rows.Err(); err != nil {
-		return ViewRepoUsersOut{}, err
+
+	for _, entry := range entries {
+		out.Users = append(out.Users, RepoUser{
+			UserID:     entry.UserID,
+			Login:      entry.Login,
+			Permission: normalizePermissionValue(entry.Permission),
+		})
 	}
 
 	return out, nil
@@ -1192,6 +1150,27 @@ type ViewRepoTeamsOut struct {
 	Repository string     `json:"repository"`
 	FullName   string     `json:"full_name,omitempty"`
 	Teams      []RepoTeam `json:"teams"`
+}
+
+type RepoTeamUser struct {
+	TeamSlug       string `json:"team_slug" jsonschema:"team slug"`
+	TeamPermission string `json:"team_permission,omitempty" jsonschema:"permission granted to team on repository"`
+	UserLogin      string `json:"user_login" jsonschema:"user login"`
+	Role           string `json:"role,omitempty" jsonschema:"team membership role"`
+	Name           string `json:"name,omitempty" jsonschema:"user display name"`
+	Email          string `json:"email,omitempty" jsonschema:"user email"`
+	Company        string `json:"company,omitempty" jsonschema:"user company"`
+	Location       string `json:"location,omitempty" jsonschema:"user location"`
+}
+
+type ViewRepoTeamsUsersIn struct {
+	Repository string `json:"repository" jsonschema:"repository name"`
+}
+
+type ViewRepoTeamsUsersOut struct {
+	Repository string         `json:"repository"`
+	FullName   string         `json:"full_name,omitempty"`
+	Members    []RepoTeamUser `json:"members"`
 }
 
 type ViewTeamReposIn struct {
@@ -1218,56 +1197,57 @@ func listRepoTeams(repoName string) (ViewRepoTeamsOut, error) {
 	}
 	defer db.Close()
 
-	out := ViewRepoTeamsOut{Repository: repoName}
-
-	var (
-		displayName sql.NullString
-		fullName    sql.NullString
-	)
-	err = db.QueryRow(`SELECT name, full_name FROM ghub_repos WHERE name = ? LIMIT 1`, repoName).Scan(&displayName, &fullName)
-	if err != nil && err != sql.ErrNoRows {
-		return ViewRepoTeamsOut{}, err
-	}
-	if err == nil {
-		if trimmed := strings.TrimSpace(displayName.String); trimmed != "" {
-			out.Repository = trimmed
-		}
-		out.FullName = strings.TrimSpace(fullName.String)
-	}
-
-	rows, err := db.Query(`
-		SELECT id, team_slug, team_name, COALESCE(permission, ''), COALESCE(privacy, ''), COALESCE(description, '')
-		FROM ghub_repos_teams
-		WHERE repos_name = ?
-		ORDER BY team_slug`, repoName)
+	repoDisplay, fullName, entries, err := store.FetchRepoTeams(db, repoName)
 	if err != nil {
 		return ViewRepoTeamsOut{}, err
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var (
-			id          sql.NullInt64
-			slug        sql.NullString
-			name        sql.NullString
-			permission  sql.NullString
-			privacy     sql.NullString
-			description sql.NullString
-		)
-		if err := rows.Scan(&id, &slug, &name, &permission, &privacy, &description); err != nil {
-			return ViewRepoTeamsOut{}, err
-		}
+	out := ViewRepoTeamsOut{
+		Repository: repoDisplay,
+		FullName:   fullName,
+	}
+
+	for _, entry := range entries {
 		out.Teams = append(out.Teams, RepoTeam{
-			ID:          id.Int64,
-			Slug:        strings.TrimSpace(slug.String),
-			Name:        strings.TrimSpace(name.String),
-			Permission:  normalizePermissionValue(permission.String),
-			Privacy:     strings.TrimSpace(privacy.String),
-			Description: strings.TrimSpace(description.String),
+			ID:          entry.ID,
+			Slug:        entry.Slug,
+			Name:        entry.Name,
+			Permission:  normalizePermissionValue(entry.Permission),
+			Privacy:     entry.Privacy,
+			Description: entry.Description,
 		})
 	}
-	if err := rows.Err(); err != nil {
-		return ViewRepoTeamsOut{}, err
+
+	return out, nil
+}
+
+func listRepoTeamsUsers(repoName string) (ViewRepoTeamsUsersOut, error) {
+	db, err := store.InitDatabase()
+	if err != nil {
+		return ViewRepoTeamsUsersOut{}, err
+	}
+	defer db.Close()
+
+	repoDisplay, fullName, entries, err := store.FetchRepoTeamUsers(db, repoName)
+	if err != nil {
+		return ViewRepoTeamsUsersOut{}, err
+	}
+
+	out := ViewRepoTeamsUsersOut{
+		Repository: repoDisplay,
+		FullName:   fullName,
+	}
+	for _, e := range entries {
+		out.Members = append(out.Members, RepoTeamUser{
+			TeamSlug:       e.TeamSlug,
+			TeamPermission: normalizePermissionValue(e.TeamPermission),
+			UserLogin:      e.UserLogin,
+			Role:           e.Role,
+			Name:           e.Name,
+			Email:          e.Email,
+			Company:        e.Company,
+			Location:       e.Location,
+		})
 	}
 
 	return out, nil
@@ -1280,49 +1260,20 @@ func listTeamRepositories(teamSlug string) (ViewTeamReposOut, error) {
 	}
 	defer db.Close()
 
-	cleanSlug := strings.TrimSpace(teamSlug)
-	if cleanSlug == "" {
-		return ViewTeamReposOut{}, fmt.Errorf("team slug is required")
-	}
-
-	rows, err := db.Query(`
-		SELECT 
-			COALESCE(r.name, rt.repos_name) AS repo_name,
-			COALESCE(r.full_name, '') AS repo_full_name,
-			COALESCE(rt.permission, '') AS permission,
-			COALESCE(rt.privacy, '') AS privacy,
-			COALESCE(rt.description, '') AS description,
-			rt.repos_name
-		FROM ghub_repos_teams rt
-		LEFT JOIN ghub_repos r ON r.name = rt.repos_name
-		WHERE rt.team_slug = ?
-		ORDER BY LOWER(repo_name)
-	`, cleanSlug)
+	entries, err := store.FetchTeamRepositories(db, teamSlug)
 	if err != nil {
 		return ViewTeamReposOut{}, err
 	}
-	defer rows.Close()
 
-	out := ViewTeamReposOut{Team: cleanSlug}
-	for rows.Next() {
-		var repoName, fullName, permission, privacy, description, fallbackRepo sql.NullString
-		if err := rows.Scan(&repoName, &fullName, &permission, &privacy, &description, &fallbackRepo); err != nil {
-			return ViewTeamReposOut{}, err
-		}
-		name := strings.TrimSpace(repoName.String)
-		if name == "" {
-			name = strings.TrimSpace(fallbackRepo.String)
-		}
+	out := ViewTeamReposOut{Team: strings.TrimSpace(teamSlug)}
+	for _, entry := range entries {
 		out.Repositories = append(out.Repositories, TeamRepository{
-			RepoName:    name,
-			FullName:    strings.TrimSpace(fullName.String),
-			Permission:  normalizePermissionValue(permission.String),
-			Privacy:     strings.TrimSpace(privacy.String),
-			Description: strings.TrimSpace(description.String),
+			RepoName:    entry.RepoName,
+			FullName:    entry.FullName,
+			Permission:  normalizePermissionValue(entry.Permission),
+			Privacy:     entry.Privacy,
+			Description: entry.Description,
 		})
-	}
-	if err := rows.Err(); err != nil {
-		return ViewTeamReposOut{}, err
 	}
 
 	return out, nil
@@ -1347,42 +1298,23 @@ func listAllTeamsUsers() ([]AllTeamsUsersEntry, error) {
 	}
 	defer db.Close()
 
-	rows, err := db.Query(`
-		SELECT 
-			tu.team_slug,
-			COALESCE(t.name, '') AS team_name,
-			tu.user_login,
-			COALESCE(u.name, '') AS user_name,
-			COALESCE(tu.role, '') AS role
-		FROM ghub_team_users tu
-		LEFT JOIN ghub_teams t ON t.slug = tu.team_slug
-		LEFT JOIN ghub_users u ON u.login = tu.user_login
-		ORDER BY LOWER(tu.team_slug), LOWER(tu.user_login)
-	`)
+	entries, err := store.FetchAllTeamsUsers(db)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var entries []AllTeamsUsersEntry
-	for rows.Next() {
-		var teamSlug, teamName, login, userName, role sql.NullString
-		if err := rows.Scan(&teamSlug, &teamName, &login, &userName, &role); err != nil {
-			return nil, err
-		}
-		entries = append(entries, AllTeamsUsersEntry{
-			TeamSlug:  strings.TrimSpace(teamSlug.String),
-			TeamName:  strings.TrimSpace(teamName.String),
-			UserLogin: strings.TrimSpace(login.String),
-			UserName:  strings.TrimSpace(userName.String),
-			Role:      strings.TrimSpace(role.String),
+	out := make([]AllTeamsUsersEntry, 0, len(entries))
+	for _, entry := range entries {
+		out = append(out, AllTeamsUsersEntry{
+			TeamSlug:  entry.TeamSlug,
+			TeamName:  entry.TeamName,
+			UserLogin: entry.UserLogin,
+			UserName:  entry.UserName,
+			Role:      entry.Role,
 		})
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
 
-	return entries, nil
+	return out, nil
 }
 
 type AllReposUsersEntry struct {
@@ -1404,42 +1336,23 @@ func listAllRepositoriesUsers() ([]AllReposUsersEntry, error) {
 	}
 	defer db.Close()
 
-	rows, err := db.Query(`
-		SELECT 
-			COALESCE(r.name, ru.repos_name) AS repo_name,
-			COALESCE(r.full_name, '') AS repo_full_name,
-			ru.user_login,
-			COALESCE(u.name, '') AS user_name,
-			COALESCE(ru.permission, '') AS permission
-		FROM ghub_repos_users ru
-		LEFT JOIN ghub_repos r ON r.name = ru.repos_name
-		LEFT JOIN ghub_users u ON u.login = ru.user_login
-		ORDER BY LOWER(repo_name), LOWER(ru.user_login)
-	`)
+	entries, err := store.FetchAllRepositoriesUsers(db)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var entries []AllReposUsersEntry
-	for rows.Next() {
-		var repoName, fullName, login, userName, permission sql.NullString
-		if err := rows.Scan(&repoName, &fullName, &login, &userName, &permission); err != nil {
-			return nil, err
-		}
-		entries = append(entries, AllReposUsersEntry{
-			RepoName:   strings.TrimSpace(repoName.String),
-			FullName:   strings.TrimSpace(fullName.String),
-			UserLogin:  strings.TrimSpace(login.String),
-			UserName:   strings.TrimSpace(userName.String),
-			Permission: normalizePermissionValue(permission.String),
+	out := make([]AllReposUsersEntry, 0, len(entries))
+	for _, entry := range entries {
+		out = append(out, AllReposUsersEntry{
+			RepoName:   entry.RepoName,
+			FullName:   entry.FullName,
+			UserLogin:  entry.UserLogin,
+			UserName:   entry.UserName,
+			Permission: normalizePermissionValue(entry.Permission),
 		})
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
 
-	return entries, nil
+	return out, nil
 }
 
 type AllReposTeamsEntry struct {
@@ -1463,45 +1376,25 @@ func listAllRepositoriesTeams() ([]AllReposTeamsEntry, error) {
 	}
 	defer db.Close()
 
-	rows, err := db.Query(`
-		SELECT 
-			COALESCE(r.name, rt.repos_name) AS repo_name,
-			COALESCE(r.full_name, '') AS repo_full_name,
-			rt.team_slug,
-			COALESCE(rt.team_name, '') AS team_name,
-			COALESCE(rt.permission, '') AS permission,
-			COALESCE(rt.privacy, '') AS privacy,
-			COALESCE(rt.description, '') AS description
-		FROM ghub_repos_teams rt
-		LEFT JOIN ghub_repos r ON r.name = rt.repos_name
-		ORDER BY LOWER(repo_name), LOWER(rt.team_slug)
-	`)
+	entries, err := store.FetchAllRepositoriesTeams(db)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	var entries []AllReposTeamsEntry
-	for rows.Next() {
-		var repoName, fullName, teamSlug, teamName, permission, privacy, description sql.NullString
-		if err := rows.Scan(&repoName, &fullName, &teamSlug, &teamName, &permission, &privacy, &description); err != nil {
-			return nil, err
-		}
-		entries = append(entries, AllReposTeamsEntry{
-			RepoName:    strings.TrimSpace(repoName.String),
-			FullName:    strings.TrimSpace(fullName.String),
-			TeamSlug:    strings.TrimSpace(teamSlug.String),
-			TeamName:    strings.TrimSpace(teamName.String),
-			Permission:  normalizePermissionValue(permission.String),
-			Privacy:     strings.TrimSpace(privacy.String),
-			Description: strings.TrimSpace(description.String),
+	out := make([]AllReposTeamsEntry, 0, len(entries))
+	for _, entry := range entries {
+		out = append(out, AllReposTeamsEntry{
+			RepoName:    entry.RepoName,
+			FullName:    entry.FullName,
+			TeamSlug:    entry.TeamSlug,
+			TeamName:    entry.TeamName,
+			Permission:  normalizePermissionValue(entry.Permission),
+			Privacy:     entry.Privacy,
+			Description: entry.Description,
 		})
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
 
-	return entries, nil
+	return out, nil
 }
 
 type ViewUserReposIn struct {
@@ -1526,154 +1419,18 @@ func listUserRepositories(userLogin string) (ViewUserReposOut, error) {
 	}
 	defer db.Close()
 
+	entries, err := store.FetchUserRepositories(db, userLogin)
+	if err != nil {
+		return ViewUserReposOut{}, err
+	}
+
 	cleanLogin := strings.TrimSpace(userLogin)
-	if cleanLogin == "" {
-		return ViewUserReposOut{}, fmt.Errorf("user login is required")
-	}
-
-	type repoAccessEntry struct {
-		repoName string
-		highest  string
-		sources  []string
-		seen     map[string]struct{}
-	}
-
-	accessByRepo := make(map[string]*repoAccessEntry)
-	mergeRepoAccess := func(repoName, sourceLabel, permission string) {
-		name := strings.TrimSpace(repoName)
-		if name == "" {
-			return
-		}
-		entry, ok := accessByRepo[name]
-		if !ok {
-			entry = &repoAccessEntry{
-				repoName: name,
-				highest:  "",
-				sources:  make([]string, 0, 2),
-				seen:     make(map[string]struct{}),
-			}
-			accessByRepo[name] = entry
-		}
-		entry.highest = maxPermission(entry.highest, permission)
-
-		displayPerm := normalizePermissionValue(permission)
-		display := sourceLabel
-		if displayPerm != "" {
-			display = fmt.Sprintf("%s [%s]", sourceLabel, displayPerm)
-		}
-		if _, exists := entry.seen[display]; !exists {
-			entry.sources = append(entry.sources, display)
-			entry.seen[display] = struct{}{}
-		}
-	}
-
-	directRows, err := db.Query(`
-		SELECT COALESCE(r.name, ru.repos_name) AS repo_name,
-		       COALESCE(ru.permission, ''),
-		       ru.repos_name
-		FROM ghub_repos_users ru
-		LEFT JOIN ghub_repos r ON r.name = ru.repos_name
-		WHERE ru.user_login = ?
-	`, cleanLogin)
-	if err != nil {
-		return ViewUserReposOut{}, err
-	}
-	defer directRows.Close()
-
-	for directRows.Next() {
-		var repoName, permission, fallback sql.NullString
-		if err := directRows.Scan(&repoName, &permission, &fallback); err != nil {
-			return ViewUserReposOut{}, err
-		}
-		name := strings.TrimSpace(repoName.String)
-		if name == "" {
-			name = strings.TrimSpace(fallback.String)
-		}
-		if name == "" {
-			continue
-		}
-		mergeRepoAccess(name, "Direct", permission.String)
-	}
-	if err := directRows.Err(); err != nil {
-		return ViewUserReposOut{}, err
-	}
-
-	teamRows, err := db.Query(`
-		SELECT COALESCE(r.name, rt.repos_name) AS repo_name,
-		       rt.team_slug,
-		       COALESCE(rt.team_name, ''),
-		       COALESCE(rt.permission, ''),
-		       rt.repos_name
-		FROM ghub_team_users tu
-		JOIN ghub_repos_teams rt ON rt.team_slug = tu.team_slug
-		LEFT JOIN ghub_repos r ON r.name = rt.repos_name
-		WHERE tu.user_login = ?
-	`, cleanLogin)
-	if err != nil {
-		return ViewUserReposOut{}, err
-	}
-	defer teamRows.Close()
-
-	for teamRows.Next() {
-		var repoName, teamSlug, teamName, permission, fallback sql.NullString
-		if err := teamRows.Scan(&repoName, &teamSlug, &teamName, &permission, &fallback); err != nil {
-			return ViewUserReposOut{}, err
-		}
-		name := strings.TrimSpace(repoName.String)
-		if name == "" {
-			name = strings.TrimSpace(fallback.String)
-		}
-		if name == "" {
-			continue
-		}
-		slug := strings.TrimSpace(teamSlug.String)
-		if slug == "" {
-			continue
-		}
-		label := fmt.Sprintf("Team:%s", slug)
-		if displayName := strings.TrimSpace(teamName.String); displayName != "" {
-			label = fmt.Sprintf("%s (%s)", label, displayName)
-		}
-		mergeRepoAccess(name, label, permission.String)
-	}
-	if err := teamRows.Err(); err != nil {
-		return ViewUserReposOut{}, err
-	}
-
-	if len(accessByRepo) == 0 {
-		return ViewUserReposOut{User: cleanLogin, Repositories: []UserRepoAccess{}}, nil
-	}
-
-	entries := make([]*repoAccessEntry, 0, len(accessByRepo))
-	for _, entry := range accessByRepo {
-		sort.Slice(entry.sources, func(i, j int) bool {
-			si := entry.sources[i]
-			sj := entry.sources[j]
-			isDirect := strings.HasPrefix(si, "Direct")
-			jsDirect := strings.HasPrefix(sj, "Direct")
-			if isDirect != jsDirect {
-				return isDirect
-			}
-			return si < sj
-		})
-		entries = append(entries, entry)
-	}
-
-	sort.Slice(entries, func(i, j int) bool {
-		li := strings.ToLower(entries[i].repoName)
-		lj := strings.ToLower(entries[j].repoName)
-		if li == lj {
-			return entries[i].repoName < entries[j].repoName
-		}
-		return li < lj
-	})
-
 	output := make([]UserRepoAccess, 0, len(entries))
 	for _, entry := range entries {
 		output = append(output, UserRepoAccess{
-			Repository: entry.repoName,
-			AccessFrom: append([]string(nil), entry.sources...),
-			Permission: entry.highest,
+			Repository: entry.Repository,
+			AccessFrom: append([]string(nil), entry.AccessFrom...),
+			Permission: entry.Permission,
 		})
 	}
 
@@ -1736,21 +1493,21 @@ func listOutsideUsers() ([]User, error) {
 		return nil, err
 	}
 	defer db.Close()
-	rows, err := db.Query(`SELECT id, login, name, email, company, location FROM ghub_outside_users ORDER BY login LIMIT ?`, defaultListLimit)
+	entries, err := store.FetchOutsideUsers(db)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+
 	var res []User
-	for rows.Next() {
-		var (
-			id                                    int64
-			login, name, email, company, location sql.NullString
-		)
-		if err := rows.Scan(&id, &login, &name, &email, &company, &location); err != nil {
-			return nil, err
-		}
-		res = append(res, User{ID: id, Login: login.String, Name: name.String, Email: email.String, Company: company.String, Location: location.String})
+	for _, entry := range entries {
+		res = append(res, User{
+			ID:       entry.ID,
+			Login:    entry.Login,
+			Name:     entry.Name,
+			Email:    entry.Email,
+			Company:  entry.Company,
+			Location: entry.Location,
+		})
 	}
 	return res, nil
 }
@@ -1773,15 +1530,25 @@ func getTokenPermission() (ViewTokenPermissionOut, error) {
 		return ViewTokenPermissionOut{}, err
 	}
 	defer db.Close()
-	row := db.QueryRow(`SELECT x_oauth_scopes, x_accepted_oauth_scopes, x_accepted_github_permissions, x_github_media_type, x_ratelimit_limit, x_ratelimit_remaining, x_ratelimit_reset, created_at, updated_at FROM ghub_token_permissions ORDER BY created_at DESC LIMIT 1`)
-	var out ViewTokenPermissionOut
-	if err := row.Scan(&out.OAuthScopes, &out.AcceptedOAuthScopes, &out.AcceptedGitHubPermissions, &out.GitHubMediaType, &out.RateLimit, &out.RateRemaining, &out.RateReset, &out.CreatedAt, &out.UpdatedAt); err != nil {
-		if err == sql.ErrNoRows {
-			return ViewTokenPermissionOut{}, fmt.Errorf("no token permission data; run pull_token-permission with store=true first")
-		}
+	record, found, err := store.FetchTokenPermission(db)
+	if err != nil {
 		return ViewTokenPermissionOut{}, err
 	}
-	return out, nil
+	if !found {
+		return ViewTokenPermissionOut{}, fmt.Errorf("no token permission data; run pull_token-permission with store=true first")
+	}
+
+	return ViewTokenPermissionOut{
+		OAuthScopes:               record.OAuthScopes,
+		AcceptedOAuthScopes:       record.AcceptedOAuthScopes,
+		AcceptedGitHubPermissions: record.AcceptedGitHubPermissions,
+		GitHubMediaType:           record.GitHubMediaType,
+		RateLimit:                 record.RateLimit,
+		RateRemaining:             record.RateRemaining,
+		RateReset:                 record.RateReset,
+		CreatedAt:                 record.CreatedAt,
+		UpdatedAt:                 record.UpdatedAt,
+	}, nil
 }
 
 // Pull inputs/outputs

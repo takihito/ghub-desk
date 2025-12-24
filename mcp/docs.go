@@ -132,6 +132,7 @@ The tables below describe every published tool. Copy the sample JSON into tools/
 | view_team-user | Members of one team (slug) | {"team":"platform-team"} | users[] plus role, filter by slug |
 | view_repos-users | Direct collaborators for one repo | {"repository":"admin-console"} | Includes permission and user_login |
 | view_repos-teams | Teams mapped to a repo | {"repository":"admin-console"} | Shows team_slug, permission, timestamps |
+| view_repos-teams-users | Team members linked to a repo | {"repository":"admin-console"} | Lists team_slug, team_permission, user_login, role, and profile fields |
 | view_team-repos | Repositories for one team | {"team":"platform-team"} | Lists repo_name/full_name with permission |
 | view_user-repos | Access map for one user | {"user":"octocat"} | Response lists repositories and how access is granted |
 | view_outside-users | Outside collaborators snapshot | {} | Lists collaborators captured by pull_outside-users |

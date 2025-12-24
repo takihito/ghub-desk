@@ -92,6 +92,7 @@ type CommonTargetOptions struct {
 	TeamUser        string `name:"team-user" aliases:"team-users" help:"Target: team-user (provide team slug: 1–100 chars, lowercase alnum + hyphen)"`
 	RepoUsers       string `name:"repos-users" help:"Target: repos-users (provide repository name)"`
 	RepoTeams       string `name:"repos-teams" help:"Target: repos-teams (provide repository name)"`
+	RepoTeamsUsers  string `name:"repos-teams-users" help:"Target: repository team users (provide repository name)"`
 	AllReposTeams   bool   `name:"all-repos-teams" help:"Target: all-repos-teams"`
 	User            string `name:"user" help:"Target: user (provide user login)"`
 	UserTeams       string `name:"user-teams" help:"Target: user-teams (provide user login)"`
@@ -122,6 +123,7 @@ func (c *CommonTargetOptions) GetTarget(extraTargets ...TargetFlag) (string, err
 		{c.TeamUser != "", "team-user"},
 		{c.RepoUsers != "", "repos-users"},
 		{c.RepoTeams != "", "repos-teams"},
+		{c.RepoTeamsUsers != "", "repos-teams-users"},
 		{c.AllReposTeams, "all-repos-teams"},
 		{c.User != "", "user"},
 		{c.UserTeams != "", "user-teams"},
@@ -571,6 +573,11 @@ func (v *ViewCmd) Run(cli *CLI) error {
 			return err
 		}
 		req.RepoName = v.RepoTeams
+	case "repos-teams-users":
+		if err := validateRepoName(v.RepoTeamsUsers); err != nil {
+			return err
+		}
+		req.RepoName = v.RepoTeamsUsers
 	case "user-repos":
 		if err := validateUserLogin(v.UserRepos); err != nil {
 			return err

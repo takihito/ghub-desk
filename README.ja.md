@@ -72,6 +72,7 @@ sudo cp build/ghub-desk /usr/local/bin/
 - `pull` で保存した情報を SQLite から表示
 - `--team-user` や `{team-slug}/users` 引数で特定チームのユーザーを参照
 - `--repos-users` でリポジトリに直接追加されたユーザー一覧を確認
+- `--repos-teams-users` でリポジトリに紐づくチームメンバーを表示（事前に `pull --repos-teams` と `pull --all-teams-users` を実行）
 - `--all-repos-users` で SQLite に保存された全リポジトリの直接コラボレーターを一覧表示
 - `--user-repos <login>` でユーザーがアクセスできるリポジトリと権限を表示（事前に `pull --repos-users`, `pull --repos-teams`, `pull --team-users` を実行）
 - `--settings` でマスク済み設定値を確認
@@ -189,6 +190,9 @@ mcp:
 # リポジトリに直接追加されたユーザーを表示
 ./ghub-desk view --repos-users repo-name
 
+# リポジトリに紐づくチームのメンバーを表示（事前に pull --repos-teams と --all-teams-users を実行）
+./ghub-desk view --repos-teams-users repo-name
+
 # 全リポジトリの直接コラボレーターを表示
 ./ghub-desk view --all-repos-users
 
@@ -284,6 +288,7 @@ make build
 - `view_users`, `view_detail-users`, `view_teams`, `view_repos`, `view_outside-users`, `view_token-permission` — 入力なしでキャッシュ済みレコードを返却。
 - `view_team-user`（入力: `team`）— 指定チーム（slug）のメンバー一覧。
 - `view_repos-users` / `view_repos-teams`（入力: `repository`）— 特定リポジトリの直接コラボレーター / チーム権限。
+- `view_repos-teams-users`（入力: `repository`）— リポジトリに紐づくチームメンバー（事前に `pull_repos-teams` と `pull_all-teams-users` を実行）。
 - `view_all-teams-users`, `view_all-repos-users`, `view_all-repos-teams` — 組織全体のメンバーシップを一括取得。
 - `view_user-repos`（入力: `user`）— ユーザーがアクセスできるリポジトリと経路（直接 or チーム）。
 - `view_settings` — マスク済み設定情報を返却。

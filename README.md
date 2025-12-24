@@ -72,6 +72,7 @@ Run `make test` before installing if you are modifying the codebase locally.
 - Display the data stored by `pull` from SQLite
 - Use `--team-user` or `team-slug/users` arguments to inspect specific teams
 - Use `--repos-users` to review direct collaborators added to a repository
+- Use `--repos-teams-users` to list members of teams linked to a repository (run `pull --repos-teams` and `pull --all-teams-users` first)
 - Use `--all-repos-users` to review collaborators across every repository stored in SQLite
 - Use `--user-repos <login>` to list repositories a user can access along with direct/team routes and permissions (requires `pull --repos-users`, `pull --repos-teams`, and `pull --team-users`)
 - Use `--settings` to review masked configuration values
@@ -189,6 +190,9 @@ mcp:
 # Inspect direct collaborators for a repository
 ./ghub-desk view --repos-users repo-name
 
+# Inspect members of teams linked to a repository (run pull --repos-teams and --all-teams-users first)
+./ghub-desk view --repos-teams-users repo-name
+
 # Inspect direct collaborators across every repository in the database
 ./ghub-desk view --all-repos-users
 
@@ -283,6 +287,7 @@ make build
 - `view_users`, `view_detail-users`, `view_teams`, `view_repos`, `view_outside-users`, `view_token-permission` — return cached records without inputs.
 - `view_team-user` (input: `team`) — members for a specific team slug.
 - `view_repos-users` / `view_repos-teams` (input: `repository`) — direct collaborators or team permissions for one repository.
+- `view_repos-teams-users` (input: `repository`) — members of teams linked to a repository (requires `pull_repos-teams` and `pull_all-teams-users`).
 - `view_all-teams-users`, `view_all-repos-users`, `view_all-repos-teams` — organization-wide membership snapshots.
 - `view_user-repos` (input: `user`) — repositories a user can access with direct/team paths.
 - `view_settings` — configuration values with secrets masked.
