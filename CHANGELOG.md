@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.2.2](https://github.com/takihito/ghub-desk/compare/v0.2.1...v0.2.2) - 2025-12-26
+- implement shell script by @takihito in https://github.com/takihito/ghub-desk/pull/80
+
 ## [v0.2.1](https://github.com/takihito/ghub-desk/compare/v0.2.0...v0.2.1) - 2025-12-24
 - implement debug option for query log  by @takihito in https://github.com/takihito/ghub-desk/pull/71
 - update tool description by @takihito in https://github.com/takihito/ghub-desk/pull/73
