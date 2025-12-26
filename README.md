@@ -268,6 +268,15 @@ mcp:
 ./ghub-desk version
 ```
 
+### Script: pull_info.sh
+
+`bin/pull_info.sh` is a helper script that sequentially executes a series of `pull` commands to retrieve all information about an organization.
+A confirmation prompt is displayed before executing each command. You can run it with the `--yes` flag to skip all prompts.
+
+```sh
+./bin/pull_info.sh [--yes]
+```
+
 ## MCP server
 
 ```bash
