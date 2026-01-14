@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -13,7 +12,6 @@ import (
 	"ghub-desk/store"
 
 	gh "github.com/google/go-github/v55/github"
-	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -153,9 +151,9 @@ func renderAuditLogEntries(entries []*gh.AuditEntry, format string) error {
 		printAuditLogTable(entries)
 		return nil
 	case store.FormatJSON:
-		return printAuditLogJSON(entries)
+		return store.PrintJSON(entries)
 	case store.FormatYAML:
-		return printAuditLogYAML(entries)
+		return store.PrintYAML(entries)
 	default:
 		return fmt.Errorf("unsupported format: %s", format)
 	}
@@ -230,22 +228,4 @@ func auditLogUser(entry *gh.AuditEntry) string {
 		return user
 	}
 	return ""
-}
-
-func printAuditLogJSON(payload any) error {
-	data, err := json.MarshalIndent(payload, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal JSON: %w", err)
-	}
-	fmt.Println(string(data))
-	return nil
-}
-
-func printAuditLogYAML(payload any) error {
-	data, err := yaml.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("failed to marshal YAML: %w", err)
-	}
-	fmt.Print(string(data))
-	return nil
 }
