@@ -77,6 +77,11 @@ sudo cp build/ghub-desk /usr/local/bin/
 - `--user-repos <login>` でユーザーがアクセスできるリポジトリと権限を表示（事前に `pull --repos-users`, `pull --repos-teams`, `pull --team-users` を実行）
 - `--settings` でマスク済み設定値を確認
 
+### 監査ログ (auditlogs)
+- 組織の監査ログをユーザー（actor）単位で取得し、必要に応じてリポジトリで絞り込む
+- `--created` で日付条件を指定（既定: 30日前以降）
+- `--format` で `table` / `json` / `yaml` を選択
+
 ### データ操作 (push add/remove)
 - 組織・チームからのユーザー追加/削除、チーム削除、外部コラボレーターの招待/削除、`--repos-user` によるリポジトリ協力者の削除に対応（`--permission` で `pull` / `push` / `admin` を指定可能。エイリアス: `read`→`pull`, `write`→`push`）
 - デフォルトは DRYRUN (`--exec` 指定時のみ GitHub API を実行)
@@ -207,6 +212,28 @@ mcp:
 
 # マスク済みの設定値を確認
 ./ghub-desk view --settings
+```
+
+### auditlogs
+
+```bash
+# --created は直近 30 日を既定とする
+./ghub-desk auditlogs --user user-login
+
+# 単一日付
+./ghub-desk auditlogs --user user-login --created 2025-01-01
+
+# 指定日以降
+./ghub-desk auditlogs --user user-login --created ">=2025-01-01"
+
+# 指定日以前
+./ghub-desk auditlogs --user user-login --created "<=2025-01-01"
+
+# 日付範囲
+./ghub-desk auditlogs --user user-login --created "2025-01-01..2025-01-31"
+
+# 組織内のリポジトリを指定して絞り込み
+./ghub-desk auditlogs --user user-login --repo repo-name
 ```
 
 ### push

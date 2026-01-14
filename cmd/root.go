@@ -45,12 +45,13 @@ type CLI struct {
 	LogPath    string `name:"log-path" help:"Write logs to the given file (appends)." type:"path"`
 	ConfigPath string `name:"config" short:"c" help:"Path to config file." type:"path"`
 
-	Pull    PullCmd    `cmd:"" help:"Fetch data from GitHub API (resumable; session_path stores progress and validation ensures repository/team names still exist)"`
-	View    ViewCmd    `cmd:"" help:"Display data from local database"`
-	Push    PushCmd    `cmd:"" help:"Manipulate resources on GitHub"`
-	Init    InitCmd    `cmd:"" help:"Initialize local database tables"`
-	Version VersionCmd `cmd:"" help:"Show version information"`
-	MCP     McpCmd     `cmd:"" help:"Start MCP server"`
+	Pull    PullCmd      `cmd:"" help:"Fetch data from GitHub API (resumable; session_path stores progress and validation ensures repository/team names still exist)"`
+	View    ViewCmd      `cmd:"" help:"Display data from local database"`
+	Audit   AuditLogsCmd `cmd:"" name:"auditlogs" help:"Fetch audit log entries from GitHub"`
+	Push    PushCmd      `cmd:"" help:"Manipulate resources on GitHub"`
+	Init    InitCmd      `cmd:"" help:"Initialize local database tables"`
+	Version VersionCmd   `cmd:"" help:"Show version information"`
+	MCP     McpCmd       `cmd:"" help:"Start MCP server"`
 
 	// internal cached config
 	cfgOnce sync.Once
@@ -269,7 +270,7 @@ func Execute() (io.Writer, func(), error) {
 	// Preload config once for commands that require GitHub access.
 	// Keep view/init/version free from config requirement.
 	cmdPath := ctx.Command()
-	if cmdPath == "pull" || strings.HasPrefix(cmdPath, "push") {
+	if cmdPath == "pull" || cmdPath == "auditlogs" || strings.HasPrefix(cmdPath, "push") {
 		if _, err := cli.Config(); err != nil {
 			return logWriter, cleanup, fmt.Errorf("configuration error: %w", err)
 		}

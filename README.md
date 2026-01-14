@@ -77,6 +77,11 @@ Run `make test` before installing if you are modifying the codebase locally.
 - Use `--user-repos <login>` to list repositories a user can access along with direct/team routes and permissions (requires `pull --repos-users`, `pull --repos-teams`, and `pull --team-users`)
 - Use `--settings` to review masked configuration values
 
+### Audit logs (auditlogs)
+- Fetch organization audit log entries for a specific actor, optionally narrowing to a repository
+- Use `--created` to filter by date (default: last 30 days)
+- Use `--format` to render as `table`, `json`, or `yaml`
+
 ### Data mutations (push add/remove)
 - Add or remove users from the organization and its teams, delete teams, manage outside collaborators on repositories, or remove direct repository collaborators with `--repos-user` (optional `--permission` to set `pull`, `push`, or `admin`; aliases: `read`→`pull`, `write`→`push`)
 - Runs in DRYRUN mode by default; apply changes with `--exec`
@@ -207,6 +212,28 @@ mcp:
 
 # Review masked configuration values
 ./ghub-desk view --settings
+```
+
+### auditlogs
+
+```bash
+# --created defaults to 30 days ago
+./ghub-desk auditlogs --user user-login
+
+# Single date
+./ghub-desk auditlogs --user user-login --created 2025-01-01
+
+# Created after a date
+./ghub-desk auditlogs --user user-login --created ">=2025-01-01"
+
+# Created before a date
+./ghub-desk auditlogs --user user-login --created "<=2025-01-01"
+
+# Date range
+./ghub-desk auditlogs --user user-login --created "2025-01-01..2025-01-31"
+
+# Filter by repository within the org
+./ghub-desk auditlogs --user user-login --repo repo-name
 ```
 
 ### push
