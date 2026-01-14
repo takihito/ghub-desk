@@ -25,6 +25,7 @@ type AuditLogsCmd struct {
 	User    string `name:"user" help:"Actor login to filter audit log entries."`
 	Repo    string `name:"repo" help:"Repository name (within the organization) to filter audit log entries."`
 	Created string `name:"created" help:"Created filter: YYYY-MM-DD, >=YYYY-MM-DD, <=YYYY-MM-DD, or YYYY-MM-DD..YYYY-MM-DD (default: last 30 days)."`
+	PerPage int    `name:"per-page" default:"100" help:"Number of entries per page (max 100)."`
 	Format  string `name:"format" default:"table" help:"Output format (table|json|yaml)"`
 }
 
@@ -43,6 +44,12 @@ func (a *AuditLogsCmd) Run(cli *CLI) error {
 		if err := validateRepoName(repo); err != nil {
 			return err
 		}
+	}
+	if a.PerPage <= 0 {
+		return fmt.Errorf("--per-page must be a positive integer")
+	}
+	if a.PerPage > 100 {
+		return fmt.Errorf("--per-page must be 100 or less")
 	}
 
 	cfg, err := cli.Config()
@@ -63,9 +70,12 @@ func (a *AuditLogsCmd) Run(cli *CLI) error {
 
 	opts := &gh.GetAuditLogOptions{
 		Phrase: gh.String(phrase),
+		ListCursorOptions: gh.ListCursorOptions{
+			PerPage: a.PerPage,
+		},
 	}
 
-	entries, _, err := client.Organizations.GetAuditLog(context.Background(), cfg.Organization, opts)
+	entries, err := fetchAuditLogEntries(context.Background(), client, cfg.Organization, opts)
 	if err != nil {
 		return fmt.Errorf("failed to fetch audit logs: %w", err)
 	}
@@ -134,6 +144,34 @@ func buildAuditLogCreatedClause(raw string, now time.Time) (string, error) {
 	}
 
 	return "created:" + trimmed, nil
+}
+
+func fetchAuditLogEntries(ctx context.Context, client *gh.Client, org string, opts *gh.GetAuditLogOptions) ([]*gh.AuditEntry, error) {
+	var allEntries []*gh.AuditEntry
+	var lastAfter string
+
+	for {
+		entries, resp, err := client.Organizations.GetAuditLog(ctx, org, opts)
+		if err != nil {
+			return nil, err
+		}
+		allEntries = append(allEntries, entries...)
+
+		nextAfter := ""
+		if resp != nil {
+			nextAfter = strings.TrimSpace(resp.After)
+		}
+		if nextAfter == "" {
+			break
+		}
+		if nextAfter == lastAfter {
+			return nil, fmt.Errorf("audit log pagination stalled: cursor did not advance")
+		}
+		lastAfter = nextAfter
+		opts.After = nextAfter
+	}
+
+	return allEntries, nil
 }
 
 func renderAuditLogEntries(entries []*gh.AuditEntry, format string) error {

@@ -80,6 +80,7 @@ sudo cp build/ghub-desk /usr/local/bin/
 ### 監査ログ (auditlogs)
 - 組織の監査ログをユーザー（actor）単位で取得し、必要に応じてリポジトリで絞り込む
 - `--created` で日付条件を指定（既定: 30日前以降）
+- `--per-page` で1ページの取得件数を指定（最大100）
 - `--format` で `table` / `json` / `yaml` を選択
 
 ### データ操作 (push add/remove)
@@ -234,6 +235,9 @@ mcp:
 
 # 組織内のリポジトリを指定して絞り込み
 ./ghub-desk auditlogs --user user-login --repo repo-name
+
+# 1ページの取得件数を指定（最大100）
+./ghub-desk auditlogs --user user-login --per-page 50
 ```
 
 ### push

@@ -80,6 +80,7 @@ Run `make test` before installing if you are modifying the codebase locally.
 ### Audit logs (auditlogs)
 - Fetch organization audit log entries for a specific actor, optionally narrowing to a repository
 - Use `--created` to filter by date (default: last 30 days)
+- Use `--per-page` to control page size (max 100)
 - Use `--format` to render as `table`, `json`, or `yaml`
 
 ### Data mutations (push add/remove)
@@ -234,6 +235,9 @@ mcp:
 
 # Filter by repository within the org
 ./ghub-desk auditlogs --user user-login --repo repo-name
+
+# Limit per-page entries (max 100)
+./ghub-desk auditlogs --user user-login --per-page 50
 ```
 
 ### push
