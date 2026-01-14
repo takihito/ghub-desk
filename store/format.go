@@ -83,3 +83,13 @@ func printYAML(payload interface{}) error {
 	fmt.Print(string(data))
 	return nil
 }
+
+// PrintJSON renders payload as indented JSON to stdout.
+func PrintJSON(payload interface{}) error {
+	return printJSON(payload)
+}
+
+// PrintYAML renders payload as YAML to stdout.
+func PrintYAML(payload interface{}) error {
+	return printYAML(payload)
+}
