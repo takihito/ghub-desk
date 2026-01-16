@@ -12,6 +12,7 @@ func TestAllowedTools_Default(t *testing.T) {
 
 	mustContain(t, tools, "view_users")
 	mustContain(t, tools, "view_detail-users")
+	mustContain(t, tools, "auditlogs")
 	mustNotContain(t, tools, "pull_users")
 	mustNotContain(t, tools, "push_add")
 }
@@ -23,6 +24,7 @@ func TestAllowedTools_PullOnly(t *testing.T) {
 
 	mustContain(t, tools, "pull_users")
 	mustContain(t, tools, "pull_token-permission")
+	mustContain(t, tools, "auditlogs")
 	mustNotContain(t, tools, "push_remove")
 }
 
@@ -33,6 +35,7 @@ func TestAllowedTools_WriteOnly(t *testing.T) {
 
 	mustContain(t, tools, "push_add")
 	mustContain(t, tools, "push_remove")
+	mustContain(t, tools, "auditlogs")
 	mustNotContain(t, tools, "pull_teams")
 }
 

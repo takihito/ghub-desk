@@ -55,6 +55,11 @@ mcp:
 | `view_token-permission` | `pull_token-permission` の保存内容 | なし | PAT/GitHub App 権限情報。未取得の場合はエラー |
 | `view_settings` | マスク済み設定の確認 | なし | `organization`, `allow_pull`/`allow_write`, DB パスなど |
 
+### auditlogs (常時利用可能)
+| ツール名 | 説明 | 入力 | 備考 |
+| --- | --- | --- | --- |
+| `auditlogs` | 監査ログを actor で取得 | `{ "user": "octocat", "created"?, "repo"?, "per_page"? }` | GitHub API を呼び出し、既定は直近30日。per_page 最大 100 |
+
 ### pull_* (`allow_pull: true` の場合のみ)
 GitHub API を呼び出し、成功時に既定で SQLite を更新します。`no_store: true` で保存を抑止、`stdout: true` で API レスポンスを標準出力にコピーします。
 
