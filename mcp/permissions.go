@@ -6,7 +6,7 @@ import "ghub-desk/config"
 // by the MCP server based on configuration permissions.
 //
 // Policy:
-// - view_* is always allowed
+// - view_* and auditlogs are always allowed
 // - pull_* is only allowed if AllowPull is true
 // - push_* is only allowed if AllowWrite is true
 func AllowedTools(cfg *config.Config) []string {
@@ -14,6 +14,7 @@ func AllowedTools(cfg *config.Config) []string {
 
 	// view tools (always on)
 	tools = append(tools,
+		"auditlogs",
 		"view_users",
 		"view_detail-users",
 		"view_teams",

@@ -90,7 +90,7 @@ calling tools or resources.
 5. In your MCP client, call resources/list to discover the resources below.
 
 ## Permissions and behavior
-- allow_pull:false publishes only the health and view_* tools.
+- allow_pull:false publishes health, view_*, and auditlogs.
 - allow_pull:true adds pull_* tools. Use interval_seconds to throttle API calls.
 - allow_write:true is required for any push_* tool. Leave it disabled unless you have reviewed the steps in resource://ghub-desk/mcp-safety.
 - All tools reuse the SQLite database (ghub-desk.db by default). CLI and MCP share the same file.
@@ -157,6 +157,20 @@ The tables below describe every published tool. Copy the sample JSON into tools/
 | pull_repos-teams | Fetch repo-team links | {"repository":"admin-console"} | Useful before push_remove team access |
 | pull_outside-users | Fetch outside collaborators | {} | Populates view_outside-users |
 | pull_token-permission | Fetch token headers | {} | Stores rate limit and scope headers for later inspection |
+
+## auditlogs (always available)
+| Tool | Purpose | Sample Input | Notes |
+| --- | --- | --- | --- |
+| auditlogs | Fetch audit log entries by actor | {"user":"octocat","created":">=2025-01-01","repo":"admin-console","per_page":100} | Returns entries[]; defaults to last 30 days; per_page max 100 |
+
+Created filter formats:
+- YYYY-MM-DD (single date)
+- >=YYYY-MM-DD (on/after)
+- <=YYYY-MM-DD (on/before)
+- YYYY-MM-DD..YYYY-MM-DD (range, inclusive)
+
+Optional repo filter expects an organization repository name; the MCP server expands it to org/repo.
+This tool calls the GitHub API but is available even when allow_pull is false.
 
 ## push_* (requires allow_write)
 | Tool | Purpose | Sample Input | Notes |

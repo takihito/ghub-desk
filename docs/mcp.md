@@ -51,6 +51,11 @@ All view tools read from the local database and return up to 200 records (team m
 | `view_outside-users` | Outside collaborators | none | `users[]` |
 | `view_token-permission` | Cached response from `pull_token-permission` | none | Permission data for PAT or GitHub App; errors when missing |
 
+### auditlogs (always available)
+| Tool | Description | Input | Notes |
+| --- | --- | --- | --- |
+| `auditlogs` | Fetch audit log entries by actor | `{ "user": "octocat", "created"?, "repo"?, "per_page"? }` | Calls GitHub API; defaults to last 30 days; per_page max is 100 |
+
 ### pull_* (requires `allow_pull: true`)
 These tools call the GitHub API and update SQLite by default. Set `no_store: true` to skip persistence, or `stdout: true` to mirror API responses to stdout.
 

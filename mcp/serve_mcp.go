@@ -15,6 +15,7 @@ import (
 	"ghub-desk/store"
 	v "ghub-desk/validate"
 
+	ghapi "github.com/google/go-github/v55/github"
 	"github.com/google/jsonschema-go/jsonschema"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -486,6 +487,79 @@ func Serve(ctx context.Context, cfg *appcfg.Config, debug bool, debugWriter io.W
 			return &sdk.CallToolResult{}, ViewTokenPermissionOut{}, fmt.Errorf("failed to get token permission: %w", err)
 		}
 		return nil, ViewTokenPermissionOut(tp), nil
+	})
+
+	// auditlogs (available by default)
+	sdk.AddTool[AuditLogsIn, AuditLogsOut](srv, &sdk.Tool{
+		Name:        "auditlogs",
+		Title:       "Audit Logs",
+		Description: "Fetch organization audit log entries by actor. Usage: " + docsToolsURI + "#auditlogs.",
+		InputSchema: &jsonschema.Schema{
+			Type: "object",
+			Properties: map[string]*jsonschema.Schema{
+				"user": {
+					Type:        "string",
+					Title:       "User Login",
+					Description: "GitHub username (1-39 chars, alnum or hyphen).",
+					MinLength:   intPtr(v.UserNameMin),
+					MaxLength:   intPtr(v.UserNameMax),
+					Pattern:     v.UserNamePattern,
+				},
+				"repo": {
+					Type:        "string",
+					Title:       "Repository Name",
+					Description: "Optional repository name (1-100 chars, alnum/underscore/hyphen).",
+					MinLength:   intPtr(v.RepoNameMin),
+					MaxLength:   intPtr(v.RepoNameMax),
+					Pattern:     v.RepoNamePattern,
+				},
+				"created": {
+					Type:        "string",
+					Title:       "Created Filter",
+					Description: "Date filter (YYYY-MM-DD, >=YYYY-MM-DD, <=YYYY-MM-DD, or YYYY-MM-DD..YYYY-MM-DD). Defaults to last 30 days.",
+				},
+				"per_page": {
+					Type:        "integer",
+					Title:       "Per Page",
+					Description: "Entries per page (max 100). Default is 100.",
+					Minimum:     floatPtr(1),
+					Maximum:     floatPtr(100),
+				},
+			},
+			Required: []string{"user"},
+		},
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in AuditLogsIn) (*sdk.CallToolResult, AuditLogsOut, error) {
+		perPage := in.PerPage
+		if perPage == 0 {
+			perPage = 100
+		}
+		if perPage < 0 {
+			return &sdk.CallToolResult{}, AuditLogsOut{}, fmt.Errorf("per_page must be positive")
+		}
+		if perPage > 100 {
+			return &sdk.CallToolResult{}, AuditLogsOut{}, fmt.Errorf("per_page must be 100 or less")
+		}
+
+		phrase, err := buildAuditLogPhrase(cfg.Organization, in.User, in.Repo, in.Created, time.Now())
+		if err != nil {
+			return &sdk.CallToolResult{}, AuditLogsOut{}, err
+		}
+		client, err := gh.InitClient(cfg)
+		if err != nil {
+			return &sdk.CallToolResult{}, AuditLogsOut{}, fmt.Errorf("github client init: %w", err)
+		}
+		opts := &ghapi.GetAuditLogOptions{
+			Phrase: ghapi.String(phrase),
+			ListCursorOptions: ghapi.ListCursorOptions{
+				PerPage: perPage,
+			},
+		}
+		entries, err := fetchAuditLogEntries(ctx, client, cfg.Organization, opts)
+		if err != nil {
+			return &sdk.CallToolResult{}, AuditLogsOut{}, fmt.Errorf("failed to fetch audit logs: %w", err)
+		}
+		normalized := normalizeAuditLogEntries(entries)
+		return nil, AuditLogsOut{Count: len(normalized), Entries: normalized}, nil
 	})
 
 	// pull tools (non-destructive): gated by AllowPull
@@ -1549,6 +1623,18 @@ func getTokenPermission() (ViewTokenPermissionOut, error) {
 		CreatedAt:                 record.CreatedAt,
 		UpdatedAt:                 record.UpdatedAt,
 	}, nil
+}
+
+type AuditLogsIn struct {
+	User    string `json:"user"`
+	Repo    string `json:"repo,omitempty"`
+	Created string `json:"created,omitempty"`
+	PerPage int    `json:"per_page,omitempty"`
+}
+
+type AuditLogsOut struct {
+	Count   int             `json:"count"`
+	Entries []AuditLogEntry `json:"entries"`
 }
 
 // Pull inputs/outputs
