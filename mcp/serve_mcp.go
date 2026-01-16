@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"ghub-desk/auditlog"
 	appcfg "ghub-desk/config"
 	gh "ghub-desk/github"
 	"ghub-desk/store"
@@ -540,7 +541,21 @@ func Serve(ctx context.Context, cfg *appcfg.Config, debug bool, debugWriter io.W
 			return &sdk.CallToolResult{}, AuditLogsOut{}, fmt.Errorf("per_page must be 100 or less")
 		}
 
-		phrase, err := buildAuditLogPhrase(cfg.Organization, in.User, in.Repo, in.Created, time.Now())
+		user := strings.TrimSpace(in.User)
+		if user == "" {
+			return &sdk.CallToolResult{}, AuditLogsOut{}, fmt.Errorf("user is required")
+		}
+		if err := v.ValidateUserName(user); err != nil {
+			return &sdk.CallToolResult{}, AuditLogsOut{}, err
+		}
+		repo := strings.TrimSpace(in.Repo)
+		if repo != "" {
+			if err := v.ValidateRepoName(repo); err != nil {
+				return &sdk.CallToolResult{}, AuditLogsOut{}, err
+			}
+		}
+
+		phrase, err := auditlog.BuildPhrase(cfg.Organization, user, repo, in.Created, time.Now())
 		if err != nil {
 			return &sdk.CallToolResult{}, AuditLogsOut{}, err
 		}
@@ -554,7 +569,7 @@ func Serve(ctx context.Context, cfg *appcfg.Config, debug bool, debugWriter io.W
 				PerPage: perPage,
 			},
 		}
-		entries, err := fetchAuditLogEntries(ctx, client, cfg.Organization, opts)
+		entries, err := auditlog.FetchEntries(ctx, client, cfg.Organization, opts)
 		if err != nil {
 			return &sdk.CallToolResult{}, AuditLogsOut{}, fmt.Errorf("failed to fetch audit logs: %w", err)
 		}

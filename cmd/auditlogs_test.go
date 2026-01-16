@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"ghub-desk/auditlog"
 )
 
 func TestBuildAuditLogCreatedClause(t *testing.T) {
@@ -64,7 +66,7 @@ func TestBuildAuditLogCreatedClause(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := buildAuditLogCreatedClause(tt.raw, now)
+			got, err := auditlog.BuildCreatedClause(tt.raw, now)
 			if tt.expectErr {
 				if err == nil {
 					t.Fatalf("expected error for raw=%q", tt.raw)
@@ -84,7 +86,7 @@ func TestBuildAuditLogCreatedClause(t *testing.T) {
 func TestBuildAuditLogPhrase(t *testing.T) {
 	now := time.Date(2026, 1, 14, 12, 0, 0, 0, time.UTC)
 
-	got, err := buildAuditLogPhrase("acme", "octocat", "", "", now)
+	got, err := auditlog.BuildPhrase("acme", "octocat", "", "", now)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -95,7 +97,7 @@ func TestBuildAuditLogPhrase(t *testing.T) {
 		t.Fatalf("expected default created filter, got %q", got)
 	}
 
-	got, err = buildAuditLogPhrase("acme", "octocat", "repo-one", "2025-01-02", now)
+	got, err = auditlog.BuildPhrase("acme", "octocat", "repo-one", "2025-01-02", now)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -103,7 +105,7 @@ func TestBuildAuditLogPhrase(t *testing.T) {
 		t.Fatalf("unexpected phrase: %q", got)
 	}
 
-	if _, err := buildAuditLogPhrase("acme", "", "", "", now); err == nil {
+	if _, err := auditlog.BuildPhrase("acme", "", "", "", now); err == nil {
 		t.Fatalf("expected error for empty user")
 	}
 }

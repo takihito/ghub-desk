@@ -3,21 +3,15 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
 
+	"ghub-desk/auditlog"
 	ghubgithub "ghub-desk/github"
 	"ghub-desk/store"
 
 	gh "github.com/google/go-github/v55/github"
-)
-
-var (
-	auditLogDateRE  = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
-	auditLogCmpRE   = regexp.MustCompile(`^(>=|<=)\d{4}-\d{2}-\d{2}$`)
-	auditLogRangeRE = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}\.\.\d{4}-\d{2}-\d{2}$`)
 )
 
 // AuditLogsCmd fetches and displays organization audit log entries.
@@ -62,7 +56,7 @@ func (a *AuditLogsCmd) Run(cli *CLI) error {
 		return fmt.Errorf("github client initialization error: %w", err)
 	}
 
-	phrase, err := buildAuditLogPhrase(cfg.Organization, user, repo, a.Created, time.Now())
+	phrase, err := auditlog.BuildPhrase(cfg.Organization, user, repo, a.Created, time.Now())
 	if err != nil {
 		return err
 	}
@@ -75,103 +69,12 @@ func (a *AuditLogsCmd) Run(cli *CLI) error {
 		},
 	}
 
-	entries, err := fetchAuditLogEntries(context.Background(), client, cfg.Organization, opts)
+	entries, err := auditlog.FetchEntries(context.Background(), client, cfg.Organization, opts)
 	if err != nil {
 		return fmt.Errorf("failed to fetch audit logs: %w", err)
 	}
 
 	return renderAuditLogEntries(entries, a.Format)
-}
-
-func buildAuditLogPhrase(org, user, repo, created string, now time.Time) (string, error) {
-	if strings.TrimSpace(user) == "" {
-		return "", fmt.Errorf("--user is required")
-	}
-
-	createdClause, err := buildAuditLogCreatedClause(created, now)
-	if err != nil {
-		return "", err
-	}
-
-	parts := []string{fmt.Sprintf("actor:%s", user)}
-	if repo != "" {
-		if org == "" {
-			return "", fmt.Errorf("organization is required to filter by repository")
-		}
-		parts = append(parts, fmt.Sprintf("repo:%s/%s", org, repo))
-	}
-	parts = append(parts, createdClause)
-
-	return strings.Join(parts, " "), nil
-}
-
-func buildAuditLogCreatedClause(raw string, now time.Time) (string, error) {
-	trimmed := strings.TrimSpace(raw)
-	if trimmed == "" {
-		date := now.UTC().AddDate(0, 0, -30).Format("2006-01-02")
-		return "created:>=" + date, nil
-	}
-
-	trimmed = strings.TrimSpace(strings.TrimPrefix(trimmed, "created:"))
-	if trimmed == "" {
-		return "", fmt.Errorf("invalid --created format: %q", raw)
-	}
-
-	switch {
-	case auditLogDateRE.MatchString(trimmed):
-		if _, err := time.Parse("2006-01-02", trimmed); err != nil {
-			return "", fmt.Errorf("invalid --created date: %w", err)
-		}
-	case auditLogCmpRE.MatchString(trimmed):
-		if _, err := time.Parse("2006-01-02", trimmed[2:]); err != nil {
-			return "", fmt.Errorf("invalid --created date: %w", err)
-		}
-	case auditLogRangeRE.MatchString(trimmed):
-		parts := strings.Split(trimmed, "..")
-		start, err := time.Parse("2006-01-02", parts[0])
-		if err != nil {
-			return "", fmt.Errorf("invalid --created date: %w", err)
-		}
-		end, err := time.Parse("2006-01-02", parts[1])
-		if err != nil {
-			return "", fmt.Errorf("invalid --created date: %w", err)
-		}
-		if end.Before(start) {
-			return "", fmt.Errorf("invalid --created range: end date is before start date")
-		}
-	default:
-		return "", fmt.Errorf("invalid --created format: %q (use YYYY-MM-DD, >=YYYY-MM-DD, <=YYYY-MM-DD, or YYYY-MM-DD..YYYY-MM-DD)", raw)
-	}
-
-	return "created:" + trimmed, nil
-}
-
-func fetchAuditLogEntries(ctx context.Context, client *gh.Client, org string, opts *gh.GetAuditLogOptions) ([]*gh.AuditEntry, error) {
-	var allEntries []*gh.AuditEntry
-	var lastAfter string
-
-	for {
-		entries, resp, err := client.Organizations.GetAuditLog(ctx, org, opts)
-		if err != nil {
-			return nil, err
-		}
-		allEntries = append(allEntries, entries...)
-
-		nextAfter := ""
-		if resp != nil {
-			nextAfter = strings.TrimSpace(resp.After)
-		}
-		if nextAfter == "" {
-			break
-		}
-		if nextAfter == lastAfter {
-			return nil, fmt.Errorf("audit log pagination stalled: cursor did not advance")
-		}
-		lastAfter = nextAfter
-		opts.After = nextAfter
-	}
-
-	return allEntries, nil
 }
 
 func renderAuditLogEntries(entries []*gh.AuditEntry, format string) error {
@@ -205,8 +108,8 @@ func printAuditLogTable(entries []*gh.AuditEntry) {
 			formatAuditLogTimestamp(entry),
 			entry.GetAction(),
 			entry.GetActor(),
-			auditLogRepo(entry),
-			auditLogUser(entry),
+			auditlog.RepoFromEntry(entry),
+			auditlog.UserFromEntry(entry),
 			entry.GetActorIP(),
 		)
 	}
@@ -238,32 +141,6 @@ func formatAuditLogTimestamp(entry *gh.AuditEntry) string {
 	}
 	if created := entry.GetCreatedAt(); !created.IsZero() {
 		return created.Time.UTC().Format(time.RFC3339)
-	}
-	return ""
-}
-
-func auditLogRepo(entry *gh.AuditEntry) string {
-	if entry == nil {
-		return ""
-	}
-	if repo := strings.TrimSpace(entry.GetRepo()); repo != "" {
-		return repo
-	}
-	if repo := strings.TrimSpace(entry.GetRepository()); repo != "" {
-		return repo
-	}
-	return ""
-}
-
-func auditLogUser(entry *gh.AuditEntry) string {
-	if entry == nil {
-		return ""
-	}
-	if user := strings.TrimSpace(entry.GetUser()); user != "" {
-		return user
-	}
-	if user := strings.TrimSpace(entry.GetTargetLogin()); user != "" {
-		return user
 	}
 	return ""
 }
