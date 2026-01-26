@@ -49,9 +49,9 @@ Prioritize your findings in this order:
 ### 2. Review Checklist (Mental Model)
 Evaluate the code against these specific questions:
 - Are `nil`, zero values, empty slices/maps, and boundary values handled correctly?
-- Are types defined strictly? Are `interface{}`/`any` or unsafe type assertions avoided?
+- Are types defined strictly? Is overuse of `interface{}`/`any` or unsafe casts avoided?
 - Are there sufficient unit tests covering the changes? Are failure scenarios tested?
-- Are exceptions caught and logged properly? Is the user experience degraded gracefully?
+- Are errors (and any panics) handled and logged properly? Is the user experience degraded gracefully on failure?
 - Does this change negatively impact existing features or shared state?
 - Do not log secrets, auth codes, or tokens.
 
