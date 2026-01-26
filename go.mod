@@ -6,7 +6,7 @@ require (
 	github.com/alecthomas/kong v1.13.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.17.0
 	github.com/google/go-github/v55 v55.0.0
-	github.com/google/jsonschema-go v0.2.3
+	github.com/google/jsonschema-go v0.4.2
 	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/modelcontextprotocol/go-sdk v0.5.0
 	golang.org/x/oauth2 v0.34.0
