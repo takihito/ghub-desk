@@ -9,7 +9,7 @@ require (
 	github.com/google/jsonschema-go v0.2.3
 	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/modelcontextprotocol/go-sdk v0.5.0
-	golang.org/x/oauth2 v0.27.0
+	golang.org/x/oauth2 v0.34.0
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.38.2
 )
