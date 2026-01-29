@@ -360,6 +360,14 @@ make build
 make test
 ```
 
+## Branch Protection
+
+The main branch is protected against force-push and deletion.
+
+Given the nature of this project as a single-maintainer OSS,
+some branch protection rules that require multiple reviewers
+are intentionally not enforced.
+
 ## Supported platforms
 
 - Go 1.24+
