@@ -1,5 +1,32 @@
 # Changelog
 
+## [v0.2.2](https://github.com/takihito/ghub-desk/compare/v0.2.1...v0.2.2) - 2026-01-30
+- implement shell script by @takihito in https://github.com/takihito/ghub-desk/pull/80
+- implement auditlogs by @takihito in https://github.com/takihito/ghub-desk/pull/82
+- Revise SECURITY.md for clarity and completeness by @takihito in https://github.com/takihito/ghub-desk/pull/83
+- add .github/copilot-instructions.md by @takihito in https://github.com/takihito/ghub-desk/pull/84
+- Update cron schedule for scorecard workflow by @takihito in https://github.com/takihito/ghub-desk/pull/85
+- Bump ossf/scorecard-action from 2.4.1 to 2.4.3 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/87
+- Bump actions/upload-artifact from 4.6.1 to 6.0.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/88
+- Bump github/codeql-action from 3.31.11 to 4.31.11 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/89
+- Bump github.com/alecthomas/kong from 1.12.1 to 1.13.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/90
+- Bump actions/checkout from 4.3.0 to 6.0.2 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/91
+- version upgrade go-1.24 by @takihito in https://github.com/takihito/ghub-desk/pull/97
+- Bump github.com/bradleyfalzon/ghinstallation/v2 from 2.16.0 to 2.17.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/92
+- Bump actions/setup-go from 5.5.0 to 6.2.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/93
+- Bump golang.org/x/oauth2 from 0.27.0 to 0.34.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/94
+- Bump modernc.org/sqlite from 1.38.2 to 1.44.3 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/95
+- Bump github.com/google/jsonschema-go from 0.2.3 to 0.4.2 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/96
+- [StepSecurity] Apply security best practices by @step-security-bot in https://github.com/takihito/ghub-desk/pull/98
+- Step Security support for fb. by @takihito in https://github.com/takihito/ghub-desk/pull/99
+- Update README.md. add Branch Protection by @takihito in https://github.com/takihito/ghub-desk/pull/104
+- Bump github.com/mattn/go-sqlite3 from 1.14.32 to 1.14.33 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/100
+- Bump github/codeql-action from 4.31.11 to 4.32.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/101
+- Bump github.com/modelcontextprotocol/go-sdk from 0.5.0 to 1.2.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/102
+- Bump Songmu/tagpr from 1.8.4 to 1.12.1 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/103
+- update README. Security by @takihito in https://github.com/takihito/ghub-desk/pull/105
+- Add .github/workflows/release.yml. use cosign by @takihito in https://github.com/takihito/ghub-desk/pull/106
+
 ## [v0.2.1](https://github.com/takihito/ghub-desk/compare/v0.2.0...v0.2.1) - 2025-12-24
 - implement debug option for query log  by @takihito in https://github.com/takihito/ghub-desk/pull/71
 - update tool description by @takihito in https://github.com/takihito/ghub-desk/pull/73
