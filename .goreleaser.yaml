@@ -43,6 +43,19 @@ archives:
 checksum:
   name_template: 'checksums.txt'
 
+signs:
+  - id: cosign
+    artifacts: checksum
+    cmd: cosign
+    args:
+      - sign-blob
+      - --yes
+      - --output-signature=${artifact}.sig
+      - --output-certificate=${artifact}.pem
+      - ${artifact}
+    env:
+      - COSIGN_EXPERIMENTAL=1
+
 release:
   github:
     owner: takihito

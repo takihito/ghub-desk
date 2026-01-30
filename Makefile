@@ -117,6 +117,11 @@ goreleaser_build:
 	@echo "🏗️  Building locally with GoReleaser..."
 	@goreleaser build --snapshot --clean --config .goreleaser.yaml
 
+# Release using GoReleaser. Snapshot (no publish)
+goreleaser_snapshot:
+	@echo "🏗️  Building snapshot release with GoReleaser... and Using cosign. checksums.txt"
+	@goreleaser release --snapshot --clean --skip=publish --skip=sign --config .goreleaser.yaml
+
 # Release using GoReleaser
 goreleaser:
 	@echo "🚀 Building release..."
