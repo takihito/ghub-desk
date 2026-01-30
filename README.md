@@ -372,3 +372,14 @@ are intentionally not enforced.
 
 - Go 1.24+
 - macOS, Linux, Windows
+
+## Security
+
+- Continuous security evaluation with OpenSSF Scorecard
+- Responsible disclosure supported
+
+See SECURITY.md for vulnerability reporting.
+
+### OpenSSF Scorecard
+
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/11852/badge)](https://www.bestpractices.dev/projects/11852)
