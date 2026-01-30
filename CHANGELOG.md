@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.2.3](https://github.com/takihito/ghub-desk/compare/v0.2.2...v0.2.3) - 2026-01-30
+- update  .github/workflows by @takihito in https://github.com/takihito/ghub-desk/pull/107
+
 ## [v0.2.2](https://github.com/takihito/ghub-desk/compare/v0.2.1...v0.2.2) - 2026-01-30
 - implement shell script by @takihito in https://github.com/takihito/ghub-desk/pull/80
 - implement auditlogs by @takihito in https://github.com/takihito/ghub-desk/pull/82
