@@ -379,3 +379,7 @@ are intentionally not enforced.
 - Responsible disclosure supported
 
 See SECURITY.md for vulnerability reporting.
+
+### OpenSSF Scorecard
+
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/11852/badge)](https://www.bestpractices.dev/projects/11852)
