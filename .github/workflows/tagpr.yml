@@ -2,8 +2,7 @@ name: tagpr
 on:
   push:
     branches: ["main"]
-permissions:
-  contents: read
+permissions: read-all
 
 jobs:
   tagpr:
