@@ -68,24 +68,23 @@ Evaluate the code against these specific questions:
 
 ### Response to Vulnerabilities
 - Identify and point out common vulnerabilities:
-  - OS command injection
-  - SQL injection
-  - Cross-site scripting (XSS)
-  - Remote code execution (RCE)
-  - Directory traversal
-  - Path traversal
-  - CSRF (Cross-Site Request Forgery)
-  - Insufficient parameter validation
-  - HTTP header injection
-  - X-Frame-Options
-  - Buffer overflow
-  - Insufficient sanitization of data passed to web frontend
+  - OS command injection
+  - SQL injection
+  - Cross-site scripting (XSS)
+  - Remote code execution (RCE)
+  - Directory traversal / Path traversal
+  - CSRF (Cross-Site Request Forgery)
+  - Insufficient parameter validation
+  - HTTP header injection
+  - Missing clickjacking protection (e.g., absent X-Frame-Options / CSP frame-ancestors)
+  - Buffer overflow
+  - Insufficient sanitization of data passed to web frontend
 - Verify the use of secure cryptographic algorithms and secure communication protocols
 
 ### Handling of Sensitive Information
 - Verify that secrets, API keys, passwords, and other sensitive information are not hardcoded in the code
 - Verify that sensitive information is not logged
-  - When sensitive information is included in logs, verify it is masked
+  - When sensitive information is included in logs, verify it is masked
 
 ### Secure Defaults for Code Generation
 - Mask sensitive values in all output and error paths
@@ -98,11 +97,11 @@ Evaluate the code against these specific questions:
 
 ### Prevention of Asymmetric Complexity Attacks
 - Avoid algorithms and data structures that could lead to asymmetric complexity attacks:
-  - Infinite loops
-  - Recursive regular expressions
-  - Inefficient sort algorithms
-  - Hash collision attacks
-  - Oversized data structures
+  - Infinite loops
+  - Recursive regular expressions
+  - Inefficient sort algorithms
+  - Hash collision attacks
+  - Oversized data structures
 - Recommend setting maximum retrieval limits and prohibiting user-driven full data retrieval (e.g., SELECT without LIMIT)
 
 ### Network and API Usage
@@ -111,7 +110,7 @@ Evaluate the code against these specific questions:
 
 ### Frontend and Client-Side
 - Client-side validation is "for convenience" — always perform equivalent validation on the server side as well
-- Avoid using dangerous properties like innerHTML; leverage template engines and framework safe escape features
+- Avoid using dangerous properties like `innerHTML`; leverage template engines and framework safe escape features
 - Never hardcode API secrets or private keys in frontend code (JS/C#/binary)
 - Do not store passwords or personal information in localStorage or sessionStorage
 
