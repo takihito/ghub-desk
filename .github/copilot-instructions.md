@@ -112,7 +112,7 @@ Evaluate the code against these specific questions:
 - Client-side validation is "for convenience" — always perform equivalent validation on the server side as well
 - Avoid using dangerous properties like `innerHTML`; leverage template engines and framework safe escape features
 - Never hardcode API secrets or private keys in frontend code (JS/C#/binary)
-- Do not store passwords or personal information in localStorage or sessionStorage
+- Do not store passwords or personal information in `localStorage` or `sessionStorage`
 
 ### Dependency Management
 - Prioritize existing project dependencies
