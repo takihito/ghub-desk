@@ -11,7 +11,7 @@ require (
 	github.com/modelcontextprotocol/go-sdk v1.2.0
 	golang.org/x/oauth2 v0.34.0
 	gopkg.in/yaml.v3 v3.0.1
-	modernc.org/sqlite v1.44.3
+	modernc.org/sqlite v1.45.0
 )
 
 require (
