@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.2.4](https://github.com/takihito/ghub-desk/compare/v0.2.3...v0.2.4) - 2026-02-16
+- update  .github/copilot-instructions.md by @takihito in https://github.com/takihito/ghub-desk/pull/112
+- Bump sigstore/cosign-installer from 3.9.1 to 4.0.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/111
+- Bump github/codeql-action from 4.32.0 to 4.32.1 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/110
+- Bump Songmu/tagpr from 1.12.1 to 1.15.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/109
+- Bump modernc.org/sqlite from 1.44.3 to 1.45.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/114
+- Bump step-security/harden-runner from 2.14.1 to 2.14.2 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/115
+- Bump github.com/mattn/go-sqlite3 from 1.14.33 to 1.14.34 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/116
+
 ## [v0.2.3](https://github.com/takihito/ghub-desk/compare/v0.2.2...v0.2.3) - 2026-01-30
 - update  .github/workflows by @takihito in https://github.com/takihito/ghub-desk/pull/107
 
