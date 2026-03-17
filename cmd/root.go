@@ -742,6 +742,9 @@ func (a *AddCmd) Run(cli *CLI) error {
 	if err != nil {
 		return fmt.Errorf("configuration error: %w", err)
 	}
+	if cfg.DatabasePath != "" {
+		store.SetDBPath(cfg.DatabasePath)
+	}
 
 	// Initialize GitHub client
 	client, err := github.InitClient(cfg)
