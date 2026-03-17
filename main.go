@@ -19,6 +19,9 @@ func main() {
 		defer cleanup()
 	}
 	if err != nil {
+		if errWriter == nil {
+			errWriter = os.Stderr
+		}
 		fmt.Fprintf(errWriter, "Error: %v\n", err)
 		os.Exit(1)
 	}

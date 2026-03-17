@@ -503,39 +503,53 @@ func UpsertTeamUser(db DBTX, teamSlug string, teamID int64, user *github.User, r
 }
 
 // DeleteTeamBySlug removes a team and its memberships from the local database.
-func DeleteTeamBySlug(db DBTX, teamSlug string) error {
+// Both deletions run in a single transaction to prevent data inconsistency.
+func DeleteTeamBySlug(db *sql.DB, teamSlug string) error {
 	if db == nil {
 		return fmt.Errorf("database connection is required to delete team")
 	}
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
 	query1 := `DELETE FROM ghub_team_users WHERE team_slug = ?`
 	session.Debugf("SQL: %s, ARGS: [%s]", query1, teamSlug)
-	if _, err := db.Exec(query1, teamSlug); err != nil {
+	if _, err := tx.Exec(query1, teamSlug); err != nil {
 		return fmt.Errorf("failed to delete team users for team %s: %w", teamSlug, err)
 	}
 	query2 := `DELETE FROM ghub_teams WHERE slug = ?`
 	session.Debugf("SQL: %s, ARGS: [%s]", query2, teamSlug)
-	if _, err := db.Exec(query2, teamSlug); err != nil {
+	if _, err := tx.Exec(query2, teamSlug); err != nil {
 		return fmt.Errorf("failed to delete team %s: %w", teamSlug, err)
 	}
-	return nil
+	return tx.Commit()
 }
 
 // DeleteUserByLogin removes a user and related memberships from the local database.
-func DeleteUserByLogin(db DBTX, login string) error {
+// Both deletions run in a single transaction to prevent data inconsistency.
+func DeleteUserByLogin(db *sql.DB, login string) error {
 	if db == nil {
 		return fmt.Errorf("database connection is required to delete user")
 	}
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
 	query1 := `DELETE FROM ghub_team_users WHERE user_login = ?`
 	session.Debugf("SQL: %s, ARGS: [%s]", query1, login)
-	if _, err := db.Exec(query1, login); err != nil {
+	if _, err := tx.Exec(query1, login); err != nil {
 		return fmt.Errorf("failed to delete team memberships for user %s: %w", login, err)
 	}
 	query2 := `DELETE FROM ghub_users WHERE login = ?`
 	session.Debugf("SQL: %s, ARGS: [%s]", query2, login)
-	if _, err := db.Exec(query2, login); err != nil {
+	if _, err := tx.Exec(query2, login); err != nil {
 		return fmt.Errorf("failed to delete user %s: %w", login, err)
 	}
-	return nil
+	return tx.Commit()
 }
 
 // DeleteTeamUser removes a membership relation between a team and a user from the local database.

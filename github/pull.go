@@ -89,7 +89,8 @@ func HandlePullTarget(ctx context.Context, client *github.Client, db *sql.DB, or
 		if req.RepoName == "" {
 			return fmt.Errorf("repository name must be specified when using repos-users target")
 		}
-		return PullRepoUsers(ctx, client, db, org, req.RepoName, opts)
+		_, err := PullRepoUsers(ctx, client, db, org, req.RepoName, opts)
+		return err
 	case "repos-teams":
 		if req.RepoName == "" {
 			return fmt.Errorf("repository name must be specified when using repos-teams target")
@@ -97,7 +98,8 @@ func HandlePullTarget(ctx context.Context, client *github.Client, db *sql.DB, or
 		if err := validate.ValidateRepoName(req.RepoName); err != nil {
 			return fmt.Errorf("invalid repository name: %w", err)
 		}
-		return PullRepoTeams(ctx, client, db, org, req.RepoName, opts)
+		_, err := PullRepoTeams(ctx, client, db, org, req.RepoName, opts)
+		return err
 	case "all-repos-users":
 		return PullAllReposUsers(ctx, client, db, org, opts)
 	case "all-repos-teams":
@@ -285,7 +287,7 @@ func PullRepositories(ctx context.Context, client *github.Client, db *sql.DB, or
 }
 
 // PullRepoUsers fetches direct repository collaborators and optionally stores them in database
-func PullRepoUsers(ctx context.Context, client *github.Client, db *sql.DB, org, repoName string, opts PullOptions) error {
+func PullRepoUsers(ctx context.Context, client *github.Client, db *sql.DB, org, repoName string, opts PullOptions) ([]*github.User, error) {
 	meta := map[string]string{"repo": repoName}
 	localOpts := opts.ForEndpoint("repos-users", meta)
 
@@ -301,40 +303,40 @@ func PullRepoUsers(ctx context.Context, client *github.Client, db *sql.DB, org, 
 		nil, db, org, localOpts, "repos-users", meta,
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if localOpts.Store && db != nil {
 		tx, err := db.Begin()
 		if err != nil {
-			return fmt.Errorf("failed to begin transaction for repo %s: %w", repoName, err)
+			return nil, fmt.Errorf("failed to begin transaction for repo %s: %w", repoName, err)
 		}
 		defer tx.Rollback()
 
 		query := `DELETE FROM ghub_repos_users WHERE repos_name = ?`
 		session.Debugf("SQL: %s, ARGS: [%s]", query, repoName)
 		if _, err := tx.Exec(query, repoName); err != nil {
-			return fmt.Errorf("failed to clear repository users for %s: %w", repoName, err)
+			return nil, fmt.Errorf("failed to clear repository users for %s: %w", repoName, err)
 		}
 		if err := store.StoreRepoUsers(tx, repoName, users); err != nil {
-			return fmt.Errorf("failed to store repository users for %s: %w", repoName, err)
+			return nil, fmt.Errorf("failed to store repository users for %s: %w", repoName, err)
 		}
 		if err := tx.Commit(); err != nil {
-			return fmt.Errorf("failed to commit transaction for repo %s: %w", repoName, err)
+			return nil, fmt.Errorf("failed to commit transaction for repo %s: %w", repoName, err)
 		}
 	}
 
 	if opts.Stdout {
 		if err := printJSON(users); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return nil
+	return users, nil
 }
 
 // PullRepoTeams fetches repository teams and optionally stores them in database
-func PullRepoTeams(ctx context.Context, client *github.Client, db *sql.DB, org, repoName string, opts PullOptions) error {
+func PullRepoTeams(ctx context.Context, client *github.Client, db *sql.DB, org, repoName string, opts PullOptions) ([]*github.Team, error) {
 	meta := map[string]string{"repo": repoName}
 	localOpts := opts.ForEndpoint("repos-teams", meta)
 
@@ -346,20 +348,20 @@ func PullRepoTeams(ctx context.Context, client *github.Client, db *sql.DB, org, 
 		nil, db, org, localOpts, "repos-teams", meta,
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if localOpts.Store && db != nil {
 		tx, err := db.Begin()
 		if err != nil {
-			return fmt.Errorf("failed to begin transaction for repo %s: %w", repoName, err)
+			return nil, fmt.Errorf("failed to begin transaction for repo %s: %w", repoName, err)
 		}
 		defer tx.Rollback()
 
 		query := `DELETE FROM ghub_repos_teams WHERE repos_name = ?`
 		session.Debugf("SQL: %s, ARGS: [%s]", query, repoName)
 		if _, err := tx.Exec(query, repoName); err != nil {
-			return fmt.Errorf("failed to clear repository teams for %s: %w", repoName, err)
+			return nil, fmt.Errorf("failed to clear repository teams for %s: %w", repoName, err)
 		}
 
 		err = store.StoreRepoTeams(tx, repoName, teams)
@@ -368,32 +370,32 @@ func PullRepoTeams(ctx context.Context, client *github.Client, db *sql.DB, org, 
 				fmt.Printf("Repository '%s' not found locally, fetching from API...\n", repoName)
 				repo, _, apiErr := client.Repositories.Get(ctx, org, repoName)
 				if apiErr != nil {
-					return fmt.Errorf("failed to fetch repository details for '%s' from API: %w", repoName, apiErr)
+					return nil, fmt.Errorf("failed to fetch repository details for '%s' from API: %w", repoName, apiErr)
 				}
 				if storeErr := store.StoreRepositories(tx, []*github.Repository{repo}); storeErr != nil {
-					return fmt.Errorf("failed to store fetched repository details: %w", storeErr)
+					return nil, fmt.Errorf("failed to store fetched repository details: %w", storeErr)
 				}
 				// Retry storing the teams
 				if storeErr := store.StoreRepoTeams(tx, repoName, teams); storeErr != nil {
-					return fmt.Errorf("failed to store repository teams after fetching repository details: %w", storeErr)
+					return nil, fmt.Errorf("failed to store repository teams after fetching repository details: %w", storeErr)
 				}
 			} else {
-				return fmt.Errorf("failed to store repository teams for %s: %w", repoName, err)
+				return nil, fmt.Errorf("failed to store repository teams for %s: %w", repoName, err)
 			}
 		}
 
 		if err := tx.Commit(); err != nil {
-			return fmt.Errorf("failed to commit transaction for repo %s: %w", repoName, err)
+			return nil, fmt.Errorf("failed to commit transaction for repo %s: %w", repoName, err)
 		}
 	}
 
 	if opts.Stdout {
 		if err := printJSON(teams); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return nil
+	return teams, nil
 }
 
 // PullAllReposUsers iterates all repositories and fetches their direct collaborators.
@@ -452,9 +454,17 @@ func PullAllReposUsers(ctx context.Context, client *github.Client, db *sql.DB, o
 
 		baseOpts := opts
 		baseOpts.Resume = resumeState
+		baseOpts.Stdout = false // suppress per-repo output; aggregated output is printed after the loop
 
-		if err := PullRepoUsers(ctx, client, db, org, repoName, baseOpts); err != nil {
+		users, err := PullRepoUsers(ctx, client, db, org, repoName, baseOpts)
+		if err != nil {
 			return fmt.Errorf("failed to fetch repository users for %s: %w", repoName, err)
+		}
+		if opts.Stdout {
+			stdoutPayload = append(stdoutPayload, struct {
+				Repo  string         `json:"repo"`
+				Users []*github.User `json:"users"`
+			}{Repo: repoName, Users: users})
 		}
 
 		if resumeState.Endpoint == "repos-users" && resumeRepoIndex >= 0 && idx == resumeRepoIndex {
@@ -528,9 +538,17 @@ func PullAllReposTeams(ctx context.Context, client *github.Client, db *sql.DB, o
 
 		baseOpts := opts
 		baseOpts.Resume = resumeState
+		baseOpts.Stdout = false // suppress per-repo output; aggregated output is printed after the loop
 
-		if err := PullRepoTeams(ctx, client, db, org, repoName, baseOpts); err != nil {
+		teams, err := PullRepoTeams(ctx, client, db, org, repoName, baseOpts)
+		if err != nil {
 			return fmt.Errorf("failed to fetch repository teams for %s: %w", repoName, err)
+		}
+		if opts.Stdout {
+			stdoutPayload = append(stdoutPayload, struct {
+				Repo  string         `json:"repo"`
+				Teams []*github.Team `json:"teams"`
+			}{Repo: repoName, Teams: teams})
 		}
 
 		if resumeState.Endpoint == "repos-teams" && resumeRepoIndex >= 0 && idx == resumeRepoIndex {
