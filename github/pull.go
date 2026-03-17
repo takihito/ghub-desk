@@ -454,6 +454,7 @@ func PullAllReposUsers(ctx context.Context, client *github.Client, db *sql.DB, o
 
 		baseOpts := opts
 		baseOpts.Resume = resumeState
+		baseOpts.Stdout = false // suppress per-repo output; aggregated output is printed after the loop
 
 		users, err := PullRepoUsers(ctx, client, db, org, repoName, baseOpts)
 		if err != nil {
@@ -537,6 +538,7 @@ func PullAllReposTeams(ctx context.Context, client *github.Client, db *sql.DB, o
 
 		baseOpts := opts
 		baseOpts.Resume = resumeState
+		baseOpts.Stdout = false // suppress per-repo output; aggregated output is printed after the loop
 
 		teams, err := PullRepoTeams(ctx, client, db, org, repoName, baseOpts)
 		if err != nil {
