@@ -3,7 +3,7 @@ module ghub-desk
 go 1.26.1
 
 require (
-	github.com/alecthomas/kong v1.14.0
+	github.com/alecthomas/kong v1.15.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.18.0
 	github.com/google/go-github/v55 v55.0.0
 	github.com/google/jsonschema-go v0.4.2
