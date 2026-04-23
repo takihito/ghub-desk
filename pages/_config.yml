@@ -1,0 +1,29 @@
+title: ghub-desk
+description: GitHub Organization Management CLI & MCP Server written in Go.
+remote_theme: pages-themes/slate@v0.2.0
+plugins:
+  - jekyll-remote-theme
+
+url: https://takihito.github.io
+baseurl: /ghub-desk
+
+nav:
+  - title: Home
+    url: /ghub-desk/
+  - title: Installation
+    url: /ghub-desk/installation
+  - title: Usage
+    url: /ghub-desk/usage
+  - title: MCP Server
+    url: /ghub-desk/mcp-server
+  - title: 日本語
+    url: /ghub-desk/ja/
+  - title: GitHub
+    url: https://github.com/takihito/ghub-desk
+
+defaults:
+  - scope:
+      path: "*"
+    values:
+      layout: default
+      render_with_liquid: false
