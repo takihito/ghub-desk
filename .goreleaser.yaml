@@ -47,14 +47,12 @@ signs:
   - id: cosign
     artifacts: checksum
     cmd: cosign
+    signature: "${artifact}.bundle"
     args:
       - sign-blob
       - --yes
-      - --output-signature=${artifact}.sig
-      - --output-certificate=${artifact}.pem
+      - --bundle=${artifact}.bundle
       - ${artifact}
-    env:
-      - COSIGN_EXPERIMENTAL=1
 
 release:
   github:
