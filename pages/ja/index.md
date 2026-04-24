@@ -62,7 +62,7 @@ ghub-desk push add --team-user my-team/octocat --exec
 
 ## 技術スタック
 
-- **言語:** Go 1.24+
+- **言語:** Go 1.26.1
 - **データベース:** SQLite（オフラインキャッシュ）
 - **MCP:** [modelcontextprotocol/go-sdk](https://github.com/modelcontextprotocol/go-sdk)
 - **対応プラットフォーム:** macOS, Linux, Windows

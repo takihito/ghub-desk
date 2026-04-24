@@ -62,7 +62,7 @@ ghub-desk push add --team-user my-team/octocat --exec
 
 ## Technology
 
-- **Language:** Go 1.24+
+- **Language:** Go 1.26.1+
 - **Database:** SQLite (offline cache)
 - **MCP:** [modelcontextprotocol/go-sdk](https://github.com/modelcontextprotocol/go-sdk)
 - **Platforms:** macOS, Linux, Windows

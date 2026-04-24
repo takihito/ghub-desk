@@ -51,7 +51,7 @@ fi
 VERSION="${1:-${GHUB_DESK_VERSION:-}}"
 if [ -z "$VERSION" ]; then
   echo "Fetching latest version..."
-  VERSION="$(curl -sSL "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')"
+  VERSION="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')"
   if [ -z "$VERSION" ]; then
     echo "Error: failed to fetch latest version"
     exit 1
@@ -59,19 +59,25 @@ if [ -z "$VERSION" ]; then
 fi
 echo "Version: $VERSION"
 
+# Normalize version tag: ensure leading 'v' for release URL
+case "$VERSION" in
+  v*) VERSION_TAG="$VERSION" ;;
+  *)  VERSION_TAG="v${VERSION}" ;;
+esac
+
 # Strip leading 'v' for artifact name (tag: v0.2.3 -> artifact: 0.2.3)
-VERSION_NUM="${VERSION#v}"
+VERSION_NUM="${VERSION_TAG#v}"
 
 # Download to temp directory
 ARTIFACT="ghub-desk_${VERSION_NUM}_${OS}_${ARCH}.tar.gz"
 CHECKSUMS="checksums.txt"
-BASE_URL="https://github.com/${REPO}/releases/download/${VERSION}"
+BASE_URL="https://github.com/${REPO}/releases/download/${VERSION_TAG}"
 WORK="$(mktemp -d 2>/dev/null || mktemp -d -t ghub-desk)"
 trap 'rm -rf "$WORK"' EXIT
 
 echo "Downloading ${ARTIFACT}..."
-curl -sSL -o "${WORK}/${ARTIFACT}" "${BASE_URL}/${ARTIFACT}"
-curl -sSL -o "${WORK}/${CHECKSUMS}" "${BASE_URL}/${CHECKSUMS}"
+curl -fsSL -o "${WORK}/${ARTIFACT}" "${BASE_URL}/${ARTIFACT}"
+curl -fsSL -o "${WORK}/${CHECKSUMS}" "${BASE_URL}/${CHECKSUMS}"
 
 # Verify checksum
 echo "Verifying checksum..."

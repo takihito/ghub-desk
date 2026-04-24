@@ -71,7 +71,9 @@ ghub-desk view --all-repos-teams
 ghub-desk view --team-repos team-slug
 
 # ユーザーがアクセスできるリポジトリと権限
-# (事前に pull --repos-users, --repos-teams, --team-users が必要)
+# (事前に pull --repos-users <repo> または --all-repos-users,
+#         pull --repos-teams <repo>,
+#         pull --team-user <team-slug> または --all-teams-users が必要)
 ghub-desk view --user-repos user-login
 
 # マスク済み設定値の確認

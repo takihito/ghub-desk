@@ -43,15 +43,18 @@ mcp:
 
 ### view_* (常時利用可能)
 
-ローカル SQLite を参照。最大 200 件（チームメンバーは 500 件）を返します。
+ローカル SQLite を参照して結果を返します。現状の実装では件数上限は適用されておらず、返却件数はキャッシュされているデータ量に依存します。
 
 | ツール名 | 説明 | 入力 |
 |---|---|---|
 | `view_users` | 組織ユーザー一覧 | なし |
 | `view_detail-users` | 詳細ユーザー | なし |
+| `view_user` | 単一ユーザーのプロフィール | `{ "user": "github-login" }` |
+| `view_user-teams` | ユーザーが所属するチーム | `{ "user": "github-login" }` |
 | `view_teams` | チーム情報 | なし |
 | `view_repos` | リポジトリ情報 | なし |
 | `view_team-user` | 指定チームのメンバー | `{ "team": "team-slug" }` |
+| `view_team-repos` | チームがアクセスできるリポジトリ | `{ "team": "team-slug" }` |
 | `view_repos-users` | リポジトリの直接コラボレーター | `{ "repository": "repo-name" }` |
 | `view_repos-teams` | リポジトリに紐づくチーム | `{ "repository": "repo-name" }` |
 | `view_repos-teams-users` | リポジトリに紐づくチームのメンバー | `{ "repository": "repo-name" }` |
@@ -76,6 +79,7 @@ GitHub API を呼び出し、SQLite を更新します。共通オプション: 
 | ツール名 | 説明 | 必須入力 |
 |---|---|---|
 | `pull_users` | 組織ユーザー取得 | なし |
+| `pull_detail-users` | 詳細ユーザー情報取得 | なし |
 | `pull_teams` | チーム一覧取得 | なし |
 | `pull_repositories` | リポジトリ一覧取得 | なし |
 | `pull_team-user` | チームメンバー取得 | `team` |

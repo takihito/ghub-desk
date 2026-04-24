@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## プロジェクト概要
 
-ghub-desk は Go 1.24+ で書かれた GitHub 組織管理 CLI および MCP（Model Context Protocol）サーバー。GitHub API 経由で組織のメンバー・チーム・リポジトリを管理し、SQLite にキャッシュする。MCP サーバーは同等の機能を stdio 経由で LLM/エージェントに提供する。
+ghub-desk は `go.mod` で定義された Go バージョンを前提とする GitHub 組織管理 CLI および MCP（Model Context Protocol）サーバー。GitHub API 経由で組織のメンバー・チーム・リポジトリを管理し、SQLite にキャッシュする。MCP サーバーは同等の機能を stdio 経由で LLM/エージェントに提供する。
 
 ## ビルド・開発コマンド
 
@@ -12,7 +12,7 @@ ghub-desk は Go 1.24+ で書かれた GitHub 組織管理 CLI および MCP（M
 make build              # ./build/ghub-desk にバイナリ生成
 make test               # 全テスト実行（認証用環境変数はクリアされる）
 make deps               # go mod tidy && go mod download
-make dev ARGS="pull --store --users"  # 任意引数で実行
+make dev ARGS="pull --users"  # 任意引数で実行
 make install            # $GOBIN にインストール
 make clean              # ビルド成果物と ghub-desk.db を削除
 make goreleaser_build   # GoReleaser のローカルビルド確認

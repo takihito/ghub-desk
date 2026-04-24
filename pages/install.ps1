@@ -21,13 +21,16 @@ if (-not $Version) {
 }
 Write-Host "Version: $Version"
 
+# Normalize version tag: ensure leading 'v' for release URL
+$VersionTag = if ($Version.StartsWith('v')) { $Version } else { "v$Version" }
+
 # Strip leading 'v' for artifact name (tag: v0.2.3 -> artifact: 0.2.3)
-$VersionNum = $Version.TrimStart('v')
+$VersionNum = $VersionTag.TrimStart('v')
 
 # Download
 $Artifact = "ghub-desk_${VersionNum}_Windows_${Arch}.tar.gz"
 $Checksums = "checksums.txt"
-$BaseUrl = "https://github.com/$Repo/releases/download/$Version"
+$BaseUrl = "https://github.com/$Repo/releases/download/$VersionTag"
 $TmpDir = Join-Path ([System.IO.Path]::GetTempPath()) "ghub-desk-install-$(Get-Random)"
 New-Item -ItemType Directory -Path $TmpDir -Force | Out-Null
 
@@ -38,7 +41,7 @@ try {
 
     # Verify checksum
     Write-Host "Verifying checksum..."
-    $Expected = (Get-Content "$TmpDir\$Checksums" | Select-String "  $Artifact$").ToString().Split(" ")[0]
+    $Expected = (Get-Content "$TmpDir\$Checksums" | Select-String "  $Artifact$").ToString().Split(" ")[0].ToLower()
     $Actual = (Get-FileHash "$TmpDir\$Artifact" -Algorithm SHA256).Hash.ToLower()
     if ($Expected -ne $Actual) {
         Write-Error "Checksum mismatch: expected $Expected, got $Actual"

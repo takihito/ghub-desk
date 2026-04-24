@@ -71,7 +71,9 @@ ghub-desk view --all-repos-teams
 ghub-desk view --team-repos team-slug
 
 # List repositories a user can access with permission details
-# (requires: pull --repos-users, --repos-teams, --team-users)
+# (requires: pull --all-repos-users or --repos-users <repo>,
+#            pull --repos-teams <repo>,
+#            and pull --all-teams-users or --team-user <team-slug>)
 ghub-desk view --user-repos user-login
 
 # Review masked configuration values

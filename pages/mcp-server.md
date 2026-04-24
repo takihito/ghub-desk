@@ -44,15 +44,18 @@ When omitted, both default to `false`.
 
 ### view_* (always available)
 
-Read from the local SQLite database. Returns up to 200 records (team membership: up to 500).
+Read from the local SQLite database. Results reflect the data currently cached in SQLite; the current MCP implementation does not enforce a fixed per-tool record limit.
 
 | Tool | Description | Input |
 |---|---|---|
 | `view_users` | List organization members | none |
 | `view_detail-users` | Detailed member view | none |
+| `view_user` | Show a single user profile | `{ "user": "github-login" }` |
+| `view_user-teams` | Teams a user belongs to | `{ "user": "github-login" }` |
 | `view_teams` | List organization teams | none |
 | `view_repos` | List repositories | none |
 | `view_team-user` | Members of a specific team | `{ "team": "team-slug" }` |
+| `view_team-repos` | Repositories a team can access | `{ "team": "team-slug" }` |
 | `view_repos-users` | Direct collaborators for a repository | `{ "repository": "repo-name" }` |
 | `view_repos-teams` | Team permissions for a repository | `{ "repository": "repo-name" }` |
 | `view_repos-teams-users` | Members of teams linked to a repository | `{ "repository": "repo-name" }` |
@@ -77,6 +80,7 @@ Call the GitHub API and update SQLite. Common optional inputs: `no_store` (bool)
 | Tool | Description | Required input |
 |---|---|---|
 | `pull_users` | Fetch organization members | none |
+| `pull_detail-users` | Fetch detailed member info | none |
 | `pull_teams` | Fetch teams | none |
 | `pull_repositories` | Fetch repositories | none |
 | `pull_team-user` | Fetch members of one team | `team` |
