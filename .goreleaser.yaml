@@ -47,6 +47,7 @@ signs:
   - id: cosign
     artifacts: checksum
     cmd: cosign
+    signature: "${artifact}.bundle"
     args:
       - sign-blob
       - --yes
