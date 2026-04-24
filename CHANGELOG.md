@@ -1,5 +1,53 @@
 # Changelog
 
+## [v0.2.4](https://github.com/takihito/ghub-desk/compare/v0.2.3...v0.2.4) - 2026-04-24
+- update  .github/copilot-instructions.md by @takihito in https://github.com/takihito/ghub-desk/pull/112
+- Bump sigstore/cosign-installer from 3.9.1 to 4.0.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/111
+- Bump github/codeql-action from 4.32.0 to 4.32.1 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/110
+- Bump Songmu/tagpr from 1.12.1 to 1.15.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/109
+- Bump modernc.org/sqlite from 1.44.3 to 1.45.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/114
+- Bump step-security/harden-runner from 2.14.1 to 2.14.2 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/115
+- Bump github.com/mattn/go-sqlite3 from 1.14.33 to 1.14.34 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/116
+- Bump golang.org/x/oauth2 from 0.34.0 to 0.35.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/117
+- Bump github.com/modelcontextprotocol/go-sdk from 1.2.0 to 1.3.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/118
+- Bump github.com/alecthomas/kong from 1.13.0 to 1.14.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/119
+- Bump github/codeql-action from 4.32.1 to 4.32.2 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/120
+- Bump github/codeql-action from 4.32.2 to 4.32.3 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/121
+- Bump Songmu/tagpr from 1.15.0 to 1.17.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/122
+- Bump goreleaser/goreleaser-action from 6.4.0 to 7.0.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/124
+- Bump actions/dependency-review-action from 4.8.2 to 4.8.3 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/125
+- Bump modernc.org/sqlite from 1.45.0 to 1.46.1 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/127
+- Bump github.com/cloudflare/circl from 1.6.1 to 1.6.3 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/128
+- Bump step-security/harden-runner from 2.14.2 to 2.15.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/129
+- version 1.26.1 by @takihito in https://github.com/takihito/ghub-desk/pull/134
+- Bump github.com/modelcontextprotocol/go-sdk from 1.3.0 to 1.4.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/130
+- Bump Songmu/tagpr from 1.17.0 to 1.17.1 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/131
+- Bump github/codeql-action from 4.32.3 to 4.32.5 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/132
+- Bump golang.org/x/oauth2 from 0.35.0 to 0.36.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/133
+- Implement suppoet for fb review by @takihito in https://github.com/takihito/ghub-desk/pull/135
+- Bump step-security/harden-runner from 2.15.0 to 2.16.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/136
+- Bump github.com/mattn/go-sqlite3 from 1.14.34 to 1.14.37 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/137
+- Bump sigstore/cosign-installer from 4.0.0 to 4.1.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/138
+- Bump github.com/bradleyfalzon/ghinstallation/v2 from 2.17.0 to 2.18.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/139
+- Bump actions/dependency-review-action from 4.8.3 to 4.9.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/143
+- Bump actions/upload-artifact from 6.0.0 to 7.0.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/144
+- Bump sigstore/cosign-installer from 4.1.0 to 4.1.1 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/147
+- Bump actions/setup-go from 6.2.0 to 6.4.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/149
+- Bump github/codeql-action from 4.32.5 to 4.35.1 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/151
+- Bump modernc.org/sqlite from 1.46.1 to 1.48.1 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/152
+- Bump github.com/alecthomas/kong from 1.14.0 to 1.15.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/153
+- Bump github.com/mattn/go-sqlite3 from 1.14.37 to 1.14.41 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/154
+- Bump github.com/modelcontextprotocol/go-sdk from 1.4.1 to 1.5.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/156
+- Bump actions/upload-artifact from 7.0.0 to 7.0.1 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/157
+- Bump goreleaser/goreleaser-action from 7.0.0 to 7.1.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/160
+- Bump step-security/harden-runner from 2.16.0 to 2.19.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/161
+- Bump modernc.org/sqlite from 1.48.1 to 1.49.1 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/162
+- feat(pages): add GitHub Pages content for gh-pages deployment by @takihito in https://github.com/takihito/ghub-desk/pull/165
+- Bump github/codeql-action from 4.35.1 to 4.35.2 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/163
+- GitHub Pages deployment workflow by @takihito in https://github.com/takihito/ghub-desk/pull/166
+- fix(ci): correct jekyll-build-pages commit hash in static.yml by @takihito in https://github.com/takihito/ghub-desk/pull/167
+- Bump Songmu/tagpr from 1.17.1 to 1.18.3 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/164
+
 ## [v0.2.3](https://github.com/takihito/ghub-desk/compare/v0.2.2...v0.2.3) - 2026-01-30
 - update  .github/workflows by @takihito in https://github.com/takihito/ghub-desk/pull/107
 
