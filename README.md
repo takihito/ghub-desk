@@ -138,7 +138,7 @@ export GHUB_DESK_PRIVATE_KEY="$(cat /path/to/private-key.pem)" # Full PEM string
 
 `GHUB_DESK_PRIVATE_KEY` must contain the entire private key text (including `-----BEGIN ...` and `-----END ...`). Set it directly via the environment or load it as a multi-line string in the config file.
 
-### Example config file (~/.config/ghub-desk/config.yaml)
+### Example config file (~/.ghub-desk/config.yaml)
 
 ```yaml
 organization: "your-org"
@@ -303,7 +303,7 @@ mcp:
 `init` exposes subcommands for configuring the application and preparing the database.
 
 ```bash
-# Create a config skeleton at the default location (~/.config/ghub-desk/config.yaml)
+# Create a config skeleton at the default location (~/.ghub-desk/config.yaml)
 ./ghub-desk init config
 
 # Create a config file at a custom path (missing directories are created automatically)

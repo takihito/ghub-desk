@@ -205,13 +205,35 @@ func ResolveConfigPath(customPath string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("could not get user home directory: %w", err)
 	}
-	return filepath.Join(home, ".config", AppName, "config.yaml"), nil
+	return filepath.Join(home, "."+AppName, "config.yaml"), nil
 }
 
 // DefaultSessionPath returns the default session file location.
 func DefaultSessionPath() string {
 	if home, err := os.UserHomeDir(); err == nil && home != "" {
-		return filepath.Join(home, ".config", AppName, "session.json")
+		return filepath.Join(home, "."+AppName, "session.json")
 	}
 	return "session.json"
+}
+
+// LegacyConfigDirWarning returns a non-empty warning message when the old
+// configuration directory (~/.config/ghub-desk/) exists but the new one
+// (~/.ghub-desk/) does not, indicating the user has not yet migrated.
+func LegacyConfigDirWarning() string {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return ""
+	}
+	legacy := filepath.Join(home, ".config", AppName)
+	if _, err := os.Stat(legacy); os.IsNotExist(err) {
+		return ""
+	}
+	newDir := filepath.Join(home, "."+AppName)
+	if _, err := os.Stat(newDir); err == nil {
+		return ""
+	}
+	return fmt.Sprintf(
+		"warning: configuration directory has moved to %s\n  to migrate run: mv %s %s\n",
+		newDir, legacy, newDir,
+	)
 }

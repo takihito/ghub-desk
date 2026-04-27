@@ -17,7 +17,7 @@
 > 以前のスタブモードは廃止され、標準ビルドでそのまま go-sdk MCP サーバーを利用できます。
 
 ## 設定例
-`~/.config/ghub-desk/config.yaml`
+`~/.ghub-desk/config.yaml`
 
 ```yaml
 organization: "your-org"
@@ -151,7 +151,7 @@ Gemini や Codex などの AI エージェントから MCP サーバーを利用
         "mcp",
         "--debug",
         "--config",
-        "/home/takihito/.config/ghub-desk/config.yaml"
+        "/home/takihito/.ghub-desk/config.yaml"
       ],
       "transport": "stdio",
       "retry": {
@@ -176,7 +176,7 @@ args = [
   "mcp",
   "--debug",
   "--config",
-  "/home/takihito/.config/ghub-desk/config.yaml"
+  "/home/takihito/.ghub-desk/config.yaml"
 ]
 ```
 

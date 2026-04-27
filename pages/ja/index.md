@@ -31,7 +31,7 @@ curl -sSL https://takihito.github.io/ghub-desk/install.sh | sh
 
 # 設定ファイルのひな形を作成
 ghub-desk init config
-# ~/.config/ghub-desk/config.yaml を編集して組織名とトークンを設定
+# ~/.ghub-desk/config.yaml を編集して組織名とトークンを設定
 
 # データベースを初期化
 ghub-desk init db

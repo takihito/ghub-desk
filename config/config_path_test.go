@@ -23,7 +23,7 @@ func TestResolveConfigPath_Default(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveConfigPath(\"\") error = %v", err)
 	}
-	want := filepath.Join(td, ".config", AppName, "config.yaml")
+	want := filepath.Join(td, "."+AppName, "config.yaml")
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}

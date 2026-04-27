@@ -83,7 +83,7 @@ sudo cp build/ghub-desk /usr/local/bin/
 ghub-desk init config
 ```
 
-`~/.config/ghub-desk/config.yaml` を編集してください:
+`~/.ghub-desk/config.yaml` を編集してください:
 
 ```yaml
 organization: "your-org"

@@ -83,7 +83,7 @@ Use this document when you need to reason about how the MCP server is configured
 calling tools or resources.
 
 ## Launch checklist
-1. Provide organization plus either github_token or the GitHub App block inside ~/.config/ghub-desk/config.yaml.
+1. Provide organization plus either github_token or the GitHub App block inside ~/.ghub-desk/config.yaml.
 2. Set mcp.allow_pull (enables pull_*) and mcp.allow_write (enables push_*).
 3. Optionally point database_path or GHUB_DESK_DB_PATH to a writable location shared with the CLI.
 4. Start the server with: ghub-desk mcp --debug --config /path/to/config.yaml.

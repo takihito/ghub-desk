@@ -31,7 +31,7 @@ curl -sSL https://takihito.github.io/ghub-desk/install.sh | sh
 
 # Create a config skeleton
 ghub-desk init config
-# Edit ~/.config/ghub-desk/config.yaml with your org and token
+# Edit ~/.ghub-desk/config.yaml with your org and token
 
 # Initialize the database
 ghub-desk init db

@@ -215,7 +215,7 @@ type InitDBCmd struct {
 
 // InitConfigCmd creates a configuration file from the example template
 type InitConfigCmd struct {
-	TargetFile string `name:"target-file" type:"path" help:"Destination config file path (default: ~/.config/ghub-desk/config.yaml)"`
+	TargetFile string `name:"target-file" type:"path" help:"Destination config file path (default: ~/.ghub-desk/config.yaml)"`
 }
 
 //go:embed config_template.yaml
@@ -267,6 +267,10 @@ func Execute() (io.Writer, func(), error) {
 			logCloser.Close()
 		}
 	}
+	if w := config.LegacyConfigDirWarning(); w != "" {
+		fmt.Fprint(os.Stderr, w)
+	}
+
 	// Preload config once for commands that require GitHub access.
 	// Keep view/init/version free from config requirement.
 	cmdPath := ctx.Command()

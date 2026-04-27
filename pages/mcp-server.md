@@ -18,7 +18,7 @@ make build
 
 ## Configuration
 
-`~/.config/ghub-desk/config.yaml`
+`~/.ghub-desk/config.yaml`
 
 ```yaml
 organization: "your-org"
@@ -120,7 +120,7 @@ Call `resources/list` then `resources/read` to retrieve usage guides before invo
   "mcpServers": {
     "ghub-desk": {
       "command": "/path/to/ghub-desk",
-      "args": ["mcp", "--debug", "--config", "~/.config/ghub-desk/config.yaml"],
+      "args": ["mcp", "--debug", "--config", "~/.ghub-desk/config.yaml"],
       "transport": "stdio"
     }
   }
