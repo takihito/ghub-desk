@@ -2,9 +2,17 @@
 
 GitHub Organization Management CLI & MCP Server
 
-[Read this document in Japanese](README.ja.md)
+[Read this document in Japanese](README.ja.md) | [Documentation](https://takihito.github.io/ghub-desk/)
 
 **Author:** Takeda Akihito
+
+## Documentation
+
+Full documentation is available at **https://takihito.github.io/ghub-desk/**
+
+- [Installation](https://takihito.github.io/ghub-desk/installation)
+- [Usage / Command reference](https://takihito.github.io/ghub-desk/usage)
+- [MCP server](https://takihito.github.io/ghub-desk/mcp-server)
 
 ## Overview
 

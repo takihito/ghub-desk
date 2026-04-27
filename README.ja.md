@@ -2,7 +2,7 @@
 
 GitHub Organization Management CLI & MCP Server
 
-[Read this document in English](README.md)
+[English](README.md) | [ドキュメント](https://takihito.github.io/ghub-desk/ja/)
 
 **Author:** Takeda Akihito
 
@@ -61,6 +61,14 @@ sudo cp build/ghub-desk /usr/local/bin/
 ```
 
 ローカルで改修する際は `make test` を先に実行しておくことを推奨します。
+
+## ドキュメント
+
+詳細なドキュメントは **https://takihito.github.io/ghub-desk/ja/** で公開しています。
+
+- [インストール](https://takihito.github.io/ghub-desk/ja/installation)
+- [使い方 / コマンドリファレンス](https://takihito.github.io/ghub-desk/ja/usage)
+- [MCP サーバー](https://takihito.github.io/ghub-desk/ja/mcp-server)
 
 ## 概要
 
