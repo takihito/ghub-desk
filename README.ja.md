@@ -8,7 +8,38 @@ GitHub Organization Management CLI & MCP Server
 
 ## インストール
 
+### インストールスクリプト（推奨）
+
+**Linux / macOS:**
+
+```bash
+curl -sSL https://takihito.github.io/ghub-desk/install.sh | sh
+```
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://takihito.github.io/ghub-desk/install.ps1 | iex
+```
+
+最新バージョンを自動検出し、チェックサムを検証して `~/.local/bin` にインストールします。`sudo` 不要。
+
+`~/.local/bin` が `PATH` に含まれていない場合は、シェルのプロファイル（`~/.bashrc`, `~/.zshrc` など）に以下を追加してください:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+インストール先を変更する場合:
+
+```bash
+curl -sSL https://takihito.github.io/ghub-desk/install.sh | GHUB_DESK_INSTALL_DIR=/usr/local/bin sh
+```
+
+詳細なインストール手順は [インストールガイド](https://takihito.github.io/ghub-desk/ja/installation) を参照してください。
+
 ### `go install`
+
 Go 1.24 以降が入っている環境で `go install` を使うと `$GOBIN`（既定は `$GOPATH/bin`）に最新版が配置されます。
 
 ```bash
@@ -16,26 +47,6 @@ GO111MODULE=on go install github.com/takihito/ghub-desk@latest
 ```
 
 `$GOBIN` を `PATH` に通し、`ghub-desk version` でインストールを確認してください。
-
-### リリースアーカイブをダウンロード (curl)
-
-[Releases](https://github.com/takihito/ghub-desk/releases) からプラットフォーム別バイナリを取得できます。事前に `VERSION` を好みのリリースタグへ設定してから実行してください。
-
-
-```bash
-# 事前に VERSION をリリースタグへ設定してください（例: export VERSION=0.2.0）
-OS=${OS:-Darwin}            # Darwin / Linux / Windows
-ARCH=${ARCH:-arm64}         # arm64 / x86_64
-ARTIFACT="ghub-desk_${VERSION}_${OS}_${ARCH}.tar.gz"
-
-curl -L -o "${ARTIFACT}" \
-  "https://github.com/takihito/ghub-desk/releases/download/v${VERSION}/${ARTIFACT}"
-# SHA256_FROM_RELEASE をリリースページ記載の値へ差し替えて検証
-echo "SHA256_FROM_RELEASE  ${ARTIFACT}" | shasum -a 256 --check
-sudo tar -xzf "${ARTIFACT}" -C /usr/local/bin ghub-desk
-```
-
-プラットフォームごとのアーティファクト名と SHA-256 はリリースページに記載されています。Windows ではアーカイブ展開後に `ghub-desk.exe` を `%PATH%` 上へ配置してください。新しいバージョンへ更新する際は `VERSION` を入れ替えるだけで同じ手順を再利用できます。
 
 ### ソースからビルド
 
