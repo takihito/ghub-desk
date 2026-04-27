@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.2.5](https://github.com/takihito/ghub-desk/compare/v0.2.4...v0.2.5) - 2026-04-24
+- Feature/cosign by @takihito in https://github.com/takihito/ghub-desk/pull/168
+
 ## [v0.2.4](https://github.com/takihito/ghub-desk/compare/v0.2.3...v0.2.4) - 2026-04-24
 - update  .github/copilot-instructions.md by @takihito in https://github.com/takihito/ghub-desk/pull/112
 - Bump sigstore/cosign-installer from 3.9.1 to 4.0.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/111
