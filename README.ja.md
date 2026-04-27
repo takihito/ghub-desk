@@ -217,6 +217,8 @@ mcp:
 
 ### auditlogs
 
+`--user` は必須です。
+
 ```bash
 # --created は直近 30 日を既定とする
 ./ghub-desk auditlogs --user user-login
@@ -236,8 +238,11 @@ mcp:
 # 組織内のリポジトリを指定して絞り込み
 ./ghub-desk auditlogs --user user-login --repo repo-name
 
-# 1ページの取得件数を指定（最大100）
+# 1ページの取得件数を指定（最大100、デフォルト100）
 ./ghub-desk auditlogs --user user-login --per-page 50
+
+# 出力形式を変更（table | json | yaml）
+./ghub-desk auditlogs --user user-login --format json
 ```
 
 ### push

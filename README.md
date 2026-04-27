@@ -217,6 +217,8 @@ mcp:
 
 ### auditlogs
 
+`--user` is required.
+
 ```bash
 # --created defaults to 30 days ago
 ./ghub-desk auditlogs --user user-login
@@ -236,8 +238,11 @@ mcp:
 # Filter by repository within the org
 ./ghub-desk auditlogs --user user-login --repo repo-name
 
-# Limit per-page entries (max 100)
+# Limit per-page entries (max 100, default 100)
 ./ghub-desk auditlogs --user user-login --per-page 50
+
+# Change output format (table | json | yaml)
+./ghub-desk auditlogs --user user-login --format json
 ```
 
 ### push

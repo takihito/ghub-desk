@@ -120,7 +120,7 @@ ghub-desk push remove --repos-user repo-name/username --exec
 
 ## auditlogs — 監査ログを取得
 
-特定ユーザーの組織監査ログを取得します。
+特定ユーザーの組織監査ログを取得します。`--user` は必須です。
 
 ```bash
 # デフォルト: 直近 30 日
@@ -129,17 +129,23 @@ ghub-desk auditlogs --user user-login
 # 単一日付
 ghub-desk auditlogs --user user-login --created 2025-01-01
 
-# 日付範囲
-ghub-desk auditlogs --user user-login --created "2025-01-01..2025-01-31"
-
 # 指定日以降
 ghub-desk auditlogs --user user-login --created ">=2025-01-01"
+
+# 指定日以前
+ghub-desk auditlogs --user user-login --created "<=2025-01-01"
+
+# 日付範囲
+ghub-desk auditlogs --user user-login --created "2025-01-01..2025-01-31"
 
 # リポジトリで絞り込み
 ghub-desk auditlogs --user user-login --repo repo-name
 
-# 1 ページの取得件数を指定（最大 100）
+# 1 ページの取得件数を指定（最大 100、デフォルト 100）
 ghub-desk auditlogs --user user-login --per-page 50
+
+# 出力形式を変更（table | json | yaml）
+ghub-desk auditlogs --user user-login --format json
 ```
 
 ## init — 設定とデータベースを初期化
