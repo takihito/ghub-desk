@@ -2,9 +2,17 @@
 
 GitHub Organization Management CLI & MCP Server
 
-[Read this document in Japanese](README.ja.md)
+[Read this document in Japanese](README.ja.md) | [Documentation](https://takihito.github.io/ghub-desk/)
 
 **Author:** Takeda Akihito
+
+## Documentation
+
+Full documentation is available at **https://takihito.github.io/ghub-desk/**
+
+- [Installation](https://takihito.github.io/ghub-desk/installation)
+- [Usage / Command reference](https://takihito.github.io/ghub-desk/usage)
+- [MCP server](https://takihito.github.io/ghub-desk/mcp-server)
 
 ## Overview
 
@@ -18,34 +26,45 @@ GitHub Organization Management CLI & MCP Server
 
 ## Installation
 
+### Install script (recommended)
+
+**Linux / macOS:**
+
+```bash
+curl -sSL https://takihito.github.io/ghub-desk/install.sh | sh
+```
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://takihito.github.io/ghub-desk/install.ps1 | iex
+```
+
+Automatically detects the latest version, verifies checksums, and installs to `~/.local/bin` on Linux/macOS or `%LOCALAPPDATA%\ghub-desk\bin` on Windows. No `sudo` required.
+
+If `~/.local/bin` is not in your `PATH`, add the following to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.):
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+To install to a different directory:
+
+```bash
+curl -sSL https://takihito.github.io/ghub-desk/install.sh | GHUB_DESK_INSTALL_DIR=/usr/local/bin sh
+```
+
+For full installation options, see the [Installation guide](https://takihito.github.io/ghub-desk/installation).
+
 ### `go install`
-Use the Go toolchain (1.24 or later) to install the latest tagged release into your `$GOBIN` (defaults to `$GOPATH/bin`).
+
+Use the Go toolchain (1.26.1 or later) to install the latest tagged release into your `$GOBIN` (defaults to `$GOPATH/bin`).
 
 ```bash
 GO111MODULE=on go install github.com/takihito/ghub-desk@latest
 ```
 
-Ensure `$GOBIN` is on your `$PATH`, then run `ghub-desk version` to confirm the installation.
-
-### Download release archives (curl)
-
-Pre-built binaries are published on the [releases page](https://github.com/takihito/ghub-desk/releases). Pick a version tag and export it before running the commands below:
-
-```
-# Set VERSION to a release tag before running these commands, for example:
-# export VERSION=0.2.0
-OS=${OS:-Darwin}            # Darwin, Linux, or Windows
-ARCH=${ARCH:-arm64}         # arm64 or x86_64
-ARTIFACT="ghub-desk_${VERSION}_${OS}_${ARCH}.tar.gz"
-
-curl -L -o "${ARTIFACT}" \
-  "https://github.com/takihito/ghub-desk/releases/download/v${VERSION}/${ARTIFACT}"
-# Replace SHA256_FROM_RELEASE with the checksum published for your artifact
-echo "SHA256_FROM_RELEASE  ${ARTIFACT}" | shasum -a 256 --check
-sudo tar -xzf "${ARTIFACT}" -C /usr/local/bin ghub-desk
-```
-
-Look up the artifact name and checksum that match your platform on the releases page. On Windows, extract the archive and place `ghub-desk.exe` somewhere on your `%PATH%`. Updating to future versions only requires changing `VERSION`.
+Ensure `$GOBIN` is on your `$PATH`, then run `ghub-desk version` to confirm.
 
 ### Build from source
 
@@ -217,6 +236,8 @@ mcp:
 
 ### auditlogs
 
+`--user` is required.
+
 ```bash
 # --created defaults to 30 days ago
 ./ghub-desk auditlogs --user user-login
@@ -236,8 +257,11 @@ mcp:
 # Filter by repository within the org
 ./ghub-desk auditlogs --user user-login --repo repo-name
 
-# Limit per-page entries (max 100)
+# Limit per-page entries (max 100, default 100)
 ./ghub-desk auditlogs --user user-login --per-page 50
+
+# Change output format (table | json | yaml)
+./ghub-desk auditlogs --user user-login --format json
 ```
 
 ### push
