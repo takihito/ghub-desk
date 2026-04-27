@@ -40,7 +40,7 @@ curl -sSL https://takihito.github.io/ghub-desk/install.sh | sh
 irm https://takihito.github.io/ghub-desk/install.ps1 | iex
 ```
 
-Automatically detects the latest version, verifies checksums, and installs to `~/.local/bin`. No `sudo` required.
+Automatically detects the latest version, verifies checksums, and installs to `~/.local/bin` on Linux/macOS or `%LOCALAPPDATA%\ghub-desk\bin` on Windows. No `sudo` required.
 
 If `~/.local/bin` is not in your `PATH`, add the following to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.):
 
@@ -58,7 +58,7 @@ For full installation options, see the [Installation guide](https://takihito.git
 
 ### `go install`
 
-Use the Go toolchain (1.24 or later) to install the latest tagged release into your `$GOBIN` (defaults to `$GOPATH/bin`).
+Use the Go toolchain (1.26.1 or later) to install the latest tagged release into your `$GOBIN` (defaults to `$GOPATH/bin`).
 
 ```bash
 GO111MODULE=on go install github.com/takihito/ghub-desk@latest

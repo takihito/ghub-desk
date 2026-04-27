@@ -22,9 +22,9 @@ curl -sSL https://takihito.github.io/ghub-desk/install.sh | sh
 irm https://takihito.github.io/ghub-desk/install.ps1 | iex
 ```
 
-最新バージョンを自動検出し、チェックサムを検証して `~/.local/bin` にインストールします。`sudo` 不要。
+最新バージョンを自動検出し、チェックサムを検証してインストールします。既定のインストール先は Linux / macOS では `~/.local/bin`、Windows では `%LOCALAPPDATA%\ghub-desk\bin` です。`sudo` 不要。
 
-`~/.local/bin` が `PATH` に含まれていない場合は、シェルのプロファイル（`~/.bashrc`, `~/.zshrc` など）に以下を追加してください:
+Linux / macOS で `~/.local/bin` が `PATH` に含まれていない場合は、シェルのプロファイル（`~/.bashrc`, `~/.zshrc` など）に以下を追加してください:
 
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
@@ -40,7 +40,7 @@ curl -sSL https://takihito.github.io/ghub-desk/install.sh | GHUB_DESK_INSTALL_DI
 
 ### `go install`
 
-Go 1.24 以降が入っている環境で `go install` を使うと `$GOBIN`（既定は `$GOPATH/bin`）に最新版が配置されます。
+Go 1.26.1 以降が入っている環境で `go install` を使うと `$GOBIN`（既定は `$GOPATH/bin`）に最新版が配置されます。
 
 ```bash
 GO111MODULE=on go install github.com/takihito/ghub-desk@latest
