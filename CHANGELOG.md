@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.2.6](https://github.com/takihito/ghub-desk/compare/v0.2.5...v0.2.6) - 2026-04-28
+- docs(auditlogs): add missing options to command reference by @takihito in https://github.com/takihito/ghub-desk/pull/170
+- chore(config): move config dir to ~/.ghub-desk/ by @takihito in https://github.com/takihito/ghub-desk/pull/172
+- refactor(github): remove unused token param; fix Go version in docs by @takihito in https://github.com/takihito/ghub-desk/pull/173
+
 ## [v0.2.5](https://github.com/takihito/ghub-desk/compare/v0.2.4...v0.2.5) - 2026-04-24
 - Feature/cosign by @takihito in https://github.com/takihito/ghub-desk/pull/168
 
