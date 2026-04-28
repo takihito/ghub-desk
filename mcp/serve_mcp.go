@@ -1775,7 +1775,7 @@ func doPull(ctx context.Context, cfg *appcfg.Config, target string, opts gh.Pull
 	if opts.Interval <= 0 {
 		opts.Interval = defaultPullInterval
 	}
-	return gh.HandlePullTarget(ctx, client, db, cfg.Organization, req, cfg.GitHubToken, opts)
+	return gh.HandlePullTarget(ctx, client, db, cfg.Organization, req, opts)
 }
 
 func doPushAdd(ctx context.Context, cfg *appcfg.Config, target, value, permission string, storeResult bool) error {

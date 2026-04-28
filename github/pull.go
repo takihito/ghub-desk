@@ -75,12 +75,12 @@ func (opts PullOptions) ForEndpoint(endpoint string, metadata map[string]string)
 }
 
 // HandlePullTarget processes different types of pull targets (users, teams, repos, team_users)
-func HandlePullTarget(ctx context.Context, client *github.Client, db *sql.DB, org string, req TargetRequest, token string, opts PullOptions) error {
+func HandlePullTarget(ctx context.Context, client *github.Client, db *sql.DB, org string, req TargetRequest, opts PullOptions) error {
 	switch req.Kind {
 	case "users":
 		return PullUsers(ctx, client, db, org, opts)
 	case "detail-users":
-		return PullDetailUsers(ctx, client, db, org, token, opts)
+		return PullDetailUsers(ctx, client, db, org, opts)
 	case "teams":
 		return PullTeams(ctx, client, db, org, opts)
 	case "repos":
@@ -194,7 +194,7 @@ func PullUsers(ctx context.Context, client *github.Client, db *sql.DB, org strin
 }
 
 // PullDetailUsers fetches organization members with detailed information and optionally stores them in database
-func PullDetailUsers(ctx context.Context, client *github.Client, db *sql.DB, org, token string, opts PullOptions) error {
+func PullDetailUsers(ctx context.Context, client *github.Client, db *sql.DB, org string, opts PullOptions) error {
 	localOpts := opts.ForEndpoint("detail-users", nil)
 
 	// First, fetch all basic user info to get the list of logins.

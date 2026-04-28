@@ -75,4 +75,3 @@ go test ./config -run ^TestGetConfig$
 - **PR**: 目安 400 行以内。概要・関連 Issue（`Closes #123`）・テスト結果を含める
 - **テスト**: 標準 `testing` パッケージ使用。テーブル駆動推奨。ソースと同じパッケージに `*_test.go` として配置
 - **依存追加**: `go get` で追加後、`make deps` で go.mod/go.sum を更新
-- **作業ログ**: `work-logs/YYYYMMDD.log` に作業内容を記録すること
