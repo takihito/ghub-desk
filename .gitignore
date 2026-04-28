@@ -4,6 +4,7 @@
 # Build artifacts
 /build/
 ghub-desk
+.ghub-desk/
 
 # IDE and editor files
 .vscode/
@@ -54,6 +55,9 @@ dist/
 
 # AGENTS.md
 AGENTS.md
+
+# CLAUDE
+.claude
 
 # Reflection issues (local process notes, not part of the repo)
 issues/
