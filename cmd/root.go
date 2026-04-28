@@ -267,8 +267,10 @@ func Execute() (io.Writer, func(), error) {
 			logCloser.Close()
 		}
 	}
-	if w := config.LegacyConfigDirWarning(); w != "" {
-		fmt.Fprint(os.Stderr, w)
+	if cli.ConfigPath == "" {
+		if w := config.LegacyConfigDirWarning(); w != "" {
+			fmt.Fprint(os.Stderr, w)
+		}
 	}
 
 	// Preload config once for commands that require GitHub access.
