@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"ghub-desk/config"
 	"io"
 	"os"
 	"path/filepath"
@@ -53,7 +54,7 @@ func Path() string {
 	if override != "" {
 		return override
 	}
-	return defaultSessionPath()
+	return config.DefaultSessionPath()
 }
 
 // NewPullSession constructs a new pull session with the provided key and target.
@@ -199,11 +200,4 @@ func SetPath(path string) {
 		}
 	}
 	customPath = cleaned
-}
-
-func defaultSessionPath() string {
-	if home, err := os.UserHomeDir(); err == nil && home != "" {
-		return filepath.Join(home, ".config", "ghub-desk", "session.json")
-	}
-	return "session.json"
 }

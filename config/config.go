@@ -205,13 +205,40 @@ func ResolveConfigPath(customPath string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("could not get user home directory: %w", err)
 	}
-	return filepath.Join(home, ".config", AppName, "config.yaml"), nil
+	return filepath.Join(home, "."+AppName, "config.yaml"), nil
 }
 
 // DefaultSessionPath returns the default session file location.
 func DefaultSessionPath() string {
 	if home, err := os.UserHomeDir(); err == nil && home != "" {
-		return filepath.Join(home, ".config", AppName, "session.json")
+		return filepath.Join(home, "."+AppName, "session.json")
 	}
 	return "session.json"
+}
+
+// LegacyConfigDirWarning returns a non-empty warning message when a config.yaml
+// definitely exists at the old location (~/.config/ghub-desk/config.yaml) but
+// is definitely absent from the new one (~/.ghub-desk/config.yaml), indicating
+// the user has not yet migrated. Checking config.yaml specifically avoids false
+// negatives caused by the new directory being created incidentally (e.g. by
+// session.json writes). Any stat error other than ErrNotExist is treated
+// conservatively: no warning is emitted.
+func LegacyConfigDirWarning() string {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return ""
+	}
+	legacyConfig := filepath.Join(home, ".config", AppName, "config.yaml")
+	if _, err := os.Stat(legacyConfig); err != nil {
+		return "" // legacy config definitely absent or unreadable
+	}
+	newConfig := filepath.Join(home, "."+AppName, "config.yaml")
+	if _, err := os.Stat(newConfig); !os.IsNotExist(err) {
+		return "" // new config exists or status unknown
+	}
+	newDir := filepath.Join(home, "."+AppName)
+	return fmt.Sprintf(
+		"warning: configuration directory has moved to %s\n  to migrate run: mkdir -p %s && cp %s %s\n",
+		newDir, newDir, legacyConfig, newConfig,
+	)
 }

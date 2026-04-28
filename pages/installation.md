@@ -83,7 +83,7 @@ After installation, create a config skeleton:
 ghub-desk init config
 ```
 
-Edit `~/.config/ghub-desk/config.yaml`:
+Edit `~/.ghub-desk/config.yaml`:
 
 ```yaml
 organization: "your-org"

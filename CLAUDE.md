@@ -32,8 +32,8 @@ go test ./config -run ^TestGetConfig$
 - **`cmd/`** — Kong による CLI コマンド定義とハンドラ（`pull`, `view`, `push`, `auditlogs`, `init`, `version`, `mcp`）
 - **`github/`** — GitHub API クライアント（PAT または GitHub App 認証）、pull/push ハンドラ
 - **`store/`** — SQLite CRUD、バッチ挿入、ビュークエリ、出力フォーマット（table/JSON/YAML）
-- **`config/`** — `~/.config/ghub-desk/config.yaml` + 環境変数からの設定読込と検証
-- **`session/`** — 長時間の pull 操作用のレジューム状態管理（`~/.config/ghub-desk/session.json`）
+- **`config/`** — `~/.ghub-desk/config.yaml` + 環境変数からの設定読込と検証
+- **`session/`** — 長時間の pull 操作用のレジューム状態管理（`~/.ghub-desk/session.json`）
 - **`mcp/`** — MCP サーバー: ツール登録、権限チェック、ドキュメントリソース（`mcp/docs.go` に埋め込み、`docs/` ではない）
 - **`auditlog/`** — 監査ログの取得とパース（日付/リポジトリフィルタ対応）
 - **`validate/`** — ユーザー名・チームスラッグ・リポジトリ名の正規表現バリデーション（MCP の JSON Schema にも流用）

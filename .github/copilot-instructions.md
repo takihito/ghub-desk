@@ -13,7 +13,7 @@ Project: ghub-desk (GitHub organization management CLI + MCP server).
 
 ## Configuration
 - Auth uses either a PAT (`GHUB_DESK_GITHUB_TOKEN`) or GitHub App settings (choose one).
-- Config file example lives at `~/.config/ghub-desk/config.yaml`.
+- Config file example lives at `~/.ghub-desk/config.yaml`.
 - Database defaults to `./ghub-desk.db`; override with `database_path`.
 
 ## Core Commands

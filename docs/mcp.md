@@ -17,7 +17,7 @@
 > The previous stub mode has been removed. The standard build now serves the go-sdk MCP server directly.
 
 ## Configuration Example
-`~/.config/ghub-desk/config.yaml`
+`~/.ghub-desk/config.yaml`
 
 ```yaml
 organization: "your-org"
@@ -116,7 +116,7 @@ Add the `ghub-desk` MCP server to the `mcpServers` section of `~/.gemini/setting
         "mcp",
         "--debug",
         "--config",
-        "/home/takihito/.config/ghub-desk/config.yaml"
+        "/home/takihito/.ghub-desk/config.yaml"
       ],
       "transport": "stdio",
       "retry": {
@@ -138,7 +138,7 @@ args = [
   "mcp",
   "--debug",
   "--config",
-  "/home/takihito/.config/ghub-desk/config.yaml"
+  "/home/takihito/.ghub-desk/config.yaml"
 ]
 ```
 
