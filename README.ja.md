@@ -388,5 +388,5 @@ make test
 
 ## 対応プラットフォーム
 
-- Go 1.24+
+- Go 1.26.1+
 - macOS, Linux, Windows

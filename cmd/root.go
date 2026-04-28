@@ -435,7 +435,6 @@ func (p *PullCmd) Run(cli *CLI) error {
 		db,
 		cfg.Organization,
 		req,
-		cfg.GitHubToken,
 		pullOptions,
 	)
 
