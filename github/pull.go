@@ -3,7 +3,6 @@ package github
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -170,7 +169,7 @@ func syncAll[T any](
 
 	// 3. Output to stdout if requested.
 	if opts.Stdout {
-		if err := printJSON(allItems); err != nil {
+		if err := store.PrintJSON(allItems); err != nil {
 			return nil, err
 		}
 	}
@@ -239,7 +238,7 @@ func PullDetailUsers(ctx context.Context, client *github.Client, db *sql.DB, org
 			return fmt.Errorf("failed to clear users table: %w", err)
 		}
 
-		if err := store.StoreUsersWithDetails(tx, detailedUsersList); err != nil {
+		if err := store.StoreUsers(tx, detailedUsersList); err != nil {
 			return fmt.Errorf("failed to store detailed users: %w", err)
 		}
 
@@ -249,7 +248,7 @@ func PullDetailUsers(ctx context.Context, client *github.Client, db *sql.DB, org
 	}
 
 	if opts.Stdout {
-		if err := printJSON(detailedUsersList); err != nil {
+		if err := store.PrintJSON(detailedUsersList); err != nil {
 			return err
 		}
 	}
@@ -327,7 +326,7 @@ func PullRepoUsers(ctx context.Context, client *github.Client, db *sql.DB, org, 
 	}
 
 	if opts.Stdout {
-		if err := printJSON(users); err != nil {
+		if err := store.PrintJSON(users); err != nil {
 			return nil, err
 		}
 	}
@@ -390,7 +389,7 @@ func PullRepoTeams(ctx context.Context, client *github.Client, db *sql.DB, org, 
 	}
 
 	if opts.Stdout {
-		if err := printJSON(teams); err != nil {
+		if err := store.PrintJSON(teams); err != nil {
 			return nil, err
 		}
 	}
@@ -474,7 +473,7 @@ func PullAllReposUsers(ctx context.Context, client *github.Client, db *sql.DB, o
 	}
 
 	if opts.Stdout {
-		if err := printJSON(stdoutPayload); err != nil {
+		if err := store.PrintJSON(stdoutPayload); err != nil {
 			return err
 		}
 	}
@@ -558,7 +557,7 @@ func PullAllReposTeams(ctx context.Context, client *github.Client, db *sql.DB, o
 	}
 
 	if opts.Stdout {
-		if err := printJSON(stdoutPayload); err != nil {
+		if err := store.PrintJSON(stdoutPayload); err != nil {
 			return err
 		}
 	}
@@ -581,7 +580,7 @@ func PullTeamUsers(ctx context.Context, client *github.Client, db *sql.DB, org, 
 			Team:  teamSlug,
 			Users: users,
 		}
-		if err := printJSON(output); err != nil {
+		if err := store.PrintJSON(output); err != nil {
 			return err
 		}
 	}
@@ -737,7 +736,7 @@ func PullAllTeamsUsers(ctx context.Context, client *github.Client, db *sql.DB, o
 	fmt.Printf("Completed fetching users for all teams.\n")
 
 	if opts.Stdout {
-		if err := printJSON(stdoutResults); err != nil {
+		if err := store.PrintJSON(stdoutResults); err != nil {
 			return err
 		}
 	}
@@ -801,7 +800,7 @@ func PullTokenPermission(ctx context.Context, client *github.Client, db *sql.DB,
 			"rate_remaining":              rateRemaining,
 			"rate_reset":                  rateReset,
 		}
-		if err := printJSON(output); err != nil {
+		if err := store.PrintJSON(output); err != nil {
 			return err
 		}
 	}
@@ -937,15 +936,6 @@ func prepareResume(names []string, state ResumeState, endpoint, nameKey, indexKe
 	}
 
 	return ResumeState{}, -1, "", ""
-}
-
-func printJSON(v any) error {
-	data, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal stdout data: %w", err)
-	}
-	fmt.Println(string(data))
-	return nil
 }
 
 func sleepWithContext(ctx context.Context, d time.Duration) error {

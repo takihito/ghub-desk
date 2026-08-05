@@ -195,6 +195,63 @@ func validateConfig(cfg *Config) error {
 	return nil
 }
 
+// MaskedGitHubApp mirrors GitHubApp with the private key masked for display.
+type MaskedGitHubApp struct {
+	AppID          int64  `json:"app_id" yaml:"app_id"`
+	InstallationID int64  `json:"installation_id" yaml:"installation_id"`
+	PrivateKey     string `json:"private_key" yaml:"private_key"`
+}
+
+// MaskedMCP mirrors MCPConfig for display purposes.
+type MaskedMCP struct {
+	AllowPull  bool `json:"allow_pull" yaml:"allow_pull"`
+	AllowWrite bool `json:"allow_write" yaml:"allow_write"`
+}
+
+// Masked mirrors Config with secrets replaced by masked placeholders, safe to print or return.
+type Masked struct {
+	Organization string          `json:"organization" yaml:"organization"`
+	GitHubToken  string          `json:"github_token" yaml:"github_token"`
+	GitHubApp    MaskedGitHubApp `json:"github_app" yaml:"github_app"`
+	MCP          MaskedMCP       `json:"mcp" yaml:"mcp"`
+	DatabasePath string          `json:"database_path" yaml:"database_path"`
+	SessionPath  string          `json:"session_path" yaml:"session_path"`
+}
+
+// MaskSecret trims s and replaces it with a masked placeholder, retaining the last 4
+// characters when long enough to remain useful for confirming which value is configured.
+func MaskSecret(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	if len(s) > 8 {
+		return "[masked]…" + s[len(s)-4:]
+	}
+	return "[masked]"
+}
+
+// Mask returns a copy of cfg with secrets masked, safe for display or MCP tool output.
+func Mask(cfg *Config) Masked {
+	if cfg == nil {
+		return Masked{}
+	}
+	out := Masked{
+		Organization: cfg.Organization,
+		GitHubToken:  MaskSecret(cfg.GitHubToken),
+		DatabasePath: cfg.DatabasePath,
+		SessionPath:  cfg.SessionPath,
+	}
+	out.GitHubApp.AppID = cfg.GitHubApp.AppID
+	out.GitHubApp.InstallationID = cfg.GitHubApp.InstallationID
+	if cfg.GitHubApp.PrivateKey != "" {
+		out.GitHubApp.PrivateKey = "[masked PEM]"
+	}
+	out.MCP.AllowPull = cfg.MCP.AllowPull
+	out.MCP.AllowWrite = cfg.MCP.AllowWrite
+	return out
+}
+
 // ResolveConfigPath returns the config file path given a custom path or the default location.
 func ResolveConfigPath(customPath string) (string, error) {
 	if customPath != "" {

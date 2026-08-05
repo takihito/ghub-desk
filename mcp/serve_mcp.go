@@ -466,14 +466,13 @@ func Serve(ctx context.Context, cfg *appcfg.Config, debug bool, debugWriter io.W
 	})
 
 	// view_settings (masked configuration)
-	sdk.AddTool[struct{}, ViewSettingsOut](srv, &sdk.Tool{
+	sdk.AddTool[struct{}, appcfg.Masked](srv, &sdk.Tool{
 		Name:        "view_settings",
 		Title:       "View Masked Settings",
 		Description: "Show application configuration with secrets masked, useful for confirming MCP permissions. Usage: " + docsToolsURI + "#view_settings.",
 		InputSchema: &jsonschema.Schema{Type: "object"},
-	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewSettingsOut, error) {
-		out := maskConfig(cfg)
-		return nil, out, nil
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, appcfg.Masked, error) {
+		return nil, appcfg.Mask(cfg), nil
 	})
 
 	// view_token-permission
@@ -1215,7 +1214,7 @@ func listRepoUsers(repoName string) (ViewRepoUsersOut, error) {
 		out.Users = append(out.Users, RepoUser{
 			UserID:     entry.UserID,
 			Login:      entry.Login,
-			Permission: normalizePermissionValue(entry.Permission),
+			Permission: store.NormalizePermission(entry.Permission),
 		})
 	}
 
@@ -1301,7 +1300,7 @@ func listRepoTeams(repoName string) (ViewRepoTeamsOut, error) {
 			ID:          entry.ID,
 			Slug:        entry.Slug,
 			Name:        entry.Name,
-			Permission:  normalizePermissionValue(entry.Permission),
+			Permission:  store.NormalizePermission(entry.Permission),
 			Privacy:     entry.Privacy,
 			Description: entry.Description,
 		})
@@ -1329,7 +1328,7 @@ func listRepoTeamsUsers(repoName string) (ViewRepoTeamsUsersOut, error) {
 	for _, e := range entries {
 		out.Members = append(out.Members, RepoTeamUser{
 			TeamSlug:       e.TeamSlug,
-			TeamPermission: normalizePermissionValue(e.TeamPermission),
+			TeamPermission: store.NormalizePermission(e.TeamPermission),
 			UserLogin:      e.UserLogin,
 			Role:           e.Role,
 			Name:           e.Name,
@@ -1359,7 +1358,7 @@ func listTeamRepositories(teamSlug string) (ViewTeamReposOut, error) {
 		out.Repositories = append(out.Repositories, TeamRepository{
 			RepoName:    entry.RepoName,
 			FullName:    entry.FullName,
-			Permission:  normalizePermissionValue(entry.Permission),
+			Permission:  store.NormalizePermission(entry.Permission),
 			Privacy:     entry.Privacy,
 			Description: entry.Description,
 		})
@@ -1437,7 +1436,7 @@ func listAllRepositoriesUsers() ([]AllReposUsersEntry, error) {
 			FullName:   entry.FullName,
 			UserLogin:  entry.UserLogin,
 			UserName:   entry.UserName,
-			Permission: normalizePermissionValue(entry.Permission),
+			Permission: store.NormalizePermission(entry.Permission),
 		})
 	}
 
@@ -1477,7 +1476,7 @@ func listAllRepositoriesTeams() ([]AllReposTeamsEntry, error) {
 			FullName:    entry.FullName,
 			TeamSlug:    entry.TeamSlug,
 			TeamName:    entry.TeamName,
-			Permission:  normalizePermissionValue(entry.Permission),
+			Permission:  store.NormalizePermission(entry.Permission),
 			Privacy:     entry.Privacy,
 			Description: entry.Description,
 		})
@@ -1524,52 +1523,6 @@ func listUserRepositories(userLogin string) (ViewUserReposOut, error) {
 	}
 
 	return ViewUserReposOut{User: cleanLogin, Repositories: output}, nil
-}
-
-type ViewSettingsOut struct {
-	Organization string `json:"organization"`
-	GitHubToken  string `json:"github_token"`
-	GitHubApp    struct {
-		AppID          int64  `json:"app_id"`
-		InstallationID int64  `json:"installation_id"`
-		PrivateKey     string `json:"private_key"`
-	} `json:"github_app"`
-	MCP struct {
-		AllowPull  bool `json:"allow_pull"`
-		AllowWrite bool `json:"allow_write"`
-	} `json:"mcp"`
-	DatabasePath string `json:"database_path"`
-	SessionPath  string `json:"session_path"`
-}
-
-func maskConfig(cfg *appcfg.Config) ViewSettingsOut {
-	if cfg == nil {
-		return ViewSettingsOut{}
-	}
-	var out ViewSettingsOut
-	out.Organization = cfg.Organization
-	out.GitHubToken = maskSecret(cfg.GitHubToken)
-	out.DatabasePath = cfg.DatabasePath
-	out.SessionPath = cfg.SessionPath
-	out.GitHubApp.AppID = cfg.GitHubApp.AppID
-	out.GitHubApp.InstallationID = cfg.GitHubApp.InstallationID
-	if cfg.GitHubApp.PrivateKey != "" {
-		out.GitHubApp.PrivateKey = "[masked PEM]"
-	}
-	out.MCP.AllowPull = cfg.MCP.AllowPull
-	out.MCP.AllowWrite = cfg.MCP.AllowWrite
-	return out
-}
-
-func maskSecret(s string) string {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return ""
-	}
-	if len(s) > 8 {
-		return "[masked]…" + s[len(s)-4:]
-	}
-	return "[masked]"
 }
 
 type ViewOutsideUsersOut struct {
@@ -1738,7 +1691,7 @@ func resolvePushAddInput(in PushAddIn) (string, string, string, error) {
 		return "team-user", fmt.Sprintf("%s/%s", teamSlug, userName), "", nil
 	}
 
-	perm, err := normalizeOutsidePermission(in.Permission)
+	perm, err := v.NormalizeOutsidePermission(in.Permission)
 	if err != nil {
 		return "", "", "", err
 	}
@@ -1884,52 +1837,4 @@ func doPushRemove(ctx context.Context, cfg *appcfg.Config, target, value string,
 		return fmt.Errorf("db sync: %w", err)
 	}
 	return nil
-}
-
-var permissionPriority = []string{"admin", "maintain", "push", "triage", "pull"}
-
-func normalizePermissionValue(p string) string {
-	return strings.ToLower(strings.TrimSpace(p))
-}
-
-func permissionRank(p string) int {
-	for idx, key := range permissionPriority {
-		if p == key {
-			return idx
-		}
-	}
-	return len(permissionPriority)
-}
-
-func maxPermission(current, candidate string) string {
-	currentNorm := normalizePermissionValue(current)
-	candidateNorm := normalizePermissionValue(candidate)
-
-	if candidateNorm == "" {
-		return currentNorm
-	}
-	if currentNorm == "" {
-		return candidateNorm
-	}
-	if permissionRank(candidateNorm) < permissionRank(currentNorm) {
-		return candidateNorm
-	}
-	return currentNorm
-}
-
-func normalizeOutsidePermission(p string) (string, error) {
-	trimmed := strings.TrimSpace(p)
-	if trimmed == "" {
-		return "", nil
-	}
-	switch val := strings.ToLower(trimmed); val {
-	case "pull", "push", "admin":
-		return val, nil
-	case "read":
-		return "pull", nil
-	case "write":
-		return "push", nil
-	default:
-		return "", fmt.Errorf("invalid permission for outside collaborator: choose from pull, push, admin (aliases: read, write)")
-	}
 }

@@ -50,18 +50,5 @@ func validateRepoUserPair(s string) (repo string, user string, err error) {
 }
 
 func validateOutsidePermission(s string) (string, error) {
-	trimmed := strings.TrimSpace(s)
-	if trimmed == "" {
-		return "", nil
-	}
-	switch val := strings.ToLower(trimmed); val {
-	case "pull", "push", "admin":
-		return val, nil
-	case "read":
-		return "pull", nil
-	case "write":
-		return "push", nil
-	default:
-		return "", fmt.Errorf("invalid permission for outside collaborator: choose from pull, push, admin (aliases: read, write)")
-	}
+	return v.NormalizeOutsidePermission(s)
 }

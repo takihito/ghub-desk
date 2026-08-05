@@ -280,6 +280,12 @@ func normalizePermissionValue(p string) string {
 	return strings.ToLower(strings.TrimSpace(p))
 }
 
+// NormalizePermission trims surrounding whitespace and lowercases a permission string.
+// Exported for reuse by callers outside this package (e.g. mcp) that display stored permissions.
+func NormalizePermission(p string) string {
+	return normalizePermissionValue(p)
+}
+
 // resolvedCollaboratorPermission extracts and normalizes the highest permission for a repository collaborator.
 func resolvedCollaboratorPermission(u *github.User) string {
 	if u == nil {
@@ -370,12 +376,6 @@ func StoreUsers(db DBTX, users []*github.User) error {
 		return fmt.Errorf("failed to insert users: %w", err)
 	}
 	return nil
-}
-
-// StoreUsersWithDetails stores GitHub users with detailed information
-// This function expects that detailed user information has already been fetched by the caller
-func StoreUsersWithDetails(db DBTX, users []*github.User) error {
-	return StoreUsers(db, users)
 }
 
 // StoreTeams stores GitHub teams in the database
