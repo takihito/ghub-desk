@@ -120,7 +120,7 @@ func HandleViewTarget(db *sql.DB, req TargetRequest, opts ViewOptions) error {
 	}
 }
 
-// printTableHeader prints a tab-separated header row followed by a matching underline row.
+// PrintTableHeader prints a tab-separated header row followed by a matching underline row.
 // Example: PrintTableHeader("ID", "Login") outputs:
 // ID	Login
 // --	-----

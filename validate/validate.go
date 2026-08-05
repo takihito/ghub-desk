@@ -84,8 +84,8 @@ func ValidateRepoName(s string) error {
 }
 
 // NormalizeOutsidePermission validates and normalizes a permission string for outside
-// collaborators. Empty input is allowed and returned as-is. Aliases read->pull and write->push
-// are supported for convenience.
+// collaborators. Empty (or whitespace-only) input is allowed and returns an empty string.
+// Aliases read->pull and write->push are supported for convenience.
 func NormalizeOutsidePermission(s string) (string, error) {
 	trimmed := strings.TrimSpace(s)
 	if trimmed == "" {
