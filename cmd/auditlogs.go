@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"ghub-desk/auditlog"
 	ghubgithub "ghub-desk/github"
@@ -101,7 +100,7 @@ func renderAuditLogEntries(entries []*gh.AuditEntry, format string) error {
 }
 
 func printAuditLogTable(entries []*gh.AuditEntry) {
-	printAuditLogTableHeader("Timestamp", "Action", "Actor", "Repo", "User", "IP")
+	store.PrintTableHeader("Timestamp", "Action", "Actor", "Repo", "User", "IP")
 
 	for _, entry := range entries {
 		fmt.Printf("%s\t%s\t%s\t%s\t%s\t%s\n",
@@ -113,23 +112,6 @@ func printAuditLogTable(entries []*gh.AuditEntry) {
 			entry.GetActorIP(),
 		)
 	}
-}
-
-func printAuditLogTableHeader(columns ...string) {
-	if len(columns) == 0 {
-		return
-	}
-	fmt.Println(strings.Join(columns, "\t"))
-
-	under := make([]string, len(columns))
-	for i, col := range columns {
-		width := utf8.RuneCountInString(col)
-		if width <= 0 {
-			width = 1
-		}
-		under[i] = strings.Repeat("-", width)
-	}
-	fmt.Println(strings.Join(under, "\t"))
 }
 
 func formatAuditLogTimestamp(entry *gh.AuditEntry) string {

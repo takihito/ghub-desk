@@ -7,7 +7,7 @@ import (
 
 	"ghub-desk/config"
 
-	_ "github.com/mattn/go-sqlite3" // Import sqlite3 driver
+	_ "modernc.org/sqlite" // Import sqlite driver
 )
 
 func TestHandlePullTarget_UnknownTarget(t *testing.T) {
@@ -17,7 +17,7 @@ func TestHandlePullTarget_UnknownTarget(t *testing.T) {
 		t.Fatalf("InitClient failed: %v", err)
 	}
 
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("Failed to open db: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestHandlePullTarget_ValidTargets(t *testing.T) {
 		t.Fatalf("InitClient failed: %v", err)
 	}
 
-	db, err := sql.Open("sqlite3", ":memory:")
+	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("Failed to open db: %v", err)
 	}

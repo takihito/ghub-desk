@@ -136,43 +136,6 @@ func TestStoreUsers(t *testing.T) {
 	}
 }
 
-func TestStoreUsersWithDetails(t *testing.T) {
-	// Create test database
-	db, err := sql.Open("sqlite", ":memory:")
-	if err != nil {
-		t.Fatalf("Failed to open test database: %v", err)
-	}
-	defer db.Close()
-
-	err = createTables(db)
-	if err != nil {
-		t.Fatalf("Failed to create tables: %v", err)
-	}
-
-	// We can't easily test this function without a real GitHub client
-	// because it makes actual API calls to fetch detailed user information
-	// This test would require mocking the GitHub API client
-
-	// Create test users
-	users := []*github.User{
-		{
-			ID:    github.Int64(1),
-			Login: github.String("testuser1"),
-		},
-	}
-
-	// Since we can't create a GitHub client without importing the github package
-	// (which would cause import cycle), we'll skip the actual function test
-	// and just test that we can create the test data structure
-	if len(users) != 1 {
-		t.Errorf("Expected 1 test user, got %d", len(users))
-	}
-
-	// The actual StoreUsersWithDetails function is tested indirectly
-	// through integration tests or by refactoring to accept interfaces
-	t.Log("StoreUsersWithDetails requires GitHub client - test structure validated")
-}
-
 func TestStoreTeams(t *testing.T) {
 	// Create test database
 	db, err := sql.Open("sqlite", ":memory:")

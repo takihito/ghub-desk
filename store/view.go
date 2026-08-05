@@ -120,11 +120,11 @@ func HandleViewTarget(db *sql.DB, req TargetRequest, opts ViewOptions) error {
 	}
 }
 
-// printTableHeader prints a tab-separated header row followed by a matching underline row.
-// Example: printTableHeader("ID", "Login") outputs:
+// PrintTableHeader prints a tab-separated header row followed by a matching underline row.
+// Example: PrintTableHeader("ID", "Login") outputs:
 // ID	Login
 // --	-----
-func printTableHeader(columns ...string) {
+func PrintTableHeader(columns ...string) {
 	if len(columns) == 0 {
 		return
 	}
@@ -149,7 +149,7 @@ func ViewUsers(db *sql.DB, format OutputFormat) error {
 	}
 
 	tableFn := func() error {
-		printTableHeader("ID", "Login", "Name", "Email", "Company", "Location")
+		PrintTableHeader("ID", "Login", "Name", "Email", "Company", "Location")
 
 		for _, record := range records {
 			fmt.Printf("%d\t%s\t%s\t%s\t%s\t%s\n",
@@ -194,7 +194,7 @@ func ViewUser(db *sql.DB, userLogin string, format OutputFormat) error {
 	}
 
 	tableFn := func() error {
-		printTableHeader("ID", "Login", "Name", "Email", "Company", "Location", "Created At", "Updated At")
+		PrintTableHeader("ID", "Login", "Name", "Email", "Company", "Location", "Created At", "Updated At")
 
 		normalize := func(s string) string {
 			if s == "" {
@@ -227,7 +227,7 @@ func ViewTeams(db *sql.DB, format OutputFormat) error {
 	}
 
 	tableFn := func() error {
-		printTableHeader("ID", "Slug", "Name", "Description", "Privacy")
+		PrintTableHeader("ID", "Slug", "Name", "Description", "Privacy")
 
 		for _, record := range records {
 			fmt.Printf("%d\t%s\t%s\t%s\t%s\n",
@@ -252,7 +252,7 @@ func ViewRepositories(db *sql.DB, format OutputFormat) error {
 	}
 
 	tableFn := func() error {
-		printTableHeader("ID", "Name", "Full Name", "Description", "Private", "Language", "Stars")
+		PrintTableHeader("ID", "Name", "Full Name", "Description", "Private", "Language", "Stars")
 
 		for _, record := range records {
 			fmt.Printf("%d\t%s\t%s\t%s\t%t\t%s\t%d\n",
@@ -293,7 +293,7 @@ func ViewRepoUsers(db *sql.DB, repoName string, format OutputFormat) error {
 
 	tableFn := func() error {
 		fmt.Printf("Repository: %s\n", repoDisplay)
-		printTableHeader("User ID", "Login")
+		PrintTableHeader("User ID", "Login")
 
 		for _, record := range viewRecords {
 			fmt.Printf("%d\t%s\n", record.UserID, record.Login)
@@ -321,7 +321,7 @@ func ViewRepoTeams(db *sql.DB, repoName string, format OutputFormat) error {
 
 	tableFn := func() error {
 		fmt.Printf("Repository: %s\n", repoDisplay)
-		printTableHeader("Team ID", "Slug", "Name", "Permission", "Privacy", "Description")
+		PrintTableHeader("Team ID", "Slug", "Name", "Permission", "Privacy", "Description")
 
 		for _, record := range records {
 			fmt.Printf("%d\t%s\t%s\t%s\t%s\t%s\n",
@@ -426,7 +426,7 @@ func ViewRepoTeamUsers(db *sql.DB, repoName string, format OutputFormat) error {
 
 	tableFn := func() error {
 		fmt.Printf("Repository: %s\n", repoDisplay)
-		printTableHeader("Team Slug", "Team Permission", "User Login", "Role", "Name", "Email", "Company", "Location")
+		PrintTableHeader("Team Slug", "Team Permission", "User Login", "Role", "Name", "Email", "Company", "Location")
 
 		for _, record := range records {
 			fmt.Printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
@@ -480,7 +480,7 @@ func ViewTeamRepositories(db *sql.DB, teamSlug string, format OutputFormat) erro
 
 	tableFn := func() error {
 		fmt.Printf("Team: %s\n", cleanSlug)
-		printTableHeader("Repo", "Full Name", "Permission", "Privacy", "Description")
+		PrintTableHeader("Repo", "Full Name", "Permission", "Privacy", "Description")
 
 		for _, entry := range entries {
 			repo := entry.RepoName
@@ -543,7 +543,7 @@ func ViewAllRepositoriesUsers(db *sql.DB, format OutputFormat) error {
 	}
 
 	tableFn := func() error {
-		printTableHeader("Repo", "Full Name", "User Login", "User Name", "Permission")
+		PrintTableHeader("Repo", "Full Name", "User Login", "User Name", "Permission")
 
 		for _, entry := range entries {
 			repo := entry.RepoName
@@ -598,7 +598,7 @@ func ViewAllRepositoriesTeams(db *sql.DB, format OutputFormat) error {
 	}
 
 	tableFn := func() error {
-		printTableHeader("Repo", "Full Name", "Team Slug", "Team Name", "Permission", "Privacy", "Description")
+		PrintTableHeader("Repo", "Full Name", "Team Slug", "Team Name", "Permission", "Privacy", "Description")
 
 		for _, entry := range entries {
 			repo := entry.RepoName
@@ -663,7 +663,7 @@ func ViewAllTeamsUsers(db *sql.DB, format OutputFormat) error {
 	}
 
 	tableFn := func() error {
-		printTableHeader("Team Slug", "Team Name", "User Login", "User Name", "Role")
+		PrintTableHeader("Team Slug", "Team Name", "User Login", "User Name", "Role")
 
 		for _, entry := range entries {
 			slug := entry.TeamSlug
@@ -721,7 +721,7 @@ func ViewUserTeams(db *sql.DB, userLogin string, format OutputFormat) error {
 
 	tableFn := func() error {
 		fmt.Printf("User: %s\n", cleanLogin)
-		printTableHeader("Team Slug", "Team Name", "Role")
+		PrintTableHeader("Team Slug", "Team Name", "Role")
 
 		for _, entry := range entries {
 			slug := entry.TeamSlug
@@ -779,7 +779,7 @@ func ViewUserRepositories(db *sql.DB, userLogin string, format OutputFormat) err
 
 	tableFn := func() error {
 		fmt.Printf("User: %s\n", cleanLogin)
-		printTableHeader("Repository", "Access From", "Permission")
+		PrintTableHeader("Repository", "Access From", "Permission")
 
 		for _, record := range entries {
 			joined := strings.Join(record.AccessFrom, ", ")
@@ -808,7 +808,7 @@ func ViewTeamUsers(db *sql.DB, teamSlug string, format OutputFormat) error {
 
 	tableFn := func() error {
 		fmt.Printf("Team: %s\n", teamSlug)
-		printTableHeader("User ID", "Login", "Role")
+		PrintTableHeader("User ID", "Login", "Role")
 
 		for _, record := range records {
 			fmt.Printf("%d\t%s\t%s\n", record.UserID, record.Login, record.Role)
@@ -869,7 +869,7 @@ func ViewOutsideUsers(db *sql.DB, format OutputFormat) error {
 
 	tableFn := func() error {
 		fmt.Println("Outside Collaborators:")
-		printTableHeader("ID", "Login", "Name", "Email", "Company", "Location")
+		PrintTableHeader("ID", "Login", "Name", "Email", "Company", "Location")
 
 		for _, record := range records {
 			fmt.Printf("%d\t%s\t%s\t%s\t%s\t%s\n",

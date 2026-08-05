@@ -83,6 +83,26 @@ func ValidateRepoName(s string) error {
 	return nil
 }
 
+// NormalizeOutsidePermission validates and normalizes a permission string for outside
+// collaborators. Empty (or whitespace-only) input is allowed and returns an empty string.
+// Aliases read->pull and write->push are supported for convenience.
+func NormalizeOutsidePermission(s string) (string, error) {
+	trimmed := strings.TrimSpace(s)
+	if trimmed == "" {
+		return "", nil
+	}
+	switch val := strings.ToLower(trimmed); val {
+	case "pull", "push", "admin":
+		return val, nil
+	case "read":
+		return "pull", nil
+	case "write":
+		return "push", nil
+	default:
+		return "", fmt.Errorf("invalid permission for outside collaborator: choose from pull, push, admin (aliases: read, write)")
+	}
+}
+
 // ParseRepoUserPair parses "{repository}/{user_name}" and validates both parts.
 func ParseRepoUserPair(s string) (repo string, user string, err error) {
 	parts := strings.Split(s, "/")
