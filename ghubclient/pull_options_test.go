@@ -1,4 +1,4 @@
-package github
+package ghubclient
 
 import (
 	"maps"

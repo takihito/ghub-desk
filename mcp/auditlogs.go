@@ -8,7 +8,7 @@ import (
 
 	"ghub-desk/auditlog"
 	appcfg "ghub-desk/config"
-	gh "ghub-desk/github"
+	"ghub-desk/ghubclient"
 	v "ghub-desk/validate"
 
 	ghapi "github.com/google/go-github/v55/github"
@@ -101,7 +101,7 @@ func registerAuditLogsTool(srv *sdk.Server, name string, cfg *appcfg.Config) {
 		if err != nil {
 			return &sdk.CallToolResult{}, AuditLogsOut{}, err
 		}
-		client, err := gh.InitClient(cfg)
+		client, err := ghubclient.InitClient(cfg)
 		if err != nil {
 			return &sdk.CallToolResult{}, AuditLogsOut{}, fmt.Errorf("github client init: %w", err)
 		}

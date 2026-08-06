@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"ghub-desk/config"
-	"ghub-desk/github"
+	"ghub-desk/ghubclient"
 	"ghub-desk/mcp"
 	"ghub-desk/session"
 	"ghub-desk/store"
@@ -307,7 +307,7 @@ func (p *PullCmd) Run(cli *CLI) error {
 	session.SetPath(cfg.SessionPath)
 
 	// Initialize GitHub client
-	client, err := github.InitClient(cfg)
+	client, err := ghubclient.InitClient(cfg)
 	if err != nil {
 		return fmt.Errorf("github client initialization error: %w", err)
 	}
@@ -337,7 +337,7 @@ func (p *PullCmd) Run(cli *CLI) error {
 		defer db.Close()
 	}
 
-	req := github.TargetRequest{Kind: target}
+	req := ghubclient.TargetRequest{Kind: target}
 	switch target {
 	case "team-user":
 		if err := validateTeamName(p.TeamUser); err != nil {
@@ -416,11 +416,11 @@ func (p *PullCmd) Run(cli *CLI) error {
 	}
 
 	recorder := session.NewProgressRecorder(pullSession)
-	pullOptions := github.PullOptions{
+	pullOptions := ghubclient.PullOptions{
 		Store:    storeData,
 		Stdout:   p.Stdout,
 		Interval: p.IntervalTime,
-		Resume: github.ResumeState{
+		Resume: ghubclient.ResumeState{
 			Endpoint: pullSession.Endpoint,
 			Metadata: pullSession.Metadata,
 			LastPage: pullSession.LastPage,
@@ -429,7 +429,7 @@ func (p *PullCmd) Run(cli *CLI) error {
 		Progress: recorder,
 	}
 
-	err = github.HandlePullTarget(
+	err = ghubclient.HandlePullTarget(
 		ctx,
 		client,
 		db,
@@ -460,7 +460,7 @@ func (p *PullCmd) Run(cli *CLI) error {
 	return nil
 }
 
-func buildPullSessionKey(target string, req github.TargetRequest, store bool, stdout bool, interval time.Duration) string {
+func buildPullSessionKey(target string, req ghubclient.TargetRequest, store bool, stdout bool, interval time.Duration) string {
 	parts := []string{target}
 	if req.TeamSlug != "" {
 		parts = append(parts, "team:"+req.TeamSlug)
@@ -638,7 +638,7 @@ func (r *RemoveCmd) Run(cli *CLI) error {
 	}
 
 	// Initialize GitHub client
-	client, err := github.InitClient(cfg)
+	client, err := ghubclient.InitClient(cfg)
 	if err != nil {
 		return fmt.Errorf("github client initialization error: %w", err)
 	}
@@ -646,7 +646,7 @@ func (r *RemoveCmd) Run(cli *CLI) error {
 
 	if r.Exec {
 		fmt.Printf("Executing: Remove %s '%s' from organization %s\n", target, targetValue, cfg.Organization)
-		err := github.ExecutePushRemove(ctx, client, cfg.Organization, target, targetValue)
+		err := ghubclient.ExecutePushRemove(ctx, client, cfg.Organization, target, targetValue)
 		if err != nil {
 			return fmt.Errorf("failed to execute remove: %w", err)
 		}
@@ -657,7 +657,7 @@ func (r *RemoveCmd) Run(cli *CLI) error {
 				return fmt.Errorf("failed to connect to database: %w", err)
 			}
 			defer db.Close()
-			if err := github.SyncPushRemove(ctx, client, db, cfg.Organization, target, targetValue); err != nil {
+			if err := ghubclient.SyncPushRemove(ctx, client, db, cfg.Organization, target, targetValue); err != nil {
 				return fmt.Errorf("failed to update local database: %w", err)
 			}
 		}
@@ -752,7 +752,7 @@ func (a *AddCmd) Run(cli *CLI) error {
 	}
 
 	// Initialize GitHub client
-	client, err := github.InitClient(cfg)
+	client, err := ghubclient.InitClient(cfg)
 	if err != nil {
 		return fmt.Errorf("github client initialization error: %w", err)
 	}
@@ -764,7 +764,7 @@ func (a *AddCmd) Run(cli *CLI) error {
 		} else {
 			fmt.Printf("Executing: Add %s '%s' to organization %s\n", target, targetValue, cfg.Organization)
 		}
-		err := github.ExecutePushAdd(ctx, client, cfg.Organization, target, targetValue, permission)
+		err := ghubclient.ExecutePushAdd(ctx, client, cfg.Organization, target, targetValue, permission)
 		if err != nil {
 			return fmt.Errorf("failed to execute add: %w", err)
 		}
@@ -775,7 +775,7 @@ func (a *AddCmd) Run(cli *CLI) error {
 				return fmt.Errorf("failed to connect to database: %w", err)
 			}
 			defer db.Close()
-			if err := github.SyncPushAdd(ctx, client, db, cfg.Organization, target, targetValue); err != nil {
+			if err := ghubclient.SyncPushAdd(ctx, client, db, cfg.Organization, target, targetValue); err != nil {
 				return fmt.Errorf("failed to update local database: %w", err)
 			}
 		}

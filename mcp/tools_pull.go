@@ -9,7 +9,7 @@ import (
 	"time"
 
 	appcfg "ghub-desk/config"
-	gh "ghub-desk/github"
+	"ghub-desk/ghubclient"
 	"ghub-desk/store"
 	v "ghub-desk/validate"
 
@@ -324,21 +324,21 @@ func registerPullTokenPermissionTool(srv *sdk.Server, name string, cfg *appcfg.C
 
 // resolvePullOptions converts MCP inputs to GitHub pull options.
 // Default is to save, disable only when `no_store` is specified. The interval is specified in seconds, with a default of 3 seconds.
-func resolvePullOptions(noStore, stdout bool, intervalSeconds float64) gh.PullOptions {
+func resolvePullOptions(noStore, stdout bool, intervalSeconds float64) ghubclient.PullOptions {
 	interval := defaultPullInterval
 	if intervalSeconds > 0 {
 		ms := math.Round(intervalSeconds * 1000)
 		interval = time.Duration(ms) * time.Millisecond
 	}
-	return gh.PullOptions{
+	return ghubclient.PullOptions{
 		Store:    !noStore,
 		Stdout:   stdout,
 		Interval: interval,
 	}
 }
 
-func doPull(ctx context.Context, cfg *appcfg.Config, target string, opts gh.PullOptions, teamSlug, repoName string) error {
-	client, err := gh.InitClient(cfg)
+func doPull(ctx context.Context, cfg *appcfg.Config, target string, opts ghubclient.PullOptions, teamSlug, repoName string) error {
+	client, err := ghubclient.InitClient(cfg)
 	if err != nil {
 		return fmt.Errorf("github client init: %w", err)
 	}
@@ -353,7 +353,7 @@ func doPull(ctx context.Context, cfg *appcfg.Config, target string, opts gh.Pull
 		}
 		defer db.Close()
 	}
-	req := gh.TargetRequest{Kind: target}
+	req := ghubclient.TargetRequest{Kind: target}
 	if teamSlug != "" {
 		req.TeamSlug = teamSlug
 	}
@@ -363,5 +363,5 @@ func doPull(ctx context.Context, cfg *appcfg.Config, target string, opts gh.Pull
 	if opts.Interval <= 0 {
 		opts.Interval = defaultPullInterval
 	}
-	return gh.HandlePullTarget(ctx, client, db, cfg.Organization, req, opts)
+	return ghubclient.HandlePullTarget(ctx, client, db, cfg.Organization, req, opts)
 }

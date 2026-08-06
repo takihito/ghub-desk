@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"ghub-desk/auditlog"
-	ghubgithub "ghub-desk/github"
+	"ghub-desk/ghubclient"
 	"ghub-desk/store"
 
 	gh "github.com/google/go-github/v55/github"
@@ -50,7 +50,7 @@ func (a *AuditLogsCmd) Run(cli *CLI) error {
 		return fmt.Errorf("configuration error: %w", err)
 	}
 
-	client, err := ghubgithub.InitClient(cfg)
+	client, err := ghubclient.InitClient(cfg)
 	if err != nil {
 		return fmt.Errorf("github client initialization error: %w", err)
 	}
