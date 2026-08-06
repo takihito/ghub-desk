@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	appcfg "ghub-desk/config"
-	gh "ghub-desk/github"
+	"ghub-desk/ghubclient"
 	"ghub-desk/store"
 	v "ghub-desk/validate"
 
@@ -197,11 +197,11 @@ func resolvePushAddInput(in PushAddIn) (string, string, string, error) {
 }
 
 func doPushAdd(ctx context.Context, cfg *appcfg.Config, target, value, permission string, storeResult bool) error {
-	client, err := gh.InitClient(cfg)
+	client, err := ghubclient.InitClient(cfg)
 	if err != nil {
 		return fmt.Errorf("github client init: %w", err)
 	}
-	if err := gh.ExecutePushAdd(ctx, client, cfg.Organization, target, value, permission); err != nil {
+	if err := ghubclient.ExecutePushAdd(ctx, client, cfg.Organization, target, value, permission); err != nil {
 		return err
 	}
 	if !storeResult {
@@ -212,7 +212,7 @@ func doPushAdd(ctx context.Context, cfg *appcfg.Config, target, value, permissio
 		return fmt.Errorf("db init: %w", err)
 	}
 	defer db.Close()
-	if err := gh.SyncPushAdd(ctx, client, db, cfg.Organization, target, value); err != nil {
+	if err := ghubclient.SyncPushAdd(ctx, client, db, cfg.Organization, target, value); err != nil {
 		return fmt.Errorf("db sync: %w", err)
 	}
 	return nil
@@ -283,11 +283,11 @@ func resolvePushRemoveInput(in PushRemoveIn) (string, string, error) {
 }
 
 func doPushRemove(ctx context.Context, cfg *appcfg.Config, target, value string, storeResult bool) error {
-	client, err := gh.InitClient(cfg)
+	client, err := ghubclient.InitClient(cfg)
 	if err != nil {
 		return fmt.Errorf("github client init: %w", err)
 	}
-	if err := gh.ExecutePushRemove(ctx, client, cfg.Organization, target, value); err != nil {
+	if err := ghubclient.ExecutePushRemove(ctx, client, cfg.Organization, target, value); err != nil {
 		return err
 	}
 	if !storeResult {
@@ -298,7 +298,7 @@ func doPushRemove(ctx context.Context, cfg *appcfg.Config, target, value string,
 		return fmt.Errorf("db init: %w", err)
 	}
 	defer db.Close()
-	if err := gh.SyncPushRemove(ctx, client, db, cfg.Organization, target, value); err != nil {
+	if err := ghubclient.SyncPushRemove(ctx, client, db, cfg.Organization, target, value); err != nil {
 		return fmt.Errorf("db sync: %w", err)
 	}
 	return nil
