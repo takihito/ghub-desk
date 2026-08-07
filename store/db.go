@@ -24,6 +24,9 @@ var (
 	// ErrRepoNotFound is returned when a repository is not found in the local database.
 	ErrRepoNotFound = errors.New("repository not found")
 
+	// ErrTeamNotFound is returned when a team is not found in the local database.
+	ErrTeamNotFound = errors.New("team not found")
+
 	// allowedClearTables limits ClearTable to known table names to avoid SQL injection.
 	allowedClearTables = map[string]struct{}{
 		"ghub_users":             {},
@@ -451,7 +454,7 @@ func StoreTeamUsers(db DBTX, users []*github.User, teamSlug string) error {
 	if err != nil {
 		// TODO: Consider how to get them all at once
 		if errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("team %s data not found. Please run `ghub-desk pull --teams` first to get team information: %w", teamSlug, err)
+			return fmt.Errorf("team %s data not found. Please run `ghub-desk pull --teams` first to get team information: %w", teamSlug, ErrTeamNotFound)
 		}
 		return fmt.Errorf("failed to get team ID for slug %s: %w", teamSlug, err)
 	}
