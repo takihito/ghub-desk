@@ -6,7 +6,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"ghub-desk/session"
 	"ghub-desk/validate"
 )
 
@@ -120,6 +119,15 @@ func HandleViewTarget(db *sql.DB, req TargetRequest, opts ViewOptions) error {
 	}
 }
 
+// orDash returns "-" for an empty string, otherwise s unchanged. Used to keep table columns
+// visually aligned when a field has no value.
+func orDash(s string) string {
+	if s == "" {
+		return "-"
+	}
+	return s
+}
+
 // PrintTableHeader prints a tab-separated header row followed by a matching underline row.
 // Example: PrintTableHeader("ID", "Login") outputs:
 // ID	Login
@@ -189,29 +197,19 @@ func ViewUser(db *sql.DB, userLogin string, format OutputFormat) error {
 		}
 		return renderByFormat(format, nil, payload)
 	}
-	if err != nil {
-		return fmt.Errorf("failed to query user %s: %w", cleanLogin, err)
-	}
 
 	tableFn := func() error {
 		PrintTableHeader("ID", "Login", "Name", "Email", "Company", "Location", "Created At", "Updated At")
 
-		normalize := func(s string) string {
-			if s == "" {
-				return "-"
-			}
-			return s
-		}
-
 		fmt.Printf("%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			record.ID,
-			normalize(record.Login),
-			normalize(record.Name),
-			normalize(record.Email),
-			normalize(record.Company),
-			normalize(record.Location),
-			normalize(record.CreatedAt),
-			normalize(record.UpdatedAt),
+			orDash(record.Login),
+			orDash(record.Name),
+			orDash(record.Email),
+			orDash(record.Company),
+			orDash(record.Location),
+			orDash(record.CreatedAt),
+			orDash(record.UpdatedAt),
 		)
 		return nil
 	}
@@ -347,76 +345,6 @@ func ViewRepoTeams(db *sql.DB, repoName string, format OutputFormat) error {
 	return renderByFormat(format, tableFn, payload)
 }
 
-// FetchRepoTeamUsers retrieves team members linked to a repository along with display names.
-func FetchRepoTeamUsers(db *sql.DB, repoName string) (string, string, []RepoTeamUserEntry, error) {
-	repoDisplay := repoName
-	var fullName string
-
-	if db == nil {
-		return repoDisplay, fullName, nil, fmt.Errorf("database connection is required to fetch repository team users")
-	}
-
-	var (
-		displayName sql.NullString
-		fullRepo    sql.NullString
-	)
-	err := db.QueryRow(`SELECT name, full_name FROM ghub_repos WHERE name = ? LIMIT 1`, repoName).Scan(&displayName, &fullRepo)
-	if err != nil && err != sql.ErrNoRows {
-		return repoDisplay, fullName, nil, fmt.Errorf("failed to fetch repository metadata: %w", err)
-	}
-	if err == nil {
-		if trimmed := strings.TrimSpace(displayName.String); trimmed != "" {
-			repoDisplay = trimmed
-		}
-		fullName = strings.TrimSpace(fullRepo.String)
-	}
-
-	query := `
-		SELECT rt.team_slug,
-		       COALESCE(rt.permission, ''),
-		       COALESCE(u.login, tu.user_login),
-		       COALESCE(tu.role, ''),
-		       COALESCE(u.name, ''),
-		       COALESCE(u.email, ''),
-		       COALESCE(u.company, ''),
-		       COALESCE(u.location, '')
-		FROM ghub_repos_teams rt
-		JOIN ghub_team_users tu ON tu.team_slug = rt.team_slug
-		LEFT JOIN ghub_users u ON u.id = tu.ghub_user_id
-		WHERE rt.repos_name = ?
-		ORDER BY LOWER(rt.team_slug), LOWER(COALESCE(u.login, tu.user_login))
-	`
-	session.Debugf("SQL: %s, ARGS: [%s]", query, repoName)
-	rows, err := db.Query(query, repoName)
-	if err != nil {
-		return repoDisplay, fullName, nil, fmt.Errorf("failed to query repository team users: %w", err)
-	}
-	defer rows.Close()
-
-	var records []RepoTeamUserEntry
-	for rows.Next() {
-		var teamSlug, permission, login, role, name, email, company, location sql.NullString
-		if err := rows.Scan(&teamSlug, &permission, &login, &role, &name, &email, &company, &location); err != nil {
-			return repoDisplay, fullName, nil, fmt.Errorf("failed to scan repository team user row: %w", err)
-		}
-		records = append(records, RepoTeamUserEntry{
-			TeamSlug:       strings.TrimSpace(teamSlug.String),
-			TeamPermission: strings.TrimSpace(permission.String),
-			UserLogin:      strings.TrimSpace(login.String),
-			Role:           strings.TrimSpace(role.String),
-			Name:           strings.TrimSpace(name.String),
-			Email:          strings.TrimSpace(email.String),
-			Company:        strings.TrimSpace(company.String),
-			Location:       strings.TrimSpace(location.String),
-		})
-	}
-	if err := rows.Err(); err != nil {
-		return repoDisplay, fullName, nil, fmt.Errorf("failed to iterate repository team user rows: %w", err)
-	}
-
-	return repoDisplay, fullName, records, nil
-}
-
 // ViewRepoTeamUsers displays users belonging to teams associated with a repository.
 func ViewRepoTeamUsers(db *sql.DB, repoName string, format OutputFormat) error {
 	repoDisplay, _, records, err := FetchRepoTeamUsers(db, repoName)
@@ -483,26 +411,11 @@ func ViewTeamRepositories(db *sql.DB, teamSlug string, format OutputFormat) erro
 		PrintTableHeader("Repo", "Full Name", "Permission", "Privacy", "Description")
 
 		for _, entry := range entries {
-			repo := entry.RepoName
-			if repo == "" {
-				repo = "-"
-			}
-			fullName := entry.FullName
-			if fullName == "" {
-				fullName = "-"
-			}
-			permission := entry.Permission
-			if permission == "" {
-				permission = "-"
-			}
-			privacy := entry.Privacy
-			if privacy == "" {
-				privacy = "-"
-			}
-			description := entry.Description
-			if description == "" {
-				description = "-"
-			}
+			repo := orDash(entry.RepoName)
+			fullName := orDash(entry.FullName)
+			permission := orDash(entry.Permission)
+			privacy := orDash(entry.Privacy)
+			description := orDash(entry.Description)
 
 			fmt.Printf("%s\t%s\t%s\t%s\t%s\n",
 				repo,
@@ -546,26 +459,11 @@ func ViewAllRepositoriesUsers(db *sql.DB, format OutputFormat) error {
 		PrintTableHeader("Repo", "Full Name", "User Login", "User Name", "Permission")
 
 		for _, entry := range entries {
-			repo := entry.RepoName
-			if repo == "" {
-				repo = "-"
-			}
-			fullName := entry.FullName
-			if fullName == "" {
-				fullName = "-"
-			}
-			login := entry.UserLogin
-			if login == "" {
-				login = "-"
-			}
-			userName := entry.UserName
-			if userName == "" {
-				userName = "-"
-			}
-			permission := entry.Permission
-			if permission == "" {
-				permission = "-"
-			}
+			repo := orDash(entry.RepoName)
+			fullName := orDash(entry.FullName)
+			login := orDash(entry.UserLogin)
+			userName := orDash(entry.UserName)
+			permission := orDash(entry.Permission)
 
 			fmt.Printf("%s\t%s\t%s\t%s\t%s\n",
 				repo,
@@ -601,34 +499,13 @@ func ViewAllRepositoriesTeams(db *sql.DB, format OutputFormat) error {
 		PrintTableHeader("Repo", "Full Name", "Team Slug", "Team Name", "Permission", "Privacy", "Description")
 
 		for _, entry := range entries {
-			repo := entry.RepoName
-			if repo == "" {
-				repo = "-"
-			}
-			fullName := entry.FullName
-			if fullName == "" {
-				fullName = "-"
-			}
-			teamSlug := entry.TeamSlug
-			if teamSlug == "" {
-				teamSlug = "-"
-			}
-			teamName := entry.TeamName
-			if teamName == "" {
-				teamName = "-"
-			}
-			permission := entry.Permission
-			if permission == "" {
-				permission = "-"
-			}
-			privacy := entry.Privacy
-			if privacy == "" {
-				privacy = "-"
-			}
-			description := entry.Description
-			if description == "" {
-				description = "-"
-			}
+			repo := orDash(entry.RepoName)
+			fullName := orDash(entry.FullName)
+			teamSlug := orDash(entry.TeamSlug)
+			teamName := orDash(entry.TeamName)
+			permission := orDash(entry.Permission)
+			privacy := orDash(entry.Privacy)
+			description := orDash(entry.Description)
 
 			fmt.Printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 				repo,
@@ -666,26 +543,11 @@ func ViewAllTeamsUsers(db *sql.DB, format OutputFormat) error {
 		PrintTableHeader("Team Slug", "Team Name", "User Login", "User Name", "Role")
 
 		for _, entry := range entries {
-			slug := entry.TeamSlug
-			if slug == "" {
-				slug = "-"
-			}
-			name := entry.TeamName
-			if name == "" {
-				name = "-"
-			}
-			login := entry.UserLogin
-			if login == "" {
-				login = "-"
-			}
-			fullName := entry.UserName
-			if fullName == "" {
-				fullName = "-"
-			}
-			role := entry.Role
-			if role == "" {
-				role = "-"
-			}
+			slug := orDash(entry.TeamSlug)
+			name := orDash(entry.TeamName)
+			login := orDash(entry.UserLogin)
+			fullName := orDash(entry.UserName)
+			role := orDash(entry.Role)
 
 			fmt.Printf("%s\t%s\t%s\t%s\t%s\n", slug, name, login, fullName, role)
 		}
@@ -724,18 +586,9 @@ func ViewUserTeams(db *sql.DB, userLogin string, format OutputFormat) error {
 		PrintTableHeader("Team Slug", "Team Name", "Role")
 
 		for _, entry := range entries {
-			slug := entry.TeamSlug
-			if slug == "" {
-				slug = "-"
-			}
-			name := entry.TeamName
-			if name == "" {
-				name = "-"
-			}
-			role := entry.Role
-			if role == "" {
-				role = "-"
-			}
+			slug := orDash(entry.TeamSlug)
+			name := orDash(entry.TeamName)
+			role := orDash(entry.Role)
 
 			fmt.Printf("%s\t%s\t%s\n", slug, name, role)
 		}

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"ghub-desk/config"
+	"ghub-desk/debuglog"
 	"ghub-desk/ghubclient"
 	"ghub-desk/mcp"
 	"ghub-desk/session"
@@ -259,7 +260,7 @@ func Execute() (io.Writer, func(), error) {
 	cli.debugWriter = logWriter
 
 	if cli.Debug {
-		session.EnableDebugWithWriter(logWriter)
+		debuglog.EnableDebugWithWriter(logWriter)
 	}
 
 	cleanup := func() {
@@ -517,7 +518,7 @@ func (v *ViewCmd) Run(cli *CLI) error {
 			return err
 		}
 		if v.TeamUser != "" && v.TeamUser != slug {
-			return fmt.Errorf("The team specified by the flag and the argument do not match")
+			return fmt.Errorf("the team specified by the flag and the argument do not match")
 		}
 		v.TeamUser = slug
 	}

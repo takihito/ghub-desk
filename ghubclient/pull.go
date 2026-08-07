@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"ghub-desk/session"
+	"ghub-desk/debuglog"
 	"ghub-desk/store"
 	"ghub-desk/validate"
 
@@ -313,7 +313,7 @@ func PullRepoUsers(ctx context.Context, client *github.Client, db *sql.DB, org, 
 		defer tx.Rollback()
 
 		query := `DELETE FROM ghub_repos_users WHERE repos_name = ?`
-		session.Debugf("SQL: %s, ARGS: [%s]", query, repoName)
+		debuglog.Debugf("SQL: %s, ARGS: [%s]", query, repoName)
 		if _, err := tx.Exec(query, repoName); err != nil {
 			return nil, fmt.Errorf("failed to clear repository users for %s: %w", repoName, err)
 		}
@@ -358,7 +358,7 @@ func PullRepoTeams(ctx context.Context, client *github.Client, db *sql.DB, org, 
 		defer tx.Rollback()
 
 		query := `DELETE FROM ghub_repos_teams WHERE repos_name = ?`
-		session.Debugf("SQL: %s, ARGS: [%s]", query, repoName)
+		debuglog.Debugf("SQL: %s, ARGS: [%s]", query, repoName)
 		if _, err := tx.Exec(query, repoName); err != nil {
 			return nil, fmt.Errorf("failed to clear repository teams for %s: %w", repoName, err)
 		}
@@ -616,7 +616,7 @@ func pullTeamUsers(ctx context.Context, client *github.Client, db *sql.DB, org, 
 		defer tx.Rollback()
 
 		query := `DELETE FROM ghub_team_users WHERE team_slug = ?`
-		session.Debugf("SQL: %s, ARGS: [%s]", query, teamSlug)
+		debuglog.Debugf("SQL: %s, ARGS: [%s]", query, teamSlug)
 		if _, err := tx.Exec(query, teamSlug); err != nil {
 			return nil, fmt.Errorf("failed to clear team_users for team %s: %w", teamSlug, err)
 		}

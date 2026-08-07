@@ -1,4 +1,8 @@
-package session
+// Package debuglog provides a package-level debug logger shared by cmd, store, and
+// ghubclient for verbose SQL/API tracing. It intentionally has no dependency on session
+// (resumable pull state) or any other package in this module, so packages that only need to
+// log a debug line don't have to import an unrelated concern to do so.
+package debuglog
 
 import (
 	"io"
