@@ -2,6 +2,7 @@ package debuglog
 
 import (
 	"bytes"
+	"io"
 	"strings"
 	"testing"
 )
@@ -19,6 +20,8 @@ func TestEnableDebugWithWriterRoutesOutput(t *testing.T) {
 }
 
 func TestEnableDebugWithWriterNilFallsBackToStderr(t *testing.T) {
+	defer debugLogger.SetOutput(io.Discard) // reset so other tests aren't affected by stderr output
+
 	// Passing nil must not panic; it should fall back to os.Stderr internally.
 	EnableDebugWithWriter(nil)
 }
