@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"testing"
@@ -285,6 +286,34 @@ func TestStoreTeamUsers(t *testing.T) {
 
 	if count != 2 {
 		t.Errorf("Expected 2 team users, got %d", count)
+	}
+}
+
+func TestStoreTeamUsersUnknownTeamReturnsErrTeamNotFound(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open test database: %v", err)
+	}
+	defer db.Close()
+
+	if err := createTables(db); err != nil {
+		t.Fatalf("Failed to create tables: %v", err)
+	}
+
+	// No team is stored, so "missing-team" cannot be resolved to a team ID.
+	users := []*github.User{
+		{
+			ID:    github.Int64(1),
+			Login: github.String("testuser1"),
+		},
+	}
+
+	err = StoreTeamUsers(db, users, "missing-team")
+	if err == nil {
+		t.Fatal("expected an error for an unknown team slug, got nil")
+	}
+	if !errors.Is(err, ErrTeamNotFound) {
+		t.Fatalf("expected error to wrap ErrTeamNotFound, got: %v", err)
 	}
 }
 
