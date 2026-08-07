@@ -120,6 +120,11 @@ const mcpToolsMarkdown = `# ghub-desk MCP Tools
 
 The tables below describe every published tool. Copy the sample JSON into tools/call requests (omit optional keys when not needed).
 
+## Common
+| Tool | Purpose | Sample Input | Response Hints |
+| --- | --- | --- | --- |
+| health | Server health check | {} | Returns status:"ok" and the current server time |
+
 ## view_* (read-only)
 | Tool | Purpose | Sample Input | Response Hints |
 | --- | --- | --- | --- |
@@ -145,7 +150,7 @@ The tables below describe every published tool. Copy the sample JSON into tools/
 ## pull_* (requires allow_pull)
 | Tool | Purpose | Sample Input | Notes |
 | --- | --- | --- | --- |
-| pull_users | Fetch members (optionally with details) | {"detail":true,"stdout":false} | Set detail:true for detail-users; defaults save to SQLite |
+| pull_users | Fetch members | {"stdout":false} | Defaults save to SQLite; see pull_detail-users for the detailed variant |
 | pull_detail-users | Fetch members with profile fields | {"no_store":false} | Heavier API variant; mirrors pull_users output to view_detail-users |
 | pull_teams | Fetch teams | {"no_store":false} | Set stdout:true to mirror API payloads |
 | pull_repositories | Fetch repositories | {} | Accepts interval_seconds to slow requests |
