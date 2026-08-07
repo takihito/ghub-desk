@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"ghub-desk/config"
-	"ghub-desk/session"
+	"ghub-desk/debuglog"
 
 	"github.com/alecthomas/kong"
 )
@@ -182,7 +182,7 @@ func Execute() (io.Writer, func(), error) {
 	cli.debugWriter = logWriter
 
 	if cli.Debug {
-		session.EnableDebugWithWriter(logWriter)
+		debuglog.EnableDebugWithWriter(logWriter)
 	}
 
 	cleanup := func() {

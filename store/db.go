@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"ghub-desk/session"
+	"ghub-desk/debuglog"
 
 	"github.com/google/go-github/v55/github"
 	_ "modernc.org/sqlite"
@@ -44,6 +44,9 @@ const (
 	// Database configuration
 	DBFileName         = "ghub-desk.db"
 	sqliteMaxVariables = 999
+
+	// timestampFormat is the layout used for created_at/updated_at columns across all tables.
+	timestampFormat = "2006-01-02 15:04:05"
 )
 
 func insertOrReplaceBatch(db DBTX, table string, columns []string, rows [][]any) error {
@@ -92,7 +95,7 @@ func insertOrReplaceBatch(db DBTX, table string, columns []string, rows [][]any)
 			strings.Join(columns, ", "),
 			strings.Join(placeholders, ","),
 		)
-		session.Debugf("SQL: %s, ARGS: %v", query, args)
+		debuglog.Debugf("SQL: %s, ARGS: %v", query, args)
 		if _, err := db.Exec(query, args...); err != nil {
 			return fmt.Errorf("failed to insert into %s: %w", table, err)
 		}
@@ -240,7 +243,7 @@ func createTables(db DBTX) error {
 	}
 
 	for _, query := range tables {
-		session.Debugf("SQL: %s", query)
+		debuglog.Debugf("SQL: %s", query)
 		if _, err := db.Exec(query); err != nil {
 			return fmt.Errorf("failed to create table: %w", err)
 		}
@@ -254,7 +257,7 @@ func createTables(db DBTX) error {
 		`CREATE INDEX IF NOT EXISTS idx_ghub_repos_teams_repos_name ON ghub_repos_teams(repos_name)`,
 	}
 	for _, idx := range indexes {
-		session.Debugf("SQL: %s", idx)
+		debuglog.Debugf("SQL: %s", idx)
 		if _, err := db.Exec(idx); err != nil {
 			return fmt.Errorf("failed to create index: %w", err)
 		}
@@ -304,7 +307,7 @@ func ListRepositoryNames(db DBTX) ([]string, error) {
 		return nil, fmt.Errorf("database connection is required to list repositories")
 	}
 	query := `SELECT name FROM ghub_repos ORDER BY name`
-	session.Debugf("SQL: %s", query)
+	debuglog.Debugf("SQL: %s", query)
 	rows, err := db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query repositories: %w", err)
@@ -359,7 +362,7 @@ func StoreUsers(db DBTX, users []*github.User) error {
 		return nil
 	}
 
-	now := time.Now().Format("2006-01-02 15:04:05")
+	now := time.Now().Format(timestampFormat)
 	rows := make([][]any, 0, len(users))
 	for _, u := range users {
 		rows = append(rows, []any{
@@ -387,7 +390,7 @@ func StoreTeams(db DBTX, teams []*github.Team) error {
 		return nil
 	}
 
-	now := time.Now().Format("2006-01-02 15:04:05")
+	now := time.Now().Format(timestampFormat)
 	rows := make([][]any, 0, len(teams))
 	for _, t := range teams {
 		rows = append(rows, []any{
@@ -446,7 +449,7 @@ func StoreTeamUsers(db DBTX, users []*github.User, teamSlug string) error {
 	// First get team ID from slug
 	var teamID int64
 	query := `SELECT id FROM ghub_teams WHERE slug = ?`
-	session.Debugf("SQL: %s, ARGS: [%s]", query, teamSlug)
+	debuglog.Debugf("SQL: %s, ARGS: [%s]", query, teamSlug)
 	err := db.QueryRow(query, teamSlug).Scan(&teamID)
 	if err != nil {
 		// TODO: Consider how to get them all at once
@@ -460,7 +463,7 @@ func StoreTeamUsers(db DBTX, users []*github.User, teamSlug string) error {
 		return nil
 	}
 
-	now := time.Now().Format("2006-01-02 15:04:05")
+	now := time.Now().Format(timestampFormat)
 	rows := make([][]any, 0, len(users))
 	for _, u := range users {
 		rows = append(rows, []any{
@@ -494,10 +497,10 @@ func UpsertTeamUser(db DBTX, teamSlug string, teamID int64, user *github.User, r
 	if role == "" {
 		role = "member"
 	}
-	now := time.Now().Format("2006-01-02 15:04:05")
+	now := time.Now().Format(timestampFormat)
 	query := `INSERT OR REPLACE INTO ghub_team_users(ghub_team_id, ghub_user_id, user_login, team_slug, role, created_at) VALUES (?, ?, ?, ?, ?, ?)`
 	args := []any{teamID, user.GetID(), user.GetLogin(), teamSlug, role, now}
-	session.Debugf("SQL: %s, ARGS: %v", query, args)
+	debuglog.Debugf("SQL: %s, ARGS: %v", query, args)
 	_, err := db.Exec(query, args...)
 	if err != nil {
 		return fmt.Errorf("failed to upsert team user %s for team %s: %w", user.GetLogin(), teamSlug, err)
@@ -518,12 +521,12 @@ func DeleteTeamBySlug(db *sql.DB, teamSlug string) error {
 	defer tx.Rollback()
 
 	query1 := `DELETE FROM ghub_team_users WHERE team_slug = ?`
-	session.Debugf("SQL: %s, ARGS: [%s]", query1, teamSlug)
+	debuglog.Debugf("SQL: %s, ARGS: [%s]", query1, teamSlug)
 	if _, err := tx.Exec(query1, teamSlug); err != nil {
 		return fmt.Errorf("failed to delete team users for team %s: %w", teamSlug, err)
 	}
 	query2 := `DELETE FROM ghub_teams WHERE slug = ?`
-	session.Debugf("SQL: %s, ARGS: [%s]", query2, teamSlug)
+	debuglog.Debugf("SQL: %s, ARGS: [%s]", query2, teamSlug)
 	if _, err := tx.Exec(query2, teamSlug); err != nil {
 		return fmt.Errorf("failed to delete team %s: %w", teamSlug, err)
 	}
@@ -543,12 +546,12 @@ func DeleteUserByLogin(db *sql.DB, login string) error {
 	defer tx.Rollback()
 
 	query1 := `DELETE FROM ghub_team_users WHERE user_login = ?`
-	session.Debugf("SQL: %s, ARGS: [%s]", query1, login)
+	debuglog.Debugf("SQL: %s, ARGS: [%s]", query1, login)
 	if _, err := tx.Exec(query1, login); err != nil {
 		return fmt.Errorf("failed to delete team memberships for user %s: %w", login, err)
 	}
 	query2 := `DELETE FROM ghub_users WHERE login = ?`
-	session.Debugf("SQL: %s, ARGS: [%s]", query2, login)
+	debuglog.Debugf("SQL: %s, ARGS: [%s]", query2, login)
 	if _, err := tx.Exec(query2, login); err != nil {
 		return fmt.Errorf("failed to delete user %s: %w", login, err)
 	}
@@ -561,7 +564,7 @@ func DeleteTeamUser(db DBTX, teamSlug, userLogin string) error {
 		return fmt.Errorf("database connection is required to delete team user relation")
 	}
 	query := `DELETE FROM ghub_team_users WHERE team_slug = ? AND user_login = ?`
-	session.Debugf("SQL: %s, ARGS: [%s, %s]", query, teamSlug, userLogin)
+	debuglog.Debugf("SQL: %s, ARGS: [%s, %s]", query, teamSlug, userLogin)
 	if _, err := db.Exec(query, teamSlug, userLogin); err != nil {
 		return fmt.Errorf("failed to delete team user relation %s/%s: %w", teamSlug, userLogin, err)
 	}
@@ -574,7 +577,7 @@ func StoreOutsideUsers(db DBTX, users []*github.User) error {
 		return nil
 	}
 
-	now := time.Now().Format("2006-01-02 15:04:05")
+	now := time.Now().Format(timestampFormat)
 	rows := make([][]any, 0, len(users))
 	for _, u := range users {
 		rows = append(rows, []any{
@@ -616,7 +619,7 @@ func StoreRepoUsers(db DBTX, repoName string, users []*github.User) error {
 		fmt.Printf("WARNING: repository '%s' not found in ghub_repos. Run 'ghub-desk pull --repos' first to populate repository metadata.\n", repoName)
 	}
 
-	now := time.Now().Format("2006-01-02 15:04:05")
+	now := time.Now().Format(timestampFormat)
 	rows := make([][]any, 0, len(users))
 	var repoIDValue any
 	if repoFound {
@@ -655,7 +658,7 @@ func StoreRepoTeams(db DBTX, repoName string, teams []*github.Team) error {
 		return nil
 	}
 
-	now := time.Now().Format("2006-01-02 15:04:05")
+	now := time.Now().Format(timestampFormat)
 	repoID, repoFound, err := lookupRepositoryID(db, repoName)
 	if err != nil {
 		return fmt.Errorf("failed to look up repository ID for %s: %w", repoName, err)
@@ -716,7 +719,7 @@ func UpsertRepoUser(db DBTX, repoName string, user *github.User) error {
 	if user == nil {
 		return fmt.Errorf("user information is required to upsert repository user")
 	}
-	now := time.Now().Format("2006-01-02 15:04:05")
+	now := time.Now().Format(timestampFormat)
 	resolvedPermission := resolvedCollaboratorPermission(user)
 	repoID, repoFound, err := lookupRepositoryID(db, repoName)
 	if err != nil {
@@ -730,7 +733,7 @@ func UpsertRepoUser(db DBTX, repoName string, user *github.User) error {
 	}
 	query := `INSERT OR REPLACE INTO ghub_repos_users(ghub_repos_id, repos_name, user_login, ghub_user_id, permission, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
 	args := []any{repoIDValue, repoName, user.GetLogin(), user.GetID(), resolvedPermission, now, now}
-	session.Debugf("SQL: %s, ARGS: %v", query, args)
+	debuglog.Debugf("SQL: %s, ARGS: %v", query, args)
 	_, err = db.Exec(query, args...)
 	if err != nil {
 		return fmt.Errorf("failed to upsert repository user %s for repo %s: %w", user.GetLogin(), repoName, err)
@@ -747,7 +750,7 @@ func DeleteRepoUser(db DBTX, repoName, userLogin string) error {
 		return fmt.Errorf("repository name and user login are required to delete repository user")
 	}
 	query := `DELETE FROM ghub_repos_users WHERE repos_name = ? AND user_login = ?`
-	session.Debugf("SQL: %s, ARGS: [%s, %s]", query, repoName, userLogin)
+	debuglog.Debugf("SQL: %s, ARGS: [%s, %s]", query, repoName, userLogin)
 	if _, err := db.Exec(query, repoName, userLogin); err != nil {
 		return fmt.Errorf("failed to delete repository user %s for repo %s: %w", userLogin, repoName, err)
 	}
@@ -759,7 +762,7 @@ func formatTime(t github.Timestamp) string {
 	if t.IsZero() {
 		return ""
 	}
-	return t.Format("2006-01-02 15:04:05")
+	return t.Format(timestampFormat)
 }
 
 func lookupRepositoryID(db DBTX, repoName string) (int64, bool, error) {
@@ -768,7 +771,7 @@ func lookupRepositoryID(db DBTX, repoName string) (int64, bool, error) {
 	}
 	var repoID int64
 	query := `SELECT id FROM ghub_repos WHERE name = ?`
-	session.Debugf("SQL: %s, ARGS: [%s]", query, repoName)
+	debuglog.Debugf("SQL: %s, ARGS: [%s]", query, repoName)
 	err := db.QueryRow(query, repoName).Scan(&repoID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -785,7 +788,7 @@ func lookupTeamID(db DBTX, teamSlug string) (int64, bool, error) {
 	}
 	var teamID int64
 	query := `SELECT id FROM ghub_teams WHERE slug = ?`
-	session.Debugf("SQL: %s, ARGS: [%s]", query, teamSlug)
+	debuglog.Debugf("SQL: %s, ARGS: [%s]", query, teamSlug)
 	err := db.QueryRow(query, teamSlug).Scan(&teamID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -802,7 +805,7 @@ func ClearTable(db DBTX, tableName string) error {
 		return fmt.Errorf("invalid table name %q", tableName)
 	}
 	query := fmt.Sprintf("DELETE FROM %s", tableName)
-	session.Debugf("SQL: %s", query)
+	debuglog.Debugf("SQL: %s", query)
 	if _, err := db.Exec(query); err != nil {
 		return fmt.Errorf("failed to clear table %s: %w", tableName, err)
 	}

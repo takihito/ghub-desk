@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"ghub-desk/session"
+	"ghub-desk/debuglog"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v55/github"
@@ -21,7 +21,7 @@ type loggingTransport struct {
 
 // RoundTrip logs the request and delegates to the wrapped transport.
 func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	session.Debugf("API: %s %s", req.Method, req.URL)
+	debuglog.Debugf("API: %s %s", req.Method, req.URL)
 	return t.transport.RoundTrip(req)
 }
 

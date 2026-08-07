@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"ghub-desk/session"
+	"ghub-desk/debuglog"
 )
 
 // UserEntry represents a user record stored in the database.
@@ -147,7 +147,7 @@ func FetchUsers(db *sql.DB) ([]UserEntry, error) {
 		return nil, fmt.Errorf("database connection is required to fetch users")
 	}
 	query := `SELECT id, login, name, email, company, location FROM ghub_users ORDER BY login`
-	session.Debugf("SQL: %s", query)
+	debuglog.Debugf("SQL: %s", query)
 	rows, err := db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query users: %w", err)
@@ -191,7 +191,7 @@ func FetchUserProfile(db *sql.DB, userLogin string) (UserProfileEntry, bool, err
 		FROM ghub_users
 		WHERE login = ?
 	`
-	session.Debugf("SQL: %s, ARGS: [%s]", query, cleanLogin)
+	debuglog.Debugf("SQL: %s, ARGS: [%s]", query, cleanLogin)
 
 	var record UserProfileEntry
 	err := db.QueryRow(query, cleanLogin).Scan(
@@ -228,7 +228,7 @@ func FetchTeams(db *sql.DB) ([]TeamEntry, error) {
 		return nil, fmt.Errorf("database connection is required to fetch teams")
 	}
 	query := `SELECT id, slug, name, description, privacy FROM ghub_teams ORDER BY slug`
-	session.Debugf("SQL: %s", query)
+	debuglog.Debugf("SQL: %s", query)
 	rows, err := db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query teams: %w", err)
@@ -264,7 +264,7 @@ func FetchRepositories(db *sql.DB) ([]RepositoryEntry, error) {
 	query := `
 		SELECT id, name, full_name, description, private, language, stargazers_count 
 		FROM ghub_repos ORDER BY name`
-	session.Debugf("SQL: %s", query)
+	debuglog.Debugf("SQL: %s", query)
 	rows, err := db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query repositories: %w", err)
@@ -302,7 +302,7 @@ func FetchOutsideUsers(db *sql.DB) ([]UserEntry, error) {
 		return nil, fmt.Errorf("database connection is required to fetch outside users")
 	}
 	query := `SELECT id, login, name, email, company, location FROM ghub_outside_users ORDER BY login`
-	session.Debugf("SQL: %s", query)
+	debuglog.Debugf("SQL: %s", query)
 	rows, err := db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query outside users: %w", err)
@@ -331,25 +331,34 @@ func FetchOutsideUsers(db *sql.DB) ([]UserEntry, error) {
 	return records, nil
 }
 
+// fetchRepoMeta looks up the display name and full name for a repository. When the repository
+// isn't cached locally, repoDisplay falls back to repoName and fullName is empty; that's a
+// normal outcome for callers (e.g. a repos-users pull that ran before repos), not an error.
+func fetchRepoMeta(db *sql.DB, repoName string) (repoDisplay, fullName string, err error) {
+	repoDisplay = repoName
+
+	var displayName, fullRepo sql.NullString
+	dbErr := db.QueryRow(`SELECT name, full_name FROM ghub_repos WHERE name = ? LIMIT 1`, repoName).Scan(&displayName, &fullRepo)
+	if dbErr != nil && dbErr != sql.ErrNoRows {
+		return repoDisplay, fullName, fmt.Errorf("failed to fetch repository metadata: %w", dbErr)
+	}
+	if dbErr == nil {
+		if trimmed := strings.TrimSpace(displayName.String); trimmed != "" {
+			repoDisplay = trimmed
+		}
+		fullName = strings.TrimSpace(fullRepo.String)
+	}
+	return repoDisplay, fullName, nil
+}
+
 // FetchRepoUsers retrieves direct collaborators for a repository along with metadata.
 func FetchRepoUsers(db *sql.DB, repoName string) (string, string, []RepoUserEntry, error) {
 	if db == nil {
 		return repoName, "", nil, fmt.Errorf("database connection is required to fetch repository users")
 	}
-	repoDisplay := repoName
-	var fullName string
-
-	var displayName sql.NullString
-	var fullRepo sql.NullString
-	err := db.QueryRow(`SELECT name, full_name FROM ghub_repos WHERE name = ? LIMIT 1`, repoName).Scan(&displayName, &fullRepo)
-	if err != nil && err != sql.ErrNoRows {
-		return repoDisplay, fullName, nil, fmt.Errorf("failed to fetch repository metadata: %w", err)
-	}
-	if err == nil {
-		if trimmed := strings.TrimSpace(displayName.String); trimmed != "" {
-			repoDisplay = trimmed
-		}
-		fullName = strings.TrimSpace(fullRepo.String)
+	repoDisplay, fullName, err := fetchRepoMeta(db, repoName)
+	if err != nil {
+		return repoDisplay, fullName, nil, err
 	}
 
 	query := `
@@ -357,7 +366,7 @@ func FetchRepoUsers(db *sql.DB, repoName string) (string, string, []RepoUserEntr
 		FROM ghub_repos_users
 		WHERE repos_name = ?
 		ORDER BY user_login`
-	session.Debugf("SQL: %s, ARGS: [%s]", query, repoName)
+	debuglog.Debugf("SQL: %s, ARGS: [%s]", query, repoName)
 	rows, err := db.Query(query, repoName)
 	if err != nil {
 		return repoDisplay, fullName, nil, fmt.Errorf("failed to query repository users: %w", err)
@@ -388,20 +397,9 @@ func FetchRepoTeams(db *sql.DB, repoName string) (string, string, []RepoTeamEntr
 	if db == nil {
 		return repoName, "", nil, fmt.Errorf("database connection is required to fetch repository teams")
 	}
-	repoDisplay := repoName
-	var fullName string
-
-	var displayName sql.NullString
-	var fullRepo sql.NullString
-	err := db.QueryRow(`SELECT name, full_name FROM ghub_repos WHERE name = ? LIMIT 1`, repoName).Scan(&displayName, &fullRepo)
-	if err != nil && err != sql.ErrNoRows {
-		return repoDisplay, fullName, nil, fmt.Errorf("failed to fetch repository metadata: %w", err)
-	}
-	if err == nil {
-		if trimmed := strings.TrimSpace(displayName.String); trimmed != "" {
-			repoDisplay = trimmed
-		}
-		fullName = strings.TrimSpace(fullRepo.String)
+	repoDisplay, fullName, err := fetchRepoMeta(db, repoName)
+	if err != nil {
+		return repoDisplay, fullName, nil, err
 	}
 
 	query := `
@@ -409,7 +407,7 @@ func FetchRepoTeams(db *sql.DB, repoName string) (string, string, []RepoTeamEntr
 		FROM ghub_repos_teams
 		WHERE repos_name = ?
 		ORDER BY team_slug`
-	session.Debugf("SQL: %s, ARGS: [%s]", query, repoName)
+	debuglog.Debugf("SQL: %s, ARGS: [%s]", query, repoName)
 	rows, err := db.Query(query, repoName)
 	if err != nil {
 		return repoDisplay, fullName, nil, fmt.Errorf("failed to query repository teams: %w", err)
@@ -438,6 +436,62 @@ func FetchRepoTeams(db *sql.DB, repoName string) (string, string, []RepoTeamEntr
 	return repoDisplay, fullName, records, nil
 }
 
+// FetchRepoTeamUsers retrieves team members linked to a repository along with display names.
+func FetchRepoTeamUsers(db *sql.DB, repoName string) (string, string, []RepoTeamUserEntry, error) {
+	if db == nil {
+		return repoName, "", nil, fmt.Errorf("database connection is required to fetch repository team users")
+	}
+	repoDisplay, fullName, err := fetchRepoMeta(db, repoName)
+	if err != nil {
+		return repoDisplay, fullName, nil, err
+	}
+
+	query := `
+		SELECT rt.team_slug,
+		       COALESCE(rt.permission, ''),
+		       COALESCE(u.login, tu.user_login),
+		       COALESCE(tu.role, ''),
+		       COALESCE(u.name, ''),
+		       COALESCE(u.email, ''),
+		       COALESCE(u.company, ''),
+		       COALESCE(u.location, '')
+		FROM ghub_repos_teams rt
+		JOIN ghub_team_users tu ON tu.team_slug = rt.team_slug
+		LEFT JOIN ghub_users u ON u.id = tu.ghub_user_id
+		WHERE rt.repos_name = ?
+		ORDER BY LOWER(rt.team_slug), LOWER(COALESCE(u.login, tu.user_login))
+	`
+	debuglog.Debugf("SQL: %s, ARGS: [%s]", query, repoName)
+	rows, err := db.Query(query, repoName)
+	if err != nil {
+		return repoDisplay, fullName, nil, fmt.Errorf("failed to query repository team users: %w", err)
+	}
+	defer rows.Close()
+
+	var records []RepoTeamUserEntry
+	for rows.Next() {
+		var teamSlug, permission, login, role, name, email, company, location sql.NullString
+		if err := rows.Scan(&teamSlug, &permission, &login, &role, &name, &email, &company, &location); err != nil {
+			return repoDisplay, fullName, nil, fmt.Errorf("failed to scan repository team user row: %w", err)
+		}
+		records = append(records, RepoTeamUserEntry{
+			TeamSlug:       strings.TrimSpace(teamSlug.String),
+			TeamPermission: strings.TrimSpace(permission.String),
+			UserLogin:      strings.TrimSpace(login.String),
+			Role:           strings.TrimSpace(role.String),
+			Name:           strings.TrimSpace(name.String),
+			Email:          strings.TrimSpace(email.String),
+			Company:        strings.TrimSpace(company.String),
+			Location:       strings.TrimSpace(location.String),
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return repoDisplay, fullName, nil, fmt.Errorf("failed to iterate repository team user rows: %w", err)
+	}
+
+	return repoDisplay, fullName, records, nil
+}
+
 // FetchUserTeams retrieves teams that a user belongs to.
 func FetchUserTeams(db *sql.DB, userLogin string) ([]UserTeamEntry, error) {
 	if db == nil {
@@ -458,7 +512,7 @@ func FetchUserTeams(db *sql.DB, userLogin string) ([]UserTeamEntry, error) {
 		WHERE tu.user_login = ?
 		ORDER BY LOWER(tu.team_slug)
 	`
-	session.Debugf("SQL: %s, ARGS: [%s]", query, cleanLogin)
+	debuglog.Debugf("SQL: %s, ARGS: [%s]", query, cleanLogin)
 	rows, err := db.Query(query, cleanLogin)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query teams for user %s: %w", cleanLogin, err)
@@ -498,7 +552,7 @@ func FetchTeamUsers(db *sql.DB, teamSlug string) ([]TeamUserEntry, error) {
 		FROM ghub_team_users 
 		WHERE team_slug = ? 
 		ORDER BY user_login`
-	session.Debugf("SQL: %s, ARGS: [%s]", query, cleanSlug)
+	debuglog.Debugf("SQL: %s, ARGS: [%s]", query, cleanSlug)
 	rows, err := db.Query(query, cleanSlug)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query team users: %w", err)
@@ -547,7 +601,7 @@ func FetchTeamRepositories(db *sql.DB, teamSlug string) ([]TeamRepositoryEntry, 
 		WHERE rt.team_slug = ?
 		ORDER BY LOWER(repo_name)
 	`
-	session.Debugf("SQL: %s, ARGS: [%s]", query, cleanSlug)
+	debuglog.Debugf("SQL: %s, ARGS: [%s]", query, cleanSlug)
 	rows, err := db.Query(query, cleanSlug)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query repositories for team %s: %w", cleanSlug, err)
@@ -595,7 +649,7 @@ func FetchAllRepositoriesUsers(db *sql.DB) ([]AllReposUsersEntry, error) {
 		LEFT JOIN ghub_users u ON u.login = ru.user_login
 		ORDER BY LOWER(repo_name), LOWER(ru.user_login)
 	`
-	session.Debugf("SQL: %s", query)
+	debuglog.Debugf("SQL: %s", query)
 	rows, err := db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query repository users: %w", err)
@@ -640,7 +694,7 @@ func FetchAllRepositoriesTeams(db *sql.DB) ([]AllReposTeamsEntry, error) {
 		LEFT JOIN ghub_repos r ON r.name = rt.repos_name
 		ORDER BY LOWER(repo_name), LOWER(rt.team_slug)
 	`
-	session.Debugf("SQL: %s", query)
+	debuglog.Debugf("SQL: %s", query)
 	rows, err := db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query repository teams: %w", err)
@@ -686,7 +740,7 @@ func FetchAllTeamsUsers(db *sql.DB) ([]AllTeamsUsersEntry, error) {
 		LEFT JOIN ghub_users u ON u.login = tu.user_login
 		ORDER BY LOWER(tu.team_slug), LOWER(tu.user_login)
 	`
-	session.Debugf("SQL: %s", query)
+	debuglog.Debugf("SQL: %s", query)
 	rows, err := db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query team users: %w", err)
@@ -767,7 +821,7 @@ func FetchUserRepositories(db *sql.DB, userLogin string) ([]UserRepoAccessEntry,
 		LEFT JOIN ghub_repos r ON r.name = ru.repos_name
 		WHERE ru.user_login = ?
 	`
-	session.Debugf("SQL: %s, ARGS: [%s]", directQuery, cleanLogin)
+	debuglog.Debugf("SQL: %s, ARGS: [%s]", directQuery, cleanLogin)
 	directRows, err := db.Query(directQuery, cleanLogin)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query direct repository access: %w", err)
@@ -800,7 +854,7 @@ func FetchUserRepositories(db *sql.DB, userLogin string) ([]UserRepoAccessEntry,
 		LEFT JOIN ghub_repos r ON r.name = rt.repos_name
 		WHERE tu.user_login = ?
 	`
-	session.Debugf("SQL: %s, ARGS: [%s]", teamQuery, cleanLogin)
+	debuglog.Debugf("SQL: %s, ARGS: [%s]", teamQuery, cleanLogin)
 	teamRows, err := db.Query(teamQuery, cleanLogin)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query team-derived repository access: %w", err)
@@ -890,7 +944,7 @@ func FetchTokenPermission(db *sql.DB) (TokenPermissionEntry, bool, error) {
 		FROM ghub_token_permissions 
 		ORDER BY created_at DESC 
 		LIMIT 1`
-	session.Debugf("SQL: %s", query)
+	debuglog.Debugf("SQL: %s", query)
 	row := db.QueryRow(query)
 
 	var record TokenPermissionEntry
