@@ -79,9 +79,9 @@ GitHub API を呼び出し、成功時に既定で SQLite を更新します。�
 | `pull_team-user` | チームメンバー取得 | `{ "team" }` | `team` は slug 形式 (`team-slug`) |
 | `pull_repos-users` | リポジトリの直接コラボ取得 | `{ "repository" }` | |
 | `pull_repos-teams` | リポジトリに紐づくチーム取得 | `{ "repository" }` | |
-| `pull_all-teams-users` | 全チームのメンバーシップ取得 | なし | 全チームを順に取得。1件失敗しても継続 |
-| `pull_all-repos-users` | 全リポジトリのコラボレーター取得 | なし | 全リポジトリを順に取得。失敗時は即時中断 |
-| `pull_all-repos-teams` | 全リポジトリのチーム権限取得 | なし | 全リポジトリを順に取得。失敗時は即時中断 |
+| `pull_all-teams-users` | 全チームのメンバーシップ取得 | なし | SQLite に既に保存済みのチームのみを走査（事前に `pull_teams` が必要）。1件失敗しても継続 |
+| `pull_all-repos-users` | 全リポジトリのコラボレーター取得 | なし | SQLite に既に保存済みのリポジトリのみを走査（事前に `pull_repositories` が必要）。失敗時は即時中断 |
+| `pull_all-repos-teams` | 全リポジトリのチーム権限取得 | なし | SQLite に既に保存済みのリポジトリのみを走査（事前に `pull_repositories` が必要）。失敗時は即時中断 |
 | `pull_outside-users` | Outside Collaborator 取得 | なし | |
 | `pull_token-permission` | トークン権限情報取得 | なし | 最新のレスポンスを DB に保存 |
 
@@ -90,7 +90,7 @@ GitHub 側へ変更を加える操作です。既定では DRYRUN として実�
 
 | ツール名 | 説明 | 入力 | 備考 |
 | --- | --- | --- | --- |
-| `push_add` | チームへのユーザー追加 or 外部コラボ招待 | `{ "team_user"?, "outside_user"?, "permission"?, "exec"?, "no_store"? }` | `team_user` は `team-slug/username`、`outside_user` は `repo-name/username`。`permission` で `pull`/`push`/`admin` を指定可能 |
+| `push_add` | チームへのユーザー追加 or 外部コラボ招待 | `{ "team_user"?, "outside_user"?, "permission"?, "exec"?, "no_store"? }` | `team_user` は `team-slug/username`、`outside_user` は `repo-name/username` のいずれか一方を指定。`permission`（`pull`/`push`/`admin`）は `outside_user` 指定時のみ有効で、`team_user` と併用するとエラーになる |
 | `push_remove` | チーム削除 / 組織ユーザー削除 / 各種コラボ削除 | `{ "team"?, "user"?, "team_user"?, "outside_user"?, "repos_user"?, "exec"?, "no_store"? }` | いずれか 1 つだけ対象を指定（`team_user`/`outside_user`/`repos_user` は `repo-or-team/username` 形式）。`exec:false` は DRYRUN |
 
 ## ドキュメントリソース（resources/*）

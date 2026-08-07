@@ -79,9 +79,9 @@ These tools call the GitHub API and update SQLite by default. Every pull_* tool 
 | `pull_team-user` | Fetch members of one team | `{ "team" }` | `team` must be a slug (`team-slug`) |
 | `pull_repos-users` | Fetch direct collaborators of one repository | `{ "repository" }` | |
 | `pull_repos-teams` | Fetch teams with access to one repository | `{ "repository" }` | |
-| `pull_all-teams-users` | Fetch memberships for every team | none | Loops over all teams; soft-fails per team on error |
-| `pull_all-repos-users` | Fetch collaborators for every repository | none | Loops over all repositories; fails fast on error |
-| `pull_all-repos-teams` | Fetch team access for every repository | none | Loops over all repositories; fails fast on error |
+| `pull_all-teams-users` | Fetch memberships for every team | none | Loops over teams already cached in SQLite (run `pull_teams` first); soft-fails per team on error |
+| `pull_all-repos-users` | Fetch collaborators for every repository | none | Loops over repositories already cached in SQLite (run `pull_repositories` first); fails fast on error |
+| `pull_all-repos-teams` | Fetch team access for every repository | none | Loops over repositories already cached in SQLite (run `pull_repositories` first); fails fast on error |
 | `pull_outside-users` | Fetch outside collaborators | none | |
 | `pull_token-permission` | Fetch token permission headers | none | Persists the latest response in the database |
 
