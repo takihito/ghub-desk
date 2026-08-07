@@ -9,7 +9,7 @@ import (
 
 	"ghub-desk/debuglog"
 
-	"github.com/google/go-github/v55/github"
+	"github.com/google/go-github/v84/github"
 	_ "modernc.org/sqlite"
 )
 
@@ -268,17 +268,35 @@ func createTables(db DBTX) error {
 
 var permissionPriority = []string{"admin", "maintain", "push", "triage", "pull"}
 
-// selectHighestPermission returns the most privileged permission that is true in the GitHub permissions map.
-func selectHighestPermission(perms map[string]bool) string {
-	if len(perms) == 0 {
+// selectHighestPermission returns the most privileged permission that is true on perms.
+func selectHighestPermission(perms *github.RepositoryPermissions) string {
+	if perms == nil {
 		return ""
 	}
 	for _, key := range permissionPriority {
-		if perms[key] {
+		if permissionSet(perms, key) {
 			return key
 		}
 	}
 	return ""
+}
+
+// permissionSet reports whether the named permission is true on perms.
+func permissionSet(perms *github.RepositoryPermissions, key string) bool {
+	switch key {
+	case "admin":
+		return perms.GetAdmin()
+	case "maintain":
+		return perms.GetMaintain()
+	case "push":
+		return perms.GetPush()
+	case "triage":
+		return perms.GetTriage()
+	case "pull":
+		return perms.GetPull()
+	default:
+		return false
+	}
 }
 
 // normalizePermissionValue trims surrounding whitespace and lowercases the permission string for consistent storage.

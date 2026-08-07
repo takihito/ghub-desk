@@ -9,7 +9,7 @@ import (
 	"ghub-desk/store"
 	"ghub-desk/validate"
 
-	"github.com/google/go-github/v55/github"
+	"github.com/google/go-github/v84/github"
 )
 
 // ExecutePushRemove executes the actual removal operation via GitHub API

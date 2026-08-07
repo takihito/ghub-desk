@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	ghapi "github.com/google/go-github/v55/github"
+	ghapi "github.com/google/go-github/v84/github"
 )
 
 var (
@@ -112,15 +112,27 @@ func FetchEntries(ctx context.Context, client *ghapi.Client, org string, opts *g
 	return allEntries, nil
 }
 
-// RepoFromEntry extracts the repository name from an audit log entry.
-func RepoFromEntry(entry *ghapi.AuditEntry) string {
+// StringField extracts a string value for key from an audit entry's
+// AdditionalFields. go-github v84 dropped several typed AuditEntry fields
+// (e.g. repo, repository, target_login, event, team, ...) in favor of this
+// catch-all map. Exported for reuse by callers outside this package (e.g. mcp).
+func StringField(entry *ghapi.AuditEntry, key string) string {
 	if entry == nil {
 		return ""
 	}
-	if repo := strings.TrimSpace(entry.GetRepo()); repo != "" {
+	v, ok := entry.GetAdditionalFields()[key].(string)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(v)
+}
+
+// RepoFromEntry extracts the repository name from an audit log entry.
+func RepoFromEntry(entry *ghapi.AuditEntry) string {
+	if repo := StringField(entry, "repo"); repo != "" {
 		return repo
 	}
-	if repo := strings.TrimSpace(entry.GetRepository()); repo != "" {
+	if repo := StringField(entry, "repository"); repo != "" {
 		return repo
 	}
 	return ""
@@ -134,7 +146,7 @@ func UserFromEntry(entry *ghapi.AuditEntry) string {
 	if user := strings.TrimSpace(entry.GetUser()); user != "" {
 		return user
 	}
-	if user := strings.TrimSpace(entry.GetTargetLogin()); user != "" {
+	if user := StringField(entry, "target_login"); user != "" {
 		return user
 	}
 	return ""

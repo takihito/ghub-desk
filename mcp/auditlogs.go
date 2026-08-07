@@ -11,7 +11,7 @@ import (
 	"ghub-desk/ghubclient"
 	v "ghub-desk/validate"
 
-	ghapi "github.com/google/go-github/v55/github"
+	ghapi "github.com/google/go-github/v84/github"
 	"github.com/google/jsonschema-go/jsonschema"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -150,19 +150,19 @@ func normalizeAuditLogEntries(entries []*ghapi.AuditEntry) []AuditLogEntry {
 		out = append(out, AuditLogEntry{
 			Action:        entry.GetAction(),
 			Actor:         entry.GetActor(),
-			ActorIP:       entry.GetActorIP(),
+			ActorIP:       auditlog.StringField(entry, "actor_ip"),
 			User:          auditlog.UserFromEntry(entry),
 			Repo:          auditlog.RepoFromEntry(entry),
 			Org:           entry.GetOrg(),
 			CreatedAt:     formatAuditLogTimestamp(entry.GetCreatedAt()),
 			Timestamp:     formatAuditLogTimestamp(entry.GetTimestamp()),
 			DocumentID:    entry.GetDocumentID(),
-			Event:         entry.GetEvent(),
-			OperationType: entry.GetOperationType(),
-			Permission:    entry.GetPermission(),
-			Team:          entry.GetTeam(),
-			Message:       entry.GetMessage(),
-			UserAgent:     entry.GetUserAgent(),
+			Event:         auditlog.StringField(entry, "event"),
+			OperationType: auditlog.StringField(entry, "operation_type"),
+			Permission:    auditlog.StringField(entry, "permission"),
+			Team:          auditlog.StringField(entry, "team"),
+			Message:       auditlog.StringField(entry, "message"),
+			UserAgent:     auditlog.StringField(entry, "user_agent"),
 		})
 	}
 	return out

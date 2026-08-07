@@ -10,7 +10,7 @@ import (
 	"ghub-desk/ghubclient"
 	"ghub-desk/store"
 
-	gh "github.com/google/go-github/v55/github"
+	gh "github.com/google/go-github/v84/github"
 )
 
 // AuditLogsCmd fetches and displays organization audit log entries.
@@ -109,7 +109,7 @@ func printAuditLogTable(entries []*gh.AuditEntry) {
 			entry.GetActor(),
 			auditlog.RepoFromEntry(entry),
 			auditlog.UserFromEntry(entry),
-			entry.GetActorIP(),
+			auditlog.StringField(entry, "actor_ip"),
 		)
 	}
 }

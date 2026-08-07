@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-github/v55/github"
+	"github.com/google/go-github/v84/github"
 	_ "modernc.org/sqlite"
 )
 
@@ -434,17 +434,17 @@ func TestRepoUsersOperations(t *testing.T) {
 		{
 			ID:    github.Int64(101),
 			Login: github.String("collab1"),
-			Permissions: map[string]bool{
-				"admin": true,
-				"push":  true,
+			Permissions: &github.RepositoryPermissions{
+				Admin: github.Bool(true),
+				Push:  github.Bool(true),
 			},
 		},
 		{
 			ID:    github.Int64(102),
 			Login: github.String("collab2"),
-			Permissions: map[string]bool{
-				"push": true,
-				"pull": true,
+			Permissions: &github.RepositoryPermissions{
+				Push: github.Bool(true),
+				Pull: github.Bool(true),
 			},
 		},
 	}
@@ -574,15 +574,15 @@ func TestListRepositoryNames(t *testing.T) {
 func TestSelectHighestPermission(t *testing.T) {
 	cases := []struct {
 		name string
-		in   map[string]bool
+		in   *github.RepositoryPermissions
 		out  string
 	}{
-		{"nil map", nil, ""},
-		{"empty map", map[string]bool{}, ""},
-		{"admin wins", map[string]bool{"pull": true, "admin": true}, "admin"},
-		{"maintain over push", map[string]bool{"push": true, "maintain": true}, "maintain"},
-		{"triage fallback", map[string]bool{"triage": true}, "triage"},
-		{"pull only false", map[string]bool{"pull": false, "push": true}, "push"},
+		{"nil permissions", nil, ""},
+		{"empty permissions", &github.RepositoryPermissions{}, ""},
+		{"admin wins", &github.RepositoryPermissions{Pull: github.Bool(true), Admin: github.Bool(true)}, "admin"},
+		{"maintain over push", &github.RepositoryPermissions{Push: github.Bool(true), Maintain: github.Bool(true)}, "maintain"},
+		{"triage fallback", &github.RepositoryPermissions{Triage: github.Bool(true)}, "triage"},
+		{"pull only false", &github.RepositoryPermissions{Pull: github.Bool(false), Push: github.Bool(true)}, "push"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

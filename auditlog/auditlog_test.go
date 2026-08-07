@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	ghapi "github.com/google/go-github/v55/github"
+	ghapi "github.com/google/go-github/v84/github"
 )
 
 func TestBuildCreatedClause(t *testing.T) {
@@ -100,12 +100,12 @@ func TestRepoFromEntry(t *testing.T) {
 		t.Fatalf("expected empty repo for nil entry, got %q", got)
 	}
 
-	entry := &ghapi.AuditEntry{Repo: &repo, Repository: &repository}
+	entry := &ghapi.AuditEntry{AdditionalFields: map[string]any{"repo": repo, "repository": repository}}
 	if got := RepoFromEntry(entry); got != repo {
 		t.Fatalf("expected repo %q, got %q", repo, got)
 	}
 
-	entry = &ghapi.AuditEntry{Repository: &repository}
+	entry = &ghapi.AuditEntry{AdditionalFields: map[string]any{"repository": repository}}
 	if got := RepoFromEntry(entry); got != repository {
 		t.Fatalf("expected repo %q, got %q", repository, got)
 	}
@@ -119,12 +119,12 @@ func TestUserFromEntry(t *testing.T) {
 		t.Fatalf("expected empty user for nil entry, got %q", got)
 	}
 
-	entry := &ghapi.AuditEntry{User: &user, TargetLogin: &target}
+	entry := &ghapi.AuditEntry{User: &user, AdditionalFields: map[string]any{"target_login": target}}
 	if got := UserFromEntry(entry); got != user {
 		t.Fatalf("expected user %q, got %q", user, got)
 	}
 
-	entry = &ghapi.AuditEntry{TargetLogin: &target}
+	entry = &ghapi.AuditEntry{AdditionalFields: map[string]any{"target_login": target}}
 	if got := UserFromEntry(entry); got != target {
 		t.Fatalf("expected user %q, got %q", target, got)
 	}
