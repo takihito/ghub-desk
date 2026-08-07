@@ -1,9 +1,26 @@
 package ghubclient
 
 import (
+	"bytes"
 	"maps"
+	"os"
 	"testing"
 )
+
+func TestPullOptionsOutputDefaultsToStdout(t *testing.T) {
+	opts := PullOptions{}
+	if got := opts.output(); got != os.Stdout {
+		t.Fatalf("expected output() to default to os.Stdout when Output is nil, got %v", got)
+	}
+}
+
+func TestPullOptionsOutputUsesInjectedWriter(t *testing.T) {
+	var buf bytes.Buffer
+	opts := PullOptions{Output: &buf}
+	if got := opts.output(); got != &buf {
+		t.Fatalf("expected output() to return the injected writer, got %v", got)
+	}
+}
 
 func TestPullOptionsForEndpointResumeMatch(t *testing.T) {
 	opts := PullOptions{

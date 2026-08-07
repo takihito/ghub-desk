@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"maps"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -40,6 +42,19 @@ type PullOptions struct {
 	InitialCount int
 	Resume       ResumeState
 	Progress     ProgressReporter
+
+	// Output receives human-readable progress messages (page counts, resume notices,
+	// per-item status). Defaults to os.Stdout when nil. Unrelated to Progress above, which
+	// persists resumable session state rather than printing text.
+	Output io.Writer
+}
+
+// output returns the writer progress messages should be printed to, defaulting to os.Stdout.
+func (opts PullOptions) output() io.Writer {
+	if opts.Output != nil {
+		return opts.Output
+	}
+	return os.Stdout
 }
 
 // ResumeState captures the persisted progress of a previous pull execution.
@@ -177,6 +192,27 @@ func syncAll[T any](
 	return allItems, nil
 }
 
+// replaceScoped runs run inside a transaction on db: begin, invoke run (typically a scoped
+// DELETE followed by a store call), and commit. The transaction is always rolled back if run
+// or the commit fails. errCtx is substituted into the begin/commit error messages, e.g.
+// "repo myrepo" or "team platform-team".
+func replaceScoped(db *sql.DB, errCtx string, run func(tx *sql.Tx) error) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction for %s: %w", errCtx, err)
+	}
+	defer tx.Rollback()
+
+	if err := run(tx); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction for %s: %w", errCtx, err)
+	}
+	return nil
+}
+
 // PullUsers fetches organization members and optionally stores them in database
 func PullUsers(ctx context.Context, client *github.Client, db *sql.DB, org string, opts PullOptions) error {
 	_, err := syncAll(
@@ -212,11 +248,11 @@ func PullDetailUsers(ctx context.Context, client *github.Client, db *sql.DB, org
 	// Now, fetch detailed info for each user.
 	detailedUsersList := make([]*github.User, 0, len(allUsers))
 	for i, u := range allUsers {
-		fmt.Printf("Fetching details for user %d/%d: %s\n", i+1, len(allUsers), u.GetLogin())
+		fmt.Fprintf(opts.output(), "Fetching details for user %d/%d: %s\n", i+1, len(allUsers), u.GetLogin())
 
 		detailedUser, _, err := client.Users.Get(ctx, u.GetLogin())
 		if err != nil {
-			fmt.Printf("Warning: failed to fetch details for user %s: %v\n", u.GetLogin(), err)
+			fmt.Fprintf(opts.output(), "Warning: failed to fetch details for user %s: %v\n", u.GetLogin(), err)
 			detailedUser = u // Use basic info as a fallback.
 		}
 		detailedUsersList = append(detailedUsersList, detailedUser)
@@ -306,22 +342,19 @@ func PullRepoUsers(ctx context.Context, client *github.Client, db *sql.DB, org, 
 	}
 
 	if localOpts.Store && db != nil {
-		tx, err := db.Begin()
+		err := replaceScoped(db, fmt.Sprintf("repo %s", repoName), func(tx *sql.Tx) error {
+			query := `DELETE FROM ghub_repos_users WHERE repos_name = ?`
+			session.Debugf("SQL: %s, ARGS: [%s]", query, repoName)
+			if _, err := tx.Exec(query, repoName); err != nil {
+				return fmt.Errorf("failed to clear repository users for %s: %w", repoName, err)
+			}
+			if err := store.StoreRepoUsers(tx, repoName, users); err != nil {
+				return fmt.Errorf("failed to store repository users for %s: %w", repoName, err)
+			}
+			return nil
+		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to begin transaction for repo %s: %w", repoName, err)
-		}
-		defer tx.Rollback()
-
-		query := `DELETE FROM ghub_repos_users WHERE repos_name = ?`
-		session.Debugf("SQL: %s, ARGS: [%s]", query, repoName)
-		if _, err := tx.Exec(query, repoName); err != nil {
-			return nil, fmt.Errorf("failed to clear repository users for %s: %w", repoName, err)
-		}
-		if err := store.StoreRepoUsers(tx, repoName, users); err != nil {
-			return nil, fmt.Errorf("failed to store repository users for %s: %w", repoName, err)
-		}
-		if err := tx.Commit(); err != nil {
-			return nil, fmt.Errorf("failed to commit transaction for repo %s: %w", repoName, err)
+			return nil, err
 		}
 	}
 
@@ -351,40 +384,34 @@ func PullRepoTeams(ctx context.Context, client *github.Client, db *sql.DB, org, 
 	}
 
 	if localOpts.Store && db != nil {
-		tx, err := db.Begin()
-		if err != nil {
-			return nil, fmt.Errorf("failed to begin transaction for repo %s: %w", repoName, err)
-		}
-		defer tx.Rollback()
+		err := replaceScoped(db, fmt.Sprintf("repo %s", repoName), func(tx *sql.Tx) error {
+			query := `DELETE FROM ghub_repos_teams WHERE repos_name = ?`
+			session.Debugf("SQL: %s, ARGS: [%s]", query, repoName)
+			if _, err := tx.Exec(query, repoName); err != nil {
+				return fmt.Errorf("failed to clear repository teams for %s: %w", repoName, err)
+			}
 
-		query := `DELETE FROM ghub_repos_teams WHERE repos_name = ?`
-		session.Debugf("SQL: %s, ARGS: [%s]", query, repoName)
-		if _, err := tx.Exec(query, repoName); err != nil {
-			return nil, fmt.Errorf("failed to clear repository teams for %s: %w", repoName, err)
-		}
-
-		err = store.StoreRepoTeams(tx, repoName, teams)
-		if err != nil {
-			if errors.Is(err, store.ErrRepoNotFound) {
-				fmt.Printf("Repository '%s' not found locally, fetching from API...\n", repoName)
+			if err := store.StoreRepoTeams(tx, repoName, teams); err != nil {
+				if !errors.Is(err, store.ErrRepoNotFound) {
+					return fmt.Errorf("failed to store repository teams for %s: %w", repoName, err)
+				}
+				fmt.Fprintf(opts.output(), "Repository '%s' not found locally, fetching from API...\n", repoName)
 				repo, _, apiErr := client.Repositories.Get(ctx, org, repoName)
 				if apiErr != nil {
-					return nil, fmt.Errorf("failed to fetch repository details for '%s' from API: %w", repoName, apiErr)
+					return fmt.Errorf("failed to fetch repository details for '%s' from API: %w", repoName, apiErr)
 				}
 				if storeErr := store.StoreRepositories(tx, []*github.Repository{repo}); storeErr != nil {
-					return nil, fmt.Errorf("failed to store fetched repository details: %w", storeErr)
+					return fmt.Errorf("failed to store fetched repository details: %w", storeErr)
 				}
 				// Retry storing the teams
 				if storeErr := store.StoreRepoTeams(tx, repoName, teams); storeErr != nil {
-					return nil, fmt.Errorf("failed to store repository teams after fetching repository details: %w", storeErr)
+					return fmt.Errorf("failed to store repository teams after fetching repository details: %w", storeErr)
 				}
-			} else {
-				return nil, fmt.Errorf("failed to store repository teams for %s: %w", repoName, err)
 			}
-		}
-
-		if err := tx.Commit(); err != nil {
-			return nil, fmt.Errorf("failed to commit transaction for repo %s: %w", repoName, err)
+			return nil
+		})
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -395,6 +422,79 @@ func PullRepoTeams(ctx context.Context, client *github.Client, db *sql.DB, org, 
 	}
 
 	return teams, nil
+}
+
+// pullAllForEach implements the shared skeleton behind PullAllReposUsers, PullAllReposTeams,
+// and PullAllTeamsUsers: dedupe the name list, resume from a prior interrupted run at the
+// right index, and invoke pullOne for each remaining name in order.
+//
+// onReady runs once, after resume state has been resolved and before the loop starts, so
+// callers can print an intro message using the deduped count. pullOne receives per-item pull
+// options with Resume set for that item; a non-nil error is passed to onError, which decides
+// what happens next: return nil to keep iterating (matching PullAllTeamsUsers, which warns and
+// continues) or return an error to abort the whole loop (matching PullAllReposUsers/
+// PullAllReposTeams). onError may be nil, in which case any pullOne error aborts immediately.
+func pullAllForEach(
+	names []string,
+	opts PullOptions,
+	endpoint, nameKey, indexKey, label, identifier string,
+	onReady func(unique []string),
+	pullOne func(idx int, name string, itemOpts PullOptions) error,
+	onError func(name string, err error) error,
+) error {
+	seen := make(map[string]struct{}, len(names))
+	unique := make([]string, 0, len(names))
+	for _, name := range names {
+		trimmed := strings.TrimSpace(name)
+		if trimmed == "" {
+			continue
+		}
+		if _, ok := seen[trimmed]; ok {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		unique = append(unique, trimmed)
+	}
+
+	resumeState := opts.Resume
+	resumeIndex := -1
+	if len(unique) > 0 {
+		var logMsg string
+		resumeState, resumeIndex, logMsg, _ = prepareResume(unique, resumeState, endpoint, nameKey, indexKey, label, identifier)
+		if logMsg != "" {
+			fmt.Fprint(opts.output(), logMsg)
+		}
+	}
+
+	if onReady != nil {
+		onReady(unique)
+	}
+
+	for idx, name := range unique {
+		if resumeState.Endpoint == endpoint && resumeIndex >= 0 && idx < resumeIndex {
+			continue
+		}
+
+		itemOpts := opts
+		itemOpts.Resume = resumeState
+
+		if err := pullOne(idx, name, itemOpts); err != nil {
+			if onError == nil {
+				return err
+			}
+			if abortErr := onError(name, err); abortErr != nil {
+				return abortErr
+			}
+			continue
+		}
+
+		if resumeState.Endpoint == endpoint && idx == resumeIndex {
+			resumeState = ResumeState{}
+			resumeIndex = -1
+		}
+	}
+
+	return nil
 }
 
 // PullAllReposUsers iterates all repositories and fetches their direct collaborators.
@@ -409,67 +509,42 @@ func PullAllReposUsers(ctx context.Context, client *github.Client, db *sql.DB, o
 	}
 
 	if len(repoNames) == 0 {
-		fmt.Println("No repositories found in database. Please run 'ghub-desk pull --repos' first.")
+		fmt.Fprintln(opts.output(), "No repositories found in database. Please run 'ghub-desk pull --repos' first.")
 		return nil
 	}
 
-	stdoutPayload := make([]struct {
+	var stdoutPayload []struct {
 		Repo  string         `json:"repo"`
 		Users []*github.User `json:"users"`
-	}, 0, len(repoNames))
-
-	seen := make(map[string]struct{}, len(repoNames))
-	uniqueRepos := make([]string, 0, len(repoNames))
-	for _, name := range repoNames {
-		trimmed := strings.TrimSpace(name)
-		if trimmed == "" {
-			continue
-		}
-		if _, ok := seen[trimmed]; ok {
-			continue
-		}
-		seen[trimmed] = struct{}{}
-		uniqueRepos = append(uniqueRepos, trimmed)
 	}
+	var total int
 
-	resumeState := opts.Resume
-	resumeRepoIndex := -1
-	if len(uniqueRepos) > 0 {
-		var logMsg string
-		resumeState, resumeRepoIndex, logMsg, _ = prepareResume(uniqueRepos, resumeState, "repos-users", "repo", "repo_index", "repository", "repository name")
-		if logMsg != "" {
-			fmt.Print(logMsg)
-		}
-	}
+	err = pullAllForEach(
+		repoNames, opts, "repos-users", "repo", "repo_index", "repository", "repository name",
+		func(unique []string) {
+			total = len(unique)
+			fmt.Fprintf(opts.output(), "Fetching users for %d repositories...\n", total)
+		},
+		func(idx int, repoName string, itemOpts PullOptions) error {
+			fmt.Fprintf(opts.output(), "Fetching users for repository %d/%d: %s\n", idx+1, total, repoName)
 
-	fmt.Printf("Fetching users for %d repositories...\n", len(uniqueRepos))
-
-	for idx, repoName := range uniqueRepos {
-		if resumeState.Endpoint == "repos-users" && resumeRepoIndex >= 0 && idx < resumeRepoIndex {
-			continue
-		}
-
-		fmt.Printf("Fetching users for repository %d/%d: %s\n", idx+1, len(uniqueRepos), repoName)
-
-		baseOpts := opts
-		baseOpts.Resume = resumeState
-		baseOpts.Stdout = false // suppress per-repo output; aggregated output is printed after the loop
-
-		users, err := PullRepoUsers(ctx, client, db, org, repoName, baseOpts)
-		if err != nil {
-			return fmt.Errorf("failed to fetch repository users for %s: %w", repoName, err)
-		}
-		if opts.Stdout {
-			stdoutPayload = append(stdoutPayload, struct {
-				Repo  string         `json:"repo"`
-				Users []*github.User `json:"users"`
-			}{Repo: repoName, Users: users})
-		}
-
-		if resumeState.Endpoint == "repos-users" && resumeRepoIndex >= 0 && idx == resumeRepoIndex {
-			resumeState = ResumeState{}
-			resumeRepoIndex = -1
-		}
+			itemOpts.Stdout = false // suppress per-repo output; aggregated output is printed after the loop
+			users, err := PullRepoUsers(ctx, client, db, org, repoName, itemOpts)
+			if err != nil {
+				return fmt.Errorf("failed to fetch repository users for %s: %w", repoName, err)
+			}
+			if opts.Stdout {
+				stdoutPayload = append(stdoutPayload, struct {
+					Repo  string         `json:"repo"`
+					Users []*github.User `json:"users"`
+				}{Repo: repoName, Users: users})
+			}
+			return nil
+		},
+		nil, // fail fast: abort the loop on the first error, matching the original behavior
+	)
+	if err != nil {
+		return err
 	}
 
 	if opts.Stdout {
@@ -493,67 +568,42 @@ func PullAllReposTeams(ctx context.Context, client *github.Client, db *sql.DB, o
 	}
 
 	if len(repoNames) == 0 {
-		fmt.Println("No repositories found in database. Please run 'ghub-desk pull --repos' first.")
+		fmt.Fprintln(opts.output(), "No repositories found in database. Please run 'ghub-desk pull --repos' first.")
 		return nil
 	}
 
-	stdoutPayload := make([]struct {
+	var stdoutPayload []struct {
 		Repo  string         `json:"repo"`
 		Teams []*github.Team `json:"teams"`
-	}, 0, len(repoNames))
-
-	seen := make(map[string]struct{}, len(repoNames))
-	uniqueRepos := make([]string, 0, len(repoNames))
-	for _, name := range repoNames {
-		trimmed := strings.TrimSpace(name)
-		if trimmed == "" {
-			continue
-		}
-		if _, ok := seen[trimmed]; ok {
-			continue
-		}
-		seen[trimmed] = struct{}{}
-		uniqueRepos = append(uniqueRepos, trimmed)
 	}
+	var total int
 
-	resumeState := opts.Resume
-	resumeRepoIndex := -1
-	if len(uniqueRepos) > 0 {
-		var logMsg string
-		resumeState, resumeRepoIndex, logMsg, _ = prepareResume(uniqueRepos, resumeState, "repos-teams", "repo", "repo_index", "repository", "repository name")
-		if logMsg != "" {
-			fmt.Print(logMsg)
-		}
-	}
+	err = pullAllForEach(
+		repoNames, opts, "repos-teams", "repo", "repo_index", "repository", "repository name",
+		func(unique []string) {
+			total = len(unique)
+			fmt.Fprintf(opts.output(), "Fetching teams for %d repositories...\n", total)
+		},
+		func(idx int, repoName string, itemOpts PullOptions) error {
+			fmt.Fprintf(opts.output(), "Fetching teams for repository %d/%d: %s\n", idx+1, total, repoName)
 
-	fmt.Printf("Fetching teams for %d repositories...\n", len(uniqueRepos))
-
-	for idx, repoName := range uniqueRepos {
-		if resumeState.Endpoint == "repos-teams" && resumeRepoIndex >= 0 && idx < resumeRepoIndex {
-			continue
-		}
-
-		fmt.Printf("Fetching teams for repository %d/%d: %s\n", idx+1, len(uniqueRepos), repoName)
-
-		baseOpts := opts
-		baseOpts.Resume = resumeState
-		baseOpts.Stdout = false // suppress per-repo output; aggregated output is printed after the loop
-
-		teams, err := PullRepoTeams(ctx, client, db, org, repoName, baseOpts)
-		if err != nil {
-			return fmt.Errorf("failed to fetch repository teams for %s: %w", repoName, err)
-		}
-		if opts.Stdout {
-			stdoutPayload = append(stdoutPayload, struct {
-				Repo  string         `json:"repo"`
-				Teams []*github.Team `json:"teams"`
-			}{Repo: repoName, Teams: teams})
-		}
-
-		if resumeState.Endpoint == "repos-teams" && resumeRepoIndex >= 0 && idx == resumeRepoIndex {
-			resumeState = ResumeState{}
-			resumeRepoIndex = -1
-		}
+			itemOpts.Stdout = false // suppress per-repo output; aggregated output is printed after the loop
+			teams, err := PullRepoTeams(ctx, client, db, org, repoName, itemOpts)
+			if err != nil {
+				return fmt.Errorf("failed to fetch repository teams for %s: %w", repoName, err)
+			}
+			if opts.Stdout {
+				stdoutPayload = append(stdoutPayload, struct {
+					Repo  string         `json:"repo"`
+					Teams []*github.Team `json:"teams"`
+				}{Repo: repoName, Teams: teams})
+			}
+			return nil
+		},
+		nil, // fail fast: abort the loop on the first error, matching the original behavior
+	)
+	if err != nil {
+		return err
 	}
 
 	if opts.Stdout {
@@ -609,42 +659,35 @@ func pullTeamUsers(ctx context.Context, client *github.Client, db *sql.DB, org, 
 	}
 
 	if localOpts.Store && db != nil {
-		tx, err := db.Begin()
-		if err != nil {
-			return nil, fmt.Errorf("failed to begin transaction for team %s: %w", teamSlug, err)
-		}
-		defer tx.Rollback()
+		err := replaceScoped(db, fmt.Sprintf("team %s", teamSlug), func(tx *sql.Tx) error {
+			query := `DELETE FROM ghub_team_users WHERE team_slug = ?`
+			session.Debugf("SQL: %s, ARGS: [%s]", query, teamSlug)
+			if _, err := tx.Exec(query, teamSlug); err != nil {
+				return fmt.Errorf("failed to clear team_users for team %s: %w", teamSlug, err)
+			}
 
-		query := `DELETE FROM ghub_team_users WHERE team_slug = ?`
-		session.Debugf("SQL: %s, ARGS: [%s]", query, teamSlug)
-		if _, err := tx.Exec(query, teamSlug); err != nil {
-			return nil, fmt.Errorf("failed to clear team_users for team %s: %w", teamSlug, err)
-		}
-
-		err = store.StoreTeamUsers(tx, users, teamSlug)
-		if err != nil {
-			// If the team doesn't exist locally, fetch it from the API and try again.
-			if strings.Contains(err.Error(), "data not found") {
-				fmt.Printf("Team '%s' not found locally, fetching from API...\n", teamSlug)
+			if err := store.StoreTeamUsers(tx, users, teamSlug); err != nil {
+				// If the team doesn't exist locally, fetch it from the API and try again.
+				if !errors.Is(err, store.ErrTeamNotFound) {
+					return fmt.Errorf("failed to store team users for %s: %w", teamSlug, err)
+				}
+				fmt.Fprintf(opts.output(), "Team '%s' not found locally, fetching from API...\n", teamSlug)
 				team, _, apiErr := client.Teams.GetTeamBySlug(ctx, org, teamSlug)
 				if apiErr != nil {
-					return nil, fmt.Errorf("failed to fetch team details for '%s' from API: %w", teamSlug, apiErr)
+					return fmt.Errorf("failed to fetch team details for '%s' from API: %w", teamSlug, apiErr)
 				}
 				if storeErr := store.StoreTeams(tx, []*github.Team{team}); storeErr != nil {
-					return nil, fmt.Errorf("failed to store fetched team details: %w", storeErr)
+					return fmt.Errorf("failed to store fetched team details: %w", storeErr)
 				}
 				// Retry storing the users
 				if storeErr := store.StoreTeamUsers(tx, users, teamSlug); storeErr != nil {
-					return nil, fmt.Errorf("failed to store team users after fetching team details: %w", storeErr)
+					return fmt.Errorf("failed to store team users after fetching team details: %w", storeErr)
 				}
-			} else {
-				// For other errors, return them directly.
-				return nil, fmt.Errorf("failed to store team users for %s: %w", teamSlug, err)
 			}
-		}
-
-		if err := tx.Commit(); err != nil {
-			return nil, fmt.Errorf("failed to commit transaction for team %s: %w", teamSlug, err)
+			return nil
+		})
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -681,59 +724,53 @@ func PullAllTeamsUsers(ctx context.Context, client *github.Client, db *sql.DB, o
 	}
 
 	if len(teamSlugs) == 0 {
-		fmt.Println("No teams found in database. Please run 'ghub-desk pull teams' first.")
+		fmt.Fprintln(opts.output(), "No teams found in database. Please run 'ghub-desk pull teams' first.")
 		return nil
 	}
-
-	fmt.Printf("Fetching users for %d teams...\n", len(teamSlugs))
 
 	var stdoutResults []struct {
 		Team  string         `json:"team"`
 		Users []*github.User `json:"users"`
 	}
-	resumeState := opts.Resume
-	resumeTeamIndex := -1
-	if len(teamSlugs) > 0 {
-		var logMsg string
-		resumeState, resumeTeamIndex, logMsg, _ = prepareResume(teamSlugs, resumeState, "team-user", "team", "team_index", "team", "team slug")
-		if logMsg != "" {
-			fmt.Print(logMsg)
-		}
-	}
-	for i, teamSlug := range teamSlugs {
-		if resumeState.Endpoint == "team-user" && resumeTeamIndex >= 0 && i < resumeTeamIndex {
-			continue
-		}
+	var total int
 
-		fmt.Printf("Processing team %d/%d: %s\n", i+1, len(teamSlugs), teamSlug)
-		meta := map[string]string{
-			"team":       teamSlug,
-			"team_index": strconv.Itoa(i),
-		}
-		baseOpts := opts
-		baseOpts.Resume = resumeState
-
-		users, err := pullTeamUsers(ctx, client, db, org, teamSlug, meta, baseOpts)
-		if err != nil {
-			fmt.Printf("Warning: failed to fetch users for team %s: %v\n", teamSlug, err)
-			continue
-		}
-		if resumeState.Endpoint == "team-user" && i == resumeTeamIndex {
-			resumeState = ResumeState{}
-			resumeTeamIndex = -1
-		}
-		if opts.Stdout {
-			stdoutResults = append(stdoutResults, struct {
-				Team  string         `json:"team"`
-				Users []*github.User `json:"users"`
-			}{
-				Team:  teamSlug,
-				Users: users,
-			})
-		}
+	err = pullAllForEach(
+		teamSlugs, opts, "team-user", "team", "team_index", "team", "team slug",
+		func(unique []string) {
+			total = len(unique)
+			fmt.Fprintf(opts.output(), "Fetching users for %d teams...\n", total)
+		},
+		func(idx int, teamSlug string, itemOpts PullOptions) error {
+			fmt.Fprintf(opts.output(), "Processing team %d/%d: %s\n", idx+1, total, teamSlug)
+			meta := map[string]string{
+				"team":       teamSlug,
+				"team_index": strconv.Itoa(idx),
+			}
+			users, err := pullTeamUsers(ctx, client, db, org, teamSlug, meta, itemOpts)
+			if err != nil {
+				return err
+			}
+			if opts.Stdout {
+				stdoutResults = append(stdoutResults, struct {
+					Team  string         `json:"team"`
+					Users []*github.User `json:"users"`
+				}{
+					Team:  teamSlug,
+					Users: users,
+				})
+			}
+			return nil
+		},
+		func(teamSlug string, err error) error {
+			fmt.Fprintf(opts.output(), "Warning: failed to fetch users for team %s: %v\n", teamSlug, err)
+			return nil // soft-fail: keep iterating, matching the original behavior
+		},
+	)
+	if err != nil {
+		return err
 	}
 
-	fmt.Printf("Completed fetching users for all teams.\n")
+	fmt.Fprintf(opts.output(), "Completed fetching users for all teams.\n")
 
 	if opts.Stdout {
 		if err := store.PrintJSON(stdoutResults); err != nil {
@@ -787,7 +824,7 @@ func PullTokenPermission(ctx context.Context, client *github.Client, db *sql.DB,
 		if err := tx.Commit(); err != nil {
 			return fmt.Errorf("failed to commit transaction: %w", err)
 		}
-		fmt.Printf("Token permission information stored in database\n")
+		fmt.Fprintf(opts.output(), "Token permission information stored in database\n")
 	}
 
 	if opts.Stdout {
@@ -860,7 +897,7 @@ func fetchAndStore[T any](
 		if len(items) > 0 {
 			allItems = append(allItems, items...)
 			count += len(items)
-			fmt.Printf("- %d items fetched\n", count)
+			fmt.Fprintf(pullOpts.output(), "- %d items fetched\n", count)
 
 			if storeFunc != nil && db != nil {
 				if err := storeFunc(db, items); err != nil {
@@ -890,7 +927,7 @@ func fetchAndStore[T any](
 
 // PullOutsideUsers fetches organization outside collaborators and optionally stores them in database
 func PullOutsideUsers(ctx context.Context, client *github.Client, db *sql.DB, org string, opts PullOptions) error {
-	fmt.Printf("Fetching outside collaborators from GitHub API...\n")
+	fmt.Fprintf(opts.output(), "Fetching outside collaborators from GitHub API...\n")
 	_, err := syncAll(
 		ctx, client, db, org, opts, "outside-users", "ghub_outside_users",
 		func(ctx context.Context, org string, optsList *github.ListOptions) ([]*github.User, *github.Response, error) {
