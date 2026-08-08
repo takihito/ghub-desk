@@ -8,7 +8,7 @@ import (
 	"ghub-desk/debuglog"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
-	"github.com/google/go-github/v55/github"
+	"github.com/google/go-github/v84/github"
 	"golang.org/x/oauth2"
 
 	"ghub-desk/config"

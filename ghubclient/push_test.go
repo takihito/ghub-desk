@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"ghub-desk/config"
-	apigithub "github.com/google/go-github/v55/github"
+	apigithub "github.com/google/go-github/v84/github"
 )
 
 func TestExecutePushRemove_InvalidTarget(t *testing.T) {

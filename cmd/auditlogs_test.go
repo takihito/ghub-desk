@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"ghub-desk/auditlog"
+
+	gh "github.com/google/go-github/v84/github"
 )
 
 func TestBuildAuditLogCreatedClause(t *testing.T) {
@@ -107,5 +109,38 @@ func TestBuildAuditLogPhrase(t *testing.T) {
 
 	if _, err := auditlog.BuildPhrase("acme", "", "", "", now); err == nil {
 		t.Fatalf("expected error for empty user")
+	}
+}
+
+func TestNormalizeAuditEntriesForYAMLFlattensAdditionalFields(t *testing.T) {
+	action := "repo.create"
+	entry := &gh.AuditEntry{
+		Action: &action,
+		AdditionalFields: map[string]any{
+			"repo":     "admin-console",
+			"actor_ip": "1.2.3.4",
+		},
+	}
+
+	out, err := normalizeAuditEntriesForYAML([]*gh.AuditEntry{entry})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(out) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(out))
+	}
+
+	got := out[0]
+	if _, ok := got["additionalfields"]; ok {
+		t.Fatalf("expected AdditionalFields to be flattened, not nested under additionalfields: %v", got)
+	}
+	if got["repo"] != "admin-console" {
+		t.Fatalf("expected repo %q at top level, got %v", "admin-console", got["repo"])
+	}
+	if got["actor_ip"] != "1.2.3.4" {
+		t.Fatalf("expected actor_ip %q at top level, got %v", "1.2.3.4", got["actor_ip"])
+	}
+	if got["action"] != action {
+		t.Fatalf("expected action %q, got %v", action, got["action"])
 	}
 }

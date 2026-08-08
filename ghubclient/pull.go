@@ -16,7 +16,7 @@ import (
 	"ghub-desk/store"
 	"ghub-desk/validate"
 
-	"github.com/google/go-github/v55/github"
+	"github.com/google/go-github/v84/github"
 )
 
 const (

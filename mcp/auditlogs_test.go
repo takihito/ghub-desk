@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	ghapi "github.com/google/go-github/v55/github"
+	ghapi "github.com/google/go-github/v84/github"
 )
 
 func TestFormatAuditLogTimestamp(t *testing.T) {
@@ -38,21 +38,23 @@ func TestNormalizeAuditLogEntries(t *testing.T) {
 	timestamp := ghapi.Timestamp{Time: time.Date(2026, 1, 14, 1, 2, 3, 4000000, time.UTC)}
 
 	entry := &ghapi.AuditEntry{
-		Action:        &action,
-		Actor:         &actor,
-		ActorIP:       &actorIP,
-		User:          &user,
-		Repo:          &repo,
-		Org:           &org,
-		CreatedAt:     &createdAt,
-		Timestamp:     &timestamp,
-		DocumentID:    &docID,
-		Event:         &event,
-		OperationType: &opType,
-		Permission:    &permission,
-		Team:          &team,
-		Message:       &message,
-		UserAgent:     &userAgent,
+		Action:     &action,
+		Actor:      &actor,
+		User:       &user,
+		Org:        &org,
+		CreatedAt:  &createdAt,
+		Timestamp:  &timestamp,
+		DocumentID: &docID,
+		AdditionalFields: map[string]any{
+			"actor_ip":       actorIP,
+			"repo":           repo,
+			"event":          event,
+			"operation_type": opType,
+			"permission":     permission,
+			"team":           team,
+			"message":        message,
+			"user_agent":     userAgent,
+		},
 	}
 
 	out := normalizeAuditLogEntries([]*ghapi.AuditEntry{entry, nil})

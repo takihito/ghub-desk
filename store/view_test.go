@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/go-github/v55/github"
+	"github.com/google/go-github/v84/github"
 	_ "modernc.org/sqlite"
 )
 
@@ -331,8 +331,8 @@ func TestViewAllRepositoriesUsers(t *testing.T) {
 	}
 
 	users := []*github.User{
-		{ID: github.Int64(101), Login: github.String("alice"), Name: github.String("Alice"), Permissions: map[string]bool{"admin": true}},
-		{ID: github.Int64(102), Login: github.String("bob"), Name: github.String("Bob"), Permissions: map[string]bool{"push": true}},
+		{ID: github.Int64(101), Login: github.String("alice"), Name: github.String("Alice"), Permissions: &github.RepositoryPermissions{Admin: github.Bool(true)}},
+		{ID: github.Int64(102), Login: github.String("bob"), Name: github.String("Bob"), Permissions: &github.RepositoryPermissions{Push: github.Bool(true)}},
 	}
 	if err := StoreUsers(db, users); err != nil {
 		t.Fatalf("failed to store users: %v", err)
@@ -614,9 +614,9 @@ func TestViewUserRepositories(t *testing.T) {
 	user := &github.User{
 		ID:    github.Int64(201),
 		Login: github.String("alice"),
-		Permissions: map[string]bool{
-			"admin": true,
-			"push":  true,
+		Permissions: &github.RepositoryPermissions{
+			Admin: github.Bool(true),
+			Push:  github.Bool(true),
 		},
 	}
 	if err := StoreRepoUsers(db, repo.GetName(), []*github.User{user}); err != nil {
