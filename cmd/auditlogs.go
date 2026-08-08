@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -93,10 +94,35 @@ func renderAuditLogEntries(entries []*gh.AuditEntry, format string) error {
 	case store.FormatJSON:
 		return store.PrintJSON(entries)
 	case store.FormatYAML:
-		return store.PrintYAML(entries)
+		normalized, err := normalizeAuditEntriesForYAML(entries)
+		if err != nil {
+			return err
+		}
+		return store.PrintYAML(normalized)
 	default:
 		return fmt.Errorf("unsupported format: %s", format)
 	}
+}
+
+// normalizeAuditEntriesForYAML round-trips entries through JSON before handing them to the
+// YAML encoder. yaml.Marshal reflects over struct fields directly and ignores AuditEntry's
+// custom MarshalJSON, which flattens go-github v84's catch-all AdditionalFields map (repo,
+// actor_ip, event, team, ...) back onto the top level; without this round-trip those fields
+// would nest under an "additionalfields" key in YAML output instead of staying top-level.
+func normalizeAuditEntriesForYAML(entries []*gh.AuditEntry) ([]map[string]any, error) {
+	out := make([]map[string]any, 0, len(entries))
+	for _, entry := range entries {
+		data, err := json.Marshal(entry)
+		if err != nil {
+			return nil, fmt.Errorf("failed to normalize audit entry: %w", err)
+		}
+		var m map[string]any
+		if err := json.Unmarshal(data, &m); err != nil {
+			return nil, fmt.Errorf("failed to normalize audit entry: %w", err)
+		}
+		out = append(out, m)
+	}
+	return out, nil
 }
 
 func printAuditLogTable(entries []*gh.AuditEntry) {
