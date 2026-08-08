@@ -1,5 +1,34 @@
 # Changelog
 
+## [v0.2.6](https://github.com/takihito/ghub-desk/compare/v0.2.5...v0.2.6) - 2026-08-08
+- docs(auditlogs): add missing options to command reference by @takihito in https://github.com/takihito/ghub-desk/pull/170
+- chore(config): move config dir to ~/.ghub-desk/ by @takihito in https://github.com/takihito/ghub-desk/pull/172
+- refactor(github): remove unused token param; fix Go version in docs by @takihito in https://github.com/takihito/ghub-desk/pull/173
+- chore(deps): Bump actions/upload-pages-artifact from 3.0.1 to 5.0.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/174
+- chore(deps): Bump modernc.org/sqlite from 1.49.1 to 1.50.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/176
+- chore(deps): Bump goreleaser/goreleaser-action from 7.1.0 to 7.2.1 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/175
+- chore(deps): Bump actions/deploy-pages from 4.0.5 to 5.0.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/177
+- chore(deps): Bump github.com/google/jsonschema-go from 0.4.2 to 0.4.3 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/178
+- chore(deps): Bump actions/configure-pages from 5.0.0 to 6.0.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/179
+- chore(deps): Bump github.com/modelcontextprotocol/go-sdk from 1.5.0 to 1.6.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/180
+- chore(deps): Bump github/codeql-action from 4.35.2 to 4.35.3 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/182
+- refactor: remove dead MCP code and dedupe cross-package helpers by @takihito in https://github.com/takihito/ghub-desk/pull/197
+- refactor(mcp): split serve_mcp.go into a tier-based tool registry by @takihito in https://github.com/takihito/ghub-desk/pull/198
+- refactor: rename ghub-desk/github package to ghubclient by @takihito in https://github.com/takihito/ghub-desk/pull/199
+- refactor(cmd): split root.go into one file per command by @takihito in https://github.com/takihito/ghub-desk/pull/200
+- refactor(ghubclient): generalize pull-all loops and inject progress output by @takihito in https://github.com/takihito/ghub-desk/pull/201
+- refactor(store): dedupe repo-meta lookups, extract debuglog, tidy view.go by @takihito in https://github.com/takihito/ghub-desk/pull/202
+- docs(mcp): resync tool lists with the actual toolRegistry by @takihito in https://github.com/takihito/ghub-desk/pull/204
+- chore(deps): bump github.com/google/go-github v55 -> v84 by @takihito in https://github.com/takihito/ghub-desk/pull/203
+- chore(deps): Bump github/codeql-action from 4.35.3 to 4.35.4 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/183
+- chore(deps): Bump Songmu/tagpr from 1.18.3 to 1.19.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/185
+- chore(deps): Bump sigstore/cosign-installer from 4.1.1 to 4.1.2 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/186
+- chore(deps): Bump actions/dependency-review-action from 4.9.0 to 5.0.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/187
+- chore(deps): Bump step-security/harden-runner from 2.19.0 to 2.19.1 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/188
+- chore(deps): Bump github.com/modelcontextprotocol/go-sdk from 1.6.0 to 1.7.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/189
+- chore(deps): Bump github.com/bradleyfalzon/ghinstallation/v2 from 2.18.0 to 2.19.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/193
+- chore(deps): Bump modernc.org/sqlite from 1.50.0 to 1.56.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/194
+
 ## [v0.2.5](https://github.com/takihito/ghub-desk/compare/v0.2.4...v0.2.5) - 2026-04-24
 - Feature/cosign by @takihito in https://github.com/takihito/ghub-desk/pull/168
 
