@@ -39,18 +39,25 @@ mcp:
 | `health` | サーバーヘルス確認 | なし | `{"status":"ok","time":"RFC3339"}` を返却 |
 
 ### view_* (常時利用可能)
-すべてローカル DB を参照し、最大 200 件（チームメンバーは 500 件）を返します。
+すべてローカル DB を参照します。
 
 | ツール名 | 説明 | 入力 | 出力概要 |
 | --- | --- | --- | --- |
 | `view_users` | 組織ユーザー一覧 | なし | `users[]` に `id`, `login`, `name`, `email` など |
 | `view_detail-users` | 詳細ユーザー（現状は `view_users` と同じ） | なし | `users[]` |
+| `view_user` | 単一ユーザーのプロフィール | `{ "user": "github-login" }` | `found`, `user`（`created_at`/`updated_at` を含む） |
+| `view_user-teams` | ユーザーが所属するチーム | `{ "user": "github-login" }` | `teams[]` に `team_slug`, `team_name`, `role` |
 | `view_teams` | チーム情報 | なし | `teams[]` に `id`, `slug`, `name`, `description`, `privacy` |
 | `view_repos` | リポジトリ情報 | なし | `repositories[]` に `name`, `full_name`, `private`, `language`, `stars` |
 | `view_team-user` | 指定チームのメンバー | `{ "team": "team-slug" }` | `team` は英数字+ハイフンで構成された slug |
 | `view_repos-users` | リポジトリの直接コラボレーター | `{ "repository": "repo-name" }` | `repository` は 1-100 文字・英数字/アンダースコア/ハイフン |
 | `view_repos-teams` | リポジトリに紐づくチーム | `{ "repository": "repo-name" }` | 同上 |
+| `view_repos-teams-users` | リポジトリに紐づくチームのメンバー | `{ "repository": "repo-name" }` | `members[]` に `team_slug`, `team_permission`, `user_login`, `role` |
+| `view_team-repos` | チームがアクセスできるリポジトリ | `{ "team": "team-slug" }` | `repositories[]` に `repo_name`, `full_name`, `permission` |
 | `view_user-repos` | ユーザーがアクセスできるリポジトリ | `{ "user": "github-login" }` | `user` は 1-39 文字の英数字/ハイフン |
+| `view_all-teams-users` | 全チームメンバーシップ一覧 | なし | `entries[]` に `team_slug`, `team_name`, `user_login`, `role` |
+| `view_all-repos-users` | 全リポジトリのコラボレーター一覧 | なし | `entries[]` に `repo_name`, `full_name`, `user_login`, `permission` |
+| `view_all-repos-teams` | 全リポジトリのチーム権限一覧 | なし | `entries[]` に `repo_name`, `full_name`, `team_slug`, `permission` |
 | `view_outside-users` | Outside Collaborator | なし | `users[]` |
 | `view_token-permission` | `pull_token-permission` の保存内容 | なし | PAT/GitHub App 権限情報。未取得の場合はエラー |
 | `view_settings` | マスク済み設定の確認 | なし | `organization`, `allow_pull`/`allow_write`, DB パスなど |
@@ -61,25 +68,29 @@ mcp:
 | `auditlogs` | 監査ログを actor で取得 | `{ "user": "octocat", "created"?, "repo"?, "per_page"? }` | GitHub API を呼び出し、既定は直近30日。per_page 最大 100 |
 
 ### pull_* (`allow_pull: true` の場合のみ)
-GitHub API を呼び出し、成功時に既定で SQLite を更新します。`no_store: true` で保存を抑止、`stdout: true` で API レスポンスを標準出力にコピーします。
+GitHub API を呼び出し、成功時に既定で SQLite を更新します。すべての pull_* ツールは共通で `no_store`（保存を抑止）、`stdout`（API レスポンスを標準出力にコピー）、`interval_seconds`（ページ取得間の待機秒数、既定 3 秒）を受け付けます。
 
-| ツール名 | 説明 | 入力 | 備考 |
+| ツール名 | 説明 | 追加の入力 | 備考 |
 | --- | --- | --- | --- |
-| `pull_users` | 組織ユーザー取得 | `{ "no_store"?, "stdout"?, "interval_seconds"?, "detail"? }` | `detail:true` で `detail-users` を取得 |
-| `pull_teams` | チーム一覧取得 | `{ "no_store"?, "stdout"?, "interval_seconds"? }` |  |
-| `pull_repositories` | リポジトリ一覧取得 | `{ "no_store"?, "stdout"?, "interval_seconds"? }` |  |
-| `pull_team-user` | チームメンバー取得 | `{ "team", "no_store"?, "stdout"?, "interval_seconds"? }` | `team` は slug 形式 (`team-slug`) |
-| `pull_repos-users` | リポジトリの直接コラボ取得 | `{ "repository", "no_store"?, "stdout"?, "interval_seconds"? }` | `repository` は 1-100 文字の英数字/アンダースコア/ハイフン |
-| `pull_repos-teams` | リポジトリに紐づくチーム取得 | `{ "repository", "no_store"?, "stdout"?, "interval_seconds"? }` | 同上 |
-| `pull_outside-users` | Outside Collaborator 取得 | `{ "no_store"?, "stdout"?, "interval_seconds"? }` |  |
-| `pull_token-permission` | トークン権限情報取得 | `{ "no_store"?, "stdout"?, "interval_seconds"? }` | 最新のレスポンスを DB に保存 |
+| `pull_users` | 組織ユーザー取得 | なし | |
+| `pull_detail-users` | 組織ユーザー取得（詳細） | なし | |
+| `pull_teams` | チーム一覧取得 | なし | |
+| `pull_repositories` | リポジトリ一覧取得 | なし | |
+| `pull_team-user` | チームメンバー取得 | `{ "team" }` | `team` は slug 形式 (`team-slug`) |
+| `pull_repos-users` | リポジトリの直接コラボ取得 | `{ "repository" }` | |
+| `pull_repos-teams` | リポジトリに紐づくチーム取得 | `{ "repository" }` | |
+| `pull_all-teams-users` | 全チームのメンバーシップ取得 | なし | SQLite に既に保存済みのチームのみを走査（事前に `pull_teams` が必要）。1件失敗しても継続 |
+| `pull_all-repos-users` | 全リポジトリのコラボレーター取得 | なし | SQLite に既に保存済みのリポジトリのみを走査（事前に `pull_repositories` が必要）。失敗時は即時中断 |
+| `pull_all-repos-teams` | 全リポジトリのチーム権限取得 | なし | SQLite に既に保存済みのリポジトリのみを走査（事前に `pull_repositories` が必要）。失敗時は即時中断 |
+| `pull_outside-users` | Outside Collaborator 取得 | なし | |
+| `pull_token-permission` | トークン権限情報取得 | なし | 最新のレスポンスを DB に保存 |
 
 ### push_* (`allow_write: true` の場合のみ)
 GitHub 側へ変更を加える操作です。既定では DRYRUN として実行内容を返し、`exec: true` を指定したときのみ API を呼び出します。`no_store: true` で成功後のローカル DB 同期 (`SyncPushAdd/Remove`) をスキップできます。
 
 | ツール名 | 説明 | 入力 | 備考 |
 | --- | --- | --- | --- |
-| `push_add` | チームへのユーザー追加 or 外部コラボ招待 | `{ "team_user"?, "outside_user"?, "permission"?, "exec"?, "no_store"? }` | `team_user` は `team-slug/username`、`outside_user` は `repo-name/username`。`permission` で `pull`/`push`/`admin` を指定可能 |
+| `push_add` | チームへのユーザー追加 or 外部コラボ招待 | `{ "team_user"?, "outside_user"?, "permission"?, "exec"?, "no_store"? }` | `team_user` は `team-slug/username`、`outside_user` は `repo-name/username` のいずれか一方を指定。`permission`（`pull`/`push`/`admin`）は `outside_user` 指定時のみ有効で、`team_user` と併用するとエラーになる |
 | `push_remove` | チーム削除 / 組織ユーザー削除 / 各種コラボ削除 | `{ "team"?, "user"?, "team_user"?, "outside_user"?, "repos_user"?, "exec"?, "no_store"? }` | いずれか 1 つだけ対象を指定（`team_user`/`outside_user`/`repos_user` は `repo-or-team/username` 形式）。`exec:false` は DRYRUN |
 
 ## ドキュメントリソース（resources/*）
