@@ -1104,14 +1104,18 @@ func registerViewTokenPermissionTool(srv *sdk.Server, name string, _ *appcfg.Con
 	})
 }
 
+// ViewOrgPlanOut carries the cached plan snapshot. The numeric fields deliberately
+// have no omitempty: zero is a legitimate value (e.g. a plan with no seats), and
+// dropping it would be indistinguishable from the field being absent — CLI JSON/YAML
+// output always includes these values too.
 type ViewOrgPlanOut struct {
 	Found         bool   `json:"found" jsonschema:"true when a cached organization plan snapshot exists"`
 	Login         string `json:"login,omitempty" jsonschema:"organization login"`
 	PlanName      string `json:"plan_name,omitempty" jsonschema:"contract plan name (e.g., free, team, enterprise)"`
-	Seats         int    `json:"seats,omitempty" jsonschema:"contracted seats"`
-	FilledSeats   int    `json:"filled_seats,omitempty" jsonschema:"seats currently in use"`
-	PrivateRepos  int64  `json:"private_repos,omitempty" jsonschema:"private repository limit"`
-	Collaborators int    `json:"collaborators,omitempty" jsonschema:"collaborator limit"`
+	Seats         int    `json:"seats" jsonschema:"contracted seats"`
+	FilledSeats   int    `json:"filled_seats" jsonschema:"seats currently in use"`
+	PrivateRepos  int64  `json:"private_repos" jsonschema:"private repository limit"`
+	Collaborators int    `json:"collaborators" jsonschema:"collaborator limit"`
 	CreatedAt     string `json:"created_at,omitempty" jsonschema:"record created at"`
 	UpdatedAt     string `json:"updated_at,omitempty" jsonschema:"record updated at"`
 }

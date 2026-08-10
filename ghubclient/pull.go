@@ -3,6 +3,7 @@ package ghubclient
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -878,9 +879,14 @@ func PullOrgPlan(ctx context.Context, client *github.Client, db *sql.DB, org str
 			"private_repos": plan.GetPrivateRepos(),
 			"collaborators": plan.GetCollaborators(),
 		}
-		if err := store.PrintJSON(output); err != nil {
-			return err
+		// Mirror through opts.output() rather than store.PrintJSON so callers that
+		// redirect output (e.g. the MCP server, whose stdout carries JSON-RPC) are
+		// not bypassed. CLI behavior is unchanged: output() defaults to os.Stdout.
+		data, err := json.MarshalIndent(output, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal organization plan: %w", err)
 		}
+		fmt.Fprintln(opts.output(), string(data))
 	}
 
 	return nil

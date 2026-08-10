@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"math"
+	"os"
 	"strings"
 	"time"
 
@@ -350,6 +351,10 @@ func resolvePullOptions(noStore, stdout bool, intervalSeconds float64) ghubclien
 		Store:    !noStore,
 		Stdout:   stdout,
 		Interval: interval,
+		// The MCP server speaks JSON-RPC over stdio, so pull progress text must
+		// never reach os.Stdout (the PullOptions default) or it corrupts the
+		// protocol stream. Route it to stderr, which serve logs already use.
+		Output: os.Stderr,
 	}
 }
 

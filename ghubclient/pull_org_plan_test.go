@@ -53,7 +53,7 @@ func TestPullOrgPlanStoresSnapshot(t *testing.T) {
 	defer db.Close()
 
 	var out bytes.Buffer
-	err = PullOrgPlan(context.Background(), client, db, "acme", PullOptions{Store: true, Output: &out})
+	err = PullOrgPlan(context.Background(), client, db, "acme", PullOptions{Store: true, Stdout: true, Output: &out})
 	if err != nil {
 		t.Fatalf("PullOrgPlan() error = %v", err)
 	}
@@ -69,8 +69,14 @@ func TestPullOrgPlanStoresSnapshot(t *testing.T) {
 		t.Fatalf("unexpected stored values: login=%s plan=%s seats=%d filled=%d", login, planName, seats, filledSeats)
 	}
 
-	if got := out.String(); !strings.Contains(got, "Seats: 100 (filled: 87)") {
+	got := out.String()
+	if !strings.Contains(got, "Seats: 100 (filled: 87)") {
 		t.Fatalf("expected seat summary in output, got %q", got)
+	}
+	// The stdout mirror must honor the injected writer too (the MCP server relies
+	// on this to keep its JSON-RPC stdout channel clean).
+	if !strings.Contains(got, `"plan_name": "enterprise"`) {
+		t.Fatalf("expected JSON mirror in injected output writer, got %q", got)
 	}
 }
 
