@@ -42,6 +42,8 @@ func HandleViewTarget(db *sql.DB, req TargetRequest, opts ViewOptions) error {
 		return ViewRepositories(db, format)
 	case "token-permission":
 		return ViewTokenPermission(db, format)
+	case "org-plan":
+		return ViewOrgPlan(db, format)
 	case "outside-users":
 		return ViewOutsideUsers(db, format)
 	case "user":
@@ -705,6 +707,38 @@ func ViewTokenPermission(db *sql.DB, format OutputFormat) error {
 		fmt.Printf("Rate Limit: %d\n", record.RateLimit)
 		fmt.Printf("Rate Remaining: %d\n", record.RateRemaining)
 		fmt.Printf("Rate Reset: %d\n", record.RateReset)
+		fmt.Printf("Created At: %s\n", record.CreatedAt)
+		fmt.Printf("Updated At: %s\n", record.UpdatedAt)
+		return nil
+	}
+
+	return renderByFormat(format, tableFn, record)
+}
+
+// ViewOrgPlan displays the cached organization plan (seats and contract info).
+func ViewOrgPlan(db *sql.DB, format OutputFormat) error {
+	record, found, err := FetchOrgPlan(db)
+	if err != nil {
+		return err
+	}
+	if !found {
+		if format == FormatTable {
+			fmt.Println("No organization plan data found in database.")
+			fmt.Println("Run 'ghub-desk pull --org-plan' first.")
+			return nil
+		}
+		return renderByFormat(format, nil, nil)
+	}
+
+	tableFn := func() error {
+		fmt.Println("Organization Plan (from database):")
+		fmt.Println("===================================")
+		fmt.Printf("Organization: %s\n", orDash(record.Login))
+		fmt.Printf("Plan: %s\n", orDash(record.PlanName))
+		fmt.Printf("Seats: %d\n", record.Seats)
+		fmt.Printf("Filled Seats: %d\n", record.FilledSeats)
+		fmt.Printf("Private Repos: %d\n", record.PrivateRepos)
+		fmt.Printf("Collaborators: %d\n", record.Collaborators)
 		fmt.Printf("Created At: %s\n", record.CreatedAt)
 		fmt.Printf("Updated At: %s\n", record.UpdatedAt)
 		return nil

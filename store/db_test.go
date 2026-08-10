@@ -289,6 +289,76 @@ func TestStoreTeamUsers(t *testing.T) {
 	}
 }
 
+func TestStoreOrgPlan(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open test database: %v", err)
+	}
+	defer db.Close()
+
+	if err := createTables(db); err != nil {
+		t.Fatalf("Failed to create tables: %v", err)
+	}
+
+	org := &github.Organization{
+		Login: github.String("acme"),
+		Plan: &github.Plan{
+			Name:          github.String("enterprise"),
+			Seats:         github.Int(100),
+			FilledSeats:   github.Int(87),
+			PrivateRepos:  github.Int64(500),
+			Collaborators: github.Int(20),
+		},
+	}
+
+	if err := StoreOrgPlan(db, org); err != nil {
+		t.Fatalf("StoreOrgPlan() error = %v", err)
+	}
+
+	var login, planName string
+	var seats, filledSeats int
+	err = db.QueryRow(`SELECT login, plan_name, seats, filled_seats FROM ghub_org_plans`).
+		Scan(&login, &planName, &seats, &filledSeats)
+	if err != nil {
+		t.Fatalf("Failed to query org plan: %v", err)
+	}
+	if login != "acme" || planName != "enterprise" || seats != 100 || filledSeats != 87 {
+		t.Fatalf("unexpected stored values: login=%s plan=%s seats=%d filled=%d", login, planName, seats, filledSeats)
+	}
+
+	// Storing again must replace the snapshot, not accumulate rows
+	org.Plan.FilledSeats = github.Int(90)
+	if err := StoreOrgPlan(db, org); err != nil {
+		t.Fatalf("StoreOrgPlan() second call error = %v", err)
+	}
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM ghub_org_plans`).Scan(&count); err != nil {
+		t.Fatalf("Failed to count org plans: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 snapshot row after re-store, got %d", count)
+	}
+}
+
+func TestStoreOrgPlanRequiresPlan(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open test database: %v", err)
+	}
+	defer db.Close()
+
+	if err := createTables(db); err != nil {
+		t.Fatalf("Failed to create tables: %v", err)
+	}
+
+	if err := StoreOrgPlan(db, nil); err == nil {
+		t.Fatal("expected error for nil organization, got nil")
+	}
+	if err := StoreOrgPlan(db, &github.Organization{Login: github.String("acme")}); err == nil {
+		t.Fatal("expected error for organization without plan, got nil")
+	}
+}
+
 func TestStoreTeamUsersUnknownTeamReturnsErrTeamNotFound(t *testing.T) {
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {

@@ -772,6 +772,80 @@ func TestViewTokenPermission(t *testing.T) {
 	}
 }
 
+func TestViewOrgPlan(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Test with no data (should not error, just print guidance)
+	if err := ViewOrgPlan(db, FormatTable); err != nil {
+		t.Errorf("ViewOrgPlan() with no data error = %v", err)
+	}
+
+	_, err := db.Exec(`INSERT INTO ghub_org_plans(
+		login, plan_name, seats, filled_seats, private_repos, collaborators,
+		created_at, updated_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		"acme", "enterprise", 100, 87, 500, 20,
+		"2026-08-10 12:00:00", "2026-08-10 12:00:00")
+	if err != nil {
+		t.Fatalf("Failed to insert test org plan: %v", err)
+	}
+
+	for _, format := range []OutputFormat{FormatTable, FormatJSON, FormatYAML} {
+		if err := ViewOrgPlan(db, format); err != nil {
+			t.Errorf("ViewOrgPlan() with data (format=%s) error = %v", format, err)
+		}
+	}
+}
+
+func TestFetchOrgPlan(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// No data: found must be false without error
+	_, found, err := FetchOrgPlan(db)
+	if err != nil {
+		t.Fatalf("FetchOrgPlan() with no data error = %v", err)
+	}
+	if found {
+		t.Fatal("expected found=false for empty table")
+	}
+
+	// Two rows: the latest by created_at must win
+	rows := []struct {
+		login     string
+		seats     int
+		createdAt string
+	}{
+		{"acme", 50, "2026-08-01 00:00:00"},
+		{"acme", 100, "2026-08-10 00:00:00"},
+	}
+	for _, r := range rows {
+		_, err := db.Exec(`INSERT INTO ghub_org_plans(
+			login, plan_name, seats, filled_seats, private_repos, collaborators,
+			created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			r.login, "enterprise", r.seats, 40, 500, 20, r.createdAt, r.createdAt)
+		if err != nil {
+			t.Fatalf("Failed to insert test org plan: %v", err)
+		}
+	}
+
+	record, found, err := FetchOrgPlan(db)
+	if err != nil {
+		t.Fatalf("FetchOrgPlan() error = %v", err)
+	}
+	if !found {
+		t.Fatal("expected found=true")
+	}
+	if record.Login != "acme" || record.PlanName != "enterprise" {
+		t.Fatalf("unexpected record: %+v", record)
+	}
+	if record.Seats != 100 {
+		t.Fatalf("expected latest snapshot (seats=100), got seats=%d", record.Seats)
+	}
+}
+
 func TestViewOutsideUsers(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()

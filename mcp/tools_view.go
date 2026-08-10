@@ -36,6 +36,7 @@ var coreViewToolDefs = []toolDef{
 	{name: "view_outside-users", tier: tierCore, register: registerViewOutsideUsersTool},
 	{name: "view_settings", tier: tierCore, register: registerViewSettingsTool},
 	{name: "view_token-permission", tier: tierCore, register: registerViewTokenPermissionTool},
+	{name: "view_org-plan", tier: tierCore, register: registerViewOrgPlanTool},
 }
 
 type HealthOut struct {
@@ -1101,6 +1102,61 @@ func registerViewTokenPermissionTool(srv *sdk.Server, name string, _ *appcfg.Con
 		}
 		return nil, ViewTokenPermissionOut(tp), nil
 	})
+}
+
+type ViewOrgPlanOut struct {
+	Found         bool   `json:"found" jsonschema:"true when a cached organization plan snapshot exists"`
+	Login         string `json:"login,omitempty" jsonschema:"organization login"`
+	PlanName      string `json:"plan_name,omitempty" jsonschema:"contract plan name (e.g., free, team, enterprise)"`
+	Seats         int    `json:"seats,omitempty" jsonschema:"contracted seats"`
+	FilledSeats   int    `json:"filled_seats,omitempty" jsonschema:"seats currently in use"`
+	PrivateRepos  int64  `json:"private_repos,omitempty" jsonschema:"private repository limit"`
+	Collaborators int    `json:"collaborators,omitempty" jsonschema:"collaborator limit"`
+	CreatedAt     string `json:"created_at,omitempty" jsonschema:"record created at"`
+	UpdatedAt     string `json:"updated_at,omitempty" jsonschema:"record updated at"`
+}
+
+func registerViewOrgPlanTool(srv *sdk.Server, name string, _ *appcfg.Config) {
+	sdk.AddTool[struct{}, ViewOrgPlanOut](srv, &sdk.Tool{
+		Name:        name,
+		Title:       "View Organization Plan",
+		Description: "Show the cached organization plan (seats and contract info) from local database. Usage: " + docsToolsURI + "#view_org-plan.",
+		InputSchema: &jsonschema.Schema{Type: "object"},
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewOrgPlanOut, error) {
+		out, err := getOrgPlan()
+		if err != nil {
+			return &sdk.CallToolResult{}, ViewOrgPlanOut{}, fmt.Errorf("failed to get organization plan: %w", err)
+		}
+		return nil, out, nil
+	})
+}
+
+func getOrgPlan() (ViewOrgPlanOut, error) {
+	db, err := store.InitDatabase()
+	if err != nil {
+		return ViewOrgPlanOut{}, err
+	}
+	defer db.Close()
+
+	record, found, err := store.FetchOrgPlan(db)
+	if err != nil {
+		return ViewOrgPlanOut{}, err
+	}
+	if !found {
+		return ViewOrgPlanOut{}, fmt.Errorf("no organization plan data; run pull_org-plan with store=true first")
+	}
+
+	return ViewOrgPlanOut{
+		Found:         true,
+		Login:         record.Login,
+		PlanName:      record.PlanName,
+		Seats:         record.Seats,
+		FilledSeats:   record.FilledSeats,
+		PrivateRepos:  record.PrivateRepos,
+		Collaborators: record.Collaborators,
+		CreatedAt:     record.CreatedAt,
+		UpdatedAt:     record.UpdatedAt,
+	}, nil
 }
 
 func getTokenPermission() (ViewTokenPermissionOut, error) {

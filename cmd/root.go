@@ -90,6 +90,7 @@ type CommonTargetOptions struct {
 	TeamRepos       string `name:"team-repos" help:"Target: team-repos (provide team slug)"`
 	TokenPermission bool   `name:"token-permission" help:"Target: token-permission"`
 	OutsideUsers    bool   `name:"outside-users" help:"Target: outside-users"`
+	OrgPlan         bool   `name:"org-plan" help:"Target: org-plan (organization seats and plan)"`
 }
 
 // TargetFlag represents an additional target option to evaluate.
@@ -121,6 +122,7 @@ func (c *CommonTargetOptions) GetTarget(extraTargets ...TargetFlag) (string, err
 		{c.TeamRepos != "", "team-repos"},
 		{c.TokenPermission, "token-permission"},
 		{c.OutsideUsers, "outside-users"},
+		{c.OrgPlan, "org-plan"},
 	}
 	for _, et := range extraTargets {
 		targets = append(targets, struct {

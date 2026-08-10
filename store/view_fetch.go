@@ -932,6 +932,53 @@ func FetchUserRepositories(db *sql.DB, userLogin string) ([]UserRepoAccessEntry,
 	return output, nil
 }
 
+// OrgPlanEntry represents the cached organization plan snapshot (seats and contract info).
+type OrgPlanEntry struct {
+	Login         string `json:"login" yaml:"login"`
+	PlanName      string `json:"plan_name" yaml:"plan_name"`
+	Seats         int    `json:"seats" yaml:"seats"`
+	FilledSeats   int    `json:"filled_seats" yaml:"filled_seats"`
+	PrivateRepos  int64  `json:"private_repos" yaml:"private_repos"`
+	Collaborators int    `json:"collaborators" yaml:"collaborators"`
+	CreatedAt     string `json:"created_at" yaml:"created_at"`
+	UpdatedAt     string `json:"updated_at" yaml:"updated_at"`
+}
+
+// FetchOrgPlan retrieves the latest organization plan snapshot.
+func FetchOrgPlan(db *sql.DB) (OrgPlanEntry, bool, error) {
+	if db == nil {
+		return OrgPlanEntry{}, false, fmt.Errorf("database connection is required to fetch organization plan")
+	}
+	query := `
+		SELECT login, plan_name, seats, filled_seats, private_repos, collaborators,
+		       created_at, updated_at
+		FROM ghub_org_plans
+		ORDER BY created_at DESC
+		LIMIT 1`
+	debuglog.Debugf("SQL: %s", query)
+	row := db.QueryRow(query)
+
+	var record OrgPlanEntry
+	err := row.Scan(
+		&record.Login,
+		&record.PlanName,
+		&record.Seats,
+		&record.FilledSeats,
+		&record.PrivateRepos,
+		&record.Collaborators,
+		&record.CreatedAt,
+		&record.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return OrgPlanEntry{}, false, nil
+	}
+	if err != nil {
+		return OrgPlanEntry{}, false, fmt.Errorf("failed to query organization plan: %w", err)
+	}
+
+	return record, true, nil
+}
+
 // FetchTokenPermission retrieves the latest token permission metadata.
 func FetchTokenPermission(db *sql.DB) (TokenPermissionEntry, bool, error) {
 	if db == nil {
