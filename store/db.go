@@ -241,17 +241,7 @@ func createTables(db DBTX) error {
 			updated_at TEXT NOT NULL,
 			PRIMARY KEY (repos_name, id)
 		)`,
-		`CREATE TABLE IF NOT EXISTS ghub_org_plans (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			login TEXT,
-			plan_name TEXT,
-			seats INTEGER,
-			filled_seats INTEGER,
-			private_repos INTEGER,
-			collaborators INTEGER,
-			created_at TEXT,
-			updated_at TEXT
-		)`,
+		orgPlanTableDDL,
 	}
 
 	for _, query := range tables {
@@ -267,7 +257,7 @@ func createTables(db DBTX) error {
 		`CREATE INDEX IF NOT EXISTS idx_ghub_repos_users_repos_name ON ghub_repos_users(repos_name)`,
 		`CREATE INDEX IF NOT EXISTS idx_ghub_repos_users_user_login ON ghub_repos_users(user_login)`,
 		`CREATE INDEX IF NOT EXISTS idx_ghub_repos_teams_repos_name ON ghub_repos_teams(repos_name)`,
-		`CREATE INDEX IF NOT EXISTS idx_org_plans_created_at ON ghub_org_plans(created_at)`,
+		orgPlanIndexDDL,
 	}
 	for _, idx := range indexes {
 		debuglog.Debugf("SQL: %s", idx)
@@ -602,10 +592,45 @@ func DeleteTeamUser(db DBTX, teamSlug, userLogin string) error {
 	return nil
 }
 
-// StoreOrgPlan replaces the cached organization plan snapshot (seats and contract info).
+// orgPlanTableDDL and orgPlanIndexDDL are shared between createTables and
+// EnsureOrgPlanTable so databases initialized before the org-plan feature
+// existed can be upgraded lazily on first use.
+const (
+	orgPlanTableDDL = `CREATE TABLE IF NOT EXISTS ghub_org_plans (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			login TEXT,
+			plan_name TEXT,
+			seats INTEGER,
+			filled_seats INTEGER,
+			private_repos INTEGER,
+			collaborators INTEGER,
+			created_at TEXT,
+			updated_at TEXT
+		)`
+	orgPlanIndexDDL = `CREATE INDEX IF NOT EXISTS idx_org_plans_created_at ON ghub_org_plans(created_at)`
+)
+
+// EnsureOrgPlanTable creates the ghub_org_plans table and its index if missing.
+// pull/view open existing databases with Connect (which does not run createTables),
+// so databases created before this feature must be migrated on first access.
+func EnsureOrgPlanTable(db DBTX) error {
+	if db == nil {
+		return fmt.Errorf("database connection is required to ensure organization plan table")
+	}
+	for _, query := range []string{orgPlanTableDDL, orgPlanIndexDDL} {
+		debuglog.Debugf("SQL: %s", query)
+		if _, err := db.Exec(query); err != nil {
+			return fmt.Errorf("failed to ensure organization plan table: %w", err)
+		}
+	}
+	return nil
+}
+
+// StoreOrgPlan replaces the cached organization plan snapshot (seats and contract info)
+// atomically: the previous snapshot is only removed if inserting the new one succeeds.
 // The plan field requires a token with organization member/admin access; callers must
 // verify org.Plan is non-nil before storing.
-func StoreOrgPlan(db DBTX, org *github.Organization) error {
+func StoreOrgPlan(db *sql.DB, org *github.Organization) error {
 	if db == nil {
 		return fmt.Errorf("database connection is required to store organization plan")
 	}
@@ -613,7 +638,17 @@ func StoreOrgPlan(db DBTX, org *github.Organization) error {
 		return fmt.Errorf("organization plan data is required to store organization plan")
 	}
 
-	if err := ClearTable(db, "ghub_org_plans"); err != nil {
+	if err := EnsureOrgPlanTable(db); err != nil {
+		return err
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction for organization plan: %w", err)
+	}
+	defer tx.Rollback()
+
+	if err := ClearTable(tx, "ghub_org_plans"); err != nil {
 		return err
 	}
 
@@ -634,8 +669,11 @@ func StoreOrgPlan(db DBTX, org *github.Organization) error {
 		now,
 	}
 	debuglog.Debugf("SQL: %s, ARGS: %v", query, args)
-	if _, err := db.Exec(query, args...); err != nil {
+	if _, err := tx.Exec(query, args...); err != nil {
 		return fmt.Errorf("failed to store organization plan: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit organization plan: %w", err)
 	}
 	return nil
 }

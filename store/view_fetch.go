@@ -949,6 +949,11 @@ func FetchOrgPlan(db *sql.DB) (OrgPlanEntry, bool, error) {
 	if db == nil {
 		return OrgPlanEntry{}, false, fmt.Errorf("database connection is required to fetch organization plan")
 	}
+	// Databases created before the org-plan feature lack this table; create it
+	// here so view --org-plan reports "no data" instead of a missing-table error.
+	if err := EnsureOrgPlanTable(db); err != nil {
+		return OrgPlanEntry{}, false, err
+	}
 	query := `
 		SELECT login, plan_name, seats, filled_seats, private_repos, collaborators,
 		       created_at, updated_at

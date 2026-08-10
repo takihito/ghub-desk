@@ -798,6 +798,24 @@ func TestViewOrgPlan(t *testing.T) {
 	}
 }
 
+func TestFetchOrgPlanUpgradesLegacyDatabase(t *testing.T) {
+	// A database created before the org-plan feature has no ghub_org_plans table;
+	// FetchOrgPlan must create it and report "no data" instead of erroring.
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open test database: %v", err)
+	}
+	defer db.Close()
+
+	_, found, err := FetchOrgPlan(db)
+	if err != nil {
+		t.Fatalf("FetchOrgPlan() on legacy database error = %v", err)
+	}
+	if found {
+		t.Fatal("expected found=false for legacy database without org plan data")
+	}
+}
+
 func TestFetchOrgPlan(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()

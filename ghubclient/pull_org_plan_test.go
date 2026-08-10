@@ -44,18 +44,13 @@ func TestPullOrgPlanStoresSnapshot(t *testing.T) {
 		"plan": {"name": "enterprise", "seats": 100, "filled_seats": 87, "private_repos": 500, "collaborators": 20}
 	}`)
 
+	// Intentionally no schema setup: StoreOrgPlan must create the table itself so
+	// databases initialized before the org-plan feature keep working after upgrade.
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("Failed to open db: %v", err)
 	}
 	defer db.Close()
-	if _, err := db.Exec(`CREATE TABLE ghub_org_plans (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		login TEXT, plan_name TEXT, seats INTEGER, filled_seats INTEGER,
-		private_repos INTEGER, collaborators INTEGER, created_at TEXT, updated_at TEXT
-	)`); err != nil {
-		t.Fatalf("Failed to create table: %v", err)
-	}
 
 	var out bytes.Buffer
 	err = PullOrgPlan(context.Background(), client, db, "acme", PullOptions{Store: true, Output: &out})
