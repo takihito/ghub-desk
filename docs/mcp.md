@@ -61,7 +61,7 @@ All view tools read from the local database.
 | `view_outside-users` | Outside collaborators | none | `users[]` |
 | `view_settings` | Application configuration with secrets masked | none | Masked config, useful for confirming `allow_pull`/`allow_write` |
 | `view_token-permission` | Cached response from `pull_token-permission` | none | Permission data for PAT or GitHub App; errors when missing |
-| `view_org-plan` | Cached organization plan from `pull_org-plan` | none | Plan name, contracted seats, filled seats; errors when missing |
+| `view_org-plan` | Cached organization plan from `pull_org-plan` | none | Plan name, contracted seats, filled seats, plus `cached_users`/`cached_outside_users` reference counts from the local cache; errors when missing |
 
 ### auditlogs (always available)
 | Tool | Description | Input | Notes |

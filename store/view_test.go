@@ -862,6 +862,49 @@ func TestFetchOrgPlan(t *testing.T) {
 	if record.Seats != 100 {
 		t.Fatalf("expected latest snapshot (seats=100), got seats=%d", record.Seats)
 	}
+	// No cached users/outside users inserted in this test: reference counts must be zero,
+	// not left unset or erroring.
+	if record.CachedUsers != 0 || record.CachedOutsideUsers != 0 {
+		t.Fatalf("expected zero cached counts, got users=%d outside_users=%d", record.CachedUsers, record.CachedOutsideUsers)
+	}
+}
+
+func TestFetchOrgPlanIncludesCachedUserCounts(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	if err := StoreUsers(db, []*github.User{
+		{ID: github.Int64(1), Login: github.String("alice")},
+		{ID: github.Int64(2), Login: github.String("bob")},
+	}); err != nil {
+		t.Fatalf("Failed to seed users: %v", err)
+	}
+	if err := StoreOutsideUsers(db, []*github.User{
+		{ID: github.Int64(3), Login: github.String("carol")},
+	}); err != nil {
+		t.Fatalf("Failed to seed outside users: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO ghub_org_plans(
+		login, plan_name, seats, filled_seats, private_repos, collaborators,
+		created_at, updated_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		"acme", "enterprise", 100, 87, 500, 20, "2026-08-10 00:00:00", "2026-08-10 00:00:00"); err != nil {
+		t.Fatalf("Failed to insert test org plan: %v", err)
+	}
+
+	record, found, err := FetchOrgPlan(db)
+	if err != nil {
+		t.Fatalf("FetchOrgPlan() error = %v", err)
+	}
+	if !found {
+		t.Fatal("expected found=true")
+	}
+	if record.CachedUsers != 2 {
+		t.Fatalf("expected 2 cached users, got %d", record.CachedUsers)
+	}
+	if record.CachedOutsideUsers != 1 {
+		t.Fatalf("expected 1 cached outside user, got %d", record.CachedOutsideUsers)
+	}
 }
 
 func TestViewOutsideUsers(t *testing.T) {

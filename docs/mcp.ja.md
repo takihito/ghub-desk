@@ -60,7 +60,7 @@ mcp:
 | `view_all-repos-teams` | 全リポジトリのチーム権限一覧 | なし | `entries[]` に `repo_name`, `full_name`, `team_slug`, `permission` |
 | `view_outside-users` | Outside Collaborator | なし | `users[]` |
 | `view_token-permission` | `pull_token-permission` の保存内容 | なし | PAT/GitHub App 権限情報。未取得の場合はエラー |
-| `view_org-plan` | `pull_org-plan` の保存内容（契約プラン・シート数） | なし | プラン名・契約シート数・使用中シート数。未取得の場合はエラー |
+| `view_org-plan` | `pull_org-plan` の保存内容（契約プラン・シート数） | なし | プラン名・契約シート数・使用中シート数に加え、ローカルキャッシュ由来の参考値 `cached_users`/`cached_outside_users` を含む。未取得の場合はエラー |
 | `view_settings` | マスク済み設定の確認 | なし | `organization`, `allow_pull`/`allow_write`, DB パスなど |
 
 ### auditlogs (常時利用可能)

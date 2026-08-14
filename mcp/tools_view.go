@@ -1109,15 +1109,17 @@ func registerViewTokenPermissionTool(srv *sdk.Server, name string, _ *appcfg.Con
 // dropping it would be indistinguishable from the field being absent — CLI JSON/YAML
 // output always includes these values too.
 type ViewOrgPlanOut struct {
-	Found         bool   `json:"found" jsonschema:"true when a cached organization plan snapshot exists"`
-	Login         string `json:"login,omitempty" jsonschema:"organization login"`
-	PlanName      string `json:"plan_name,omitempty" jsonschema:"contract plan name (e.g., free, team, enterprise)"`
-	Seats         int    `json:"seats" jsonschema:"contracted seats"`
-	FilledSeats   int    `json:"filled_seats" jsonschema:"seats currently in use"`
-	PrivateRepos  int64  `json:"private_repos" jsonschema:"private repository limit"`
-	Collaborators int    `json:"collaborators" jsonschema:"collaborator limit"`
-	CreatedAt     string `json:"created_at,omitempty" jsonschema:"record created at"`
-	UpdatedAt     string `json:"updated_at,omitempty" jsonschema:"record updated at"`
+	Found              bool   `json:"found" jsonschema:"true when a cached organization plan snapshot exists"`
+	Login              string `json:"login,omitempty" jsonschema:"organization login"`
+	PlanName           string `json:"plan_name,omitempty" jsonschema:"contract plan name (e.g., free, team, enterprise)"`
+	Seats              int    `json:"seats" jsonschema:"contracted seats"`
+	FilledSeats        int    `json:"filled_seats" jsonschema:"seats currently in use"`
+	PrivateRepos       int64  `json:"private_repos" jsonschema:"private repository limit"`
+	Collaborators      int    `json:"collaborators" jsonschema:"collaborator limit"`
+	CreatedAt          string `json:"created_at,omitempty" jsonschema:"record created at"`
+	UpdatedAt          string `json:"updated_at,omitempty" jsonschema:"record updated at"`
+	CachedUsers        int    `json:"cached_users" jsonschema:"organization members cached in the local database (reference only, not part of the plan snapshot)"`
+	CachedOutsideUsers int    `json:"cached_outside_users" jsonschema:"outside collaborators cached in the local database (reference only, not part of the plan snapshot)"`
 }
 
 func registerViewOrgPlanTool(srv *sdk.Server, name string, _ *appcfg.Config) {
@@ -1151,15 +1153,17 @@ func getOrgPlan() (ViewOrgPlanOut, error) {
 	}
 
 	return ViewOrgPlanOut{
-		Found:         true,
-		Login:         record.Login,
-		PlanName:      record.PlanName,
-		Seats:         record.Seats,
-		FilledSeats:   record.FilledSeats,
-		PrivateRepos:  record.PrivateRepos,
-		Collaborators: record.Collaborators,
-		CreatedAt:     record.CreatedAt,
-		UpdatedAt:     record.UpdatedAt,
+		Found:              true,
+		Login:              record.Login,
+		PlanName:           record.PlanName,
+		Seats:              record.Seats,
+		FilledSeats:        record.FilledSeats,
+		PrivateRepos:       record.PrivateRepos,
+		Collaborators:      record.Collaborators,
+		CreatedAt:          record.CreatedAt,
+		UpdatedAt:          record.UpdatedAt,
+		CachedUsers:        record.CachedUsers,
+		CachedOutsideUsers: record.CachedOutsideUsers,
 	}, nil
 }
 

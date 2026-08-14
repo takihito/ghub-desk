@@ -741,6 +741,9 @@ func ViewOrgPlan(db *sql.DB, format OutputFormat) error {
 		fmt.Printf("Collaborators: %d\n", record.Collaborators)
 		fmt.Printf("Created At: %s\n", record.CreatedAt)
 		fmt.Printf("Updated At: %s\n", record.UpdatedAt)
+		fmt.Println("--- Reference (from local cache) ---")
+		fmt.Printf("Cached Users: %d\n", record.CachedUsers)
+		fmt.Printf("Cached Outside Collaborators: %d\n", record.CachedOutsideUsers)
 		return nil
 	}
 

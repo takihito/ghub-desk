@@ -146,7 +146,7 @@ The tables below describe every published tool. Copy the sample JSON into tools/
 | view_all-teams-users | Every cached team membership | {} | Returns team_slug, user_login, and role for all records |
 | view_all-repos-users | All repository collaborators | {} | Each entry includes repository name, user login, and permission |
 | view_all-repos-teams | All repository-team links | {} | Enumerates repository, team slug, permission, timestamps |
-| view_org-plan | Cached organization plan snapshot | {} | Shows plan name, seats, filled seats; errors when empty |
+| view_org-plan | Cached organization plan snapshot | {} | Shows plan name, seats, filled seats, plus cached_users/cached_outside_users reference counts; errors when empty |
 
 ## pull_* (requires allow_pull)
 | Tool | Purpose | Sample Input | Notes |
