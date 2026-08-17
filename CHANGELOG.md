@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.3.1](https://github.com/takihito/ghub-desk/compare/v0.3.0...v0.3.1) - 2026-08-17
+- chore(deps): Bump actions/checkout from 6.0.2 to 7.0.1 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/206
+- chore(deps): Bump github.com/alecthomas/kong from 1.15.0 to 1.16.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/207
+- chore(deps): Bump step-security/harden-runner from 2.19.1 to 2.20.1 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/208
+- chore(deps): Bump actions/setup-go from 6.4.0 to 7.0.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/209
+- chore(deps): Bump github/codeql-action/upload-sarif from 4.35.4 to 4.37.6 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/210
+- chore(deps): Bump goreleaser/goreleaser-action from 7.2.1 to 7.2.3 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/211
+- feat(pull,view): add org-plan target for organization seats and plan by @takihito in https://github.com/takihito/ghub-desk/pull/205
+
 ## [v0.3.0](https://github.com/takihito/ghub-desk/compare/v0.2.5...v0.3.0) - 2026-08-08
 - docs(auditlogs): add missing options to command reference by @takihito in https://github.com/takihito/ghub-desk/pull/170
 - chore(config): move config dir to ~/.ghub-desk/ by @takihito in https://github.com/takihito/ghub-desk/pull/172
