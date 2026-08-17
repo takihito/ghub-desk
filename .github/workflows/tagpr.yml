@@ -20,6 +20,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # NOTE: デフォルトの GITHUB_TOKEN が push したタグは他のワークフローを起動しない。
+      # release.yml をタグ push で起動させるため PAT を使う。
       - uses: Songmu/tagpr@555e72cee68c09d43dc2337dc9ba890955b630da # v1.19.0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GHUB_DESK_TAGPR_TOKEN }}
