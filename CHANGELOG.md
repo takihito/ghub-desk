@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.3.2](https://github.com/takihito/ghub-desk/compare/v0.3.1...v0.3.2) - 2026-08-17
+- ci(release): タグ push でリリースを自動公開する by @takihito in https://github.com/takihito/ghub-desk/pull/213
+
 ## [v0.3.1](https://github.com/takihito/ghub-desk/compare/v0.3.0...v0.3.1) - 2026-08-17
 - chore(deps): Bump actions/checkout from 6.0.2 to 7.0.1 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/206
 - chore(deps): Bump github.com/alecthomas/kong from 1.15.0 to 1.16.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/207
