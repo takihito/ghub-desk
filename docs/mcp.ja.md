@@ -60,6 +60,7 @@ mcp:
 | `view_all-repos-teams` | 全リポジトリのチーム権限一覧 | なし | `entries[]` に `repo_name`, `full_name`, `team_slug`, `permission` |
 | `view_outside-users` | Outside Collaborator | なし | `users[]` |
 | `view_token-permission` | `pull_token-permission` の保存内容 | なし | PAT/GitHub App 権限情報。未取得の場合はエラー |
+| `view_org-plan` | `pull_org-plan` の保存内容（契約プラン・シート数） | なし | プラン名・契約シート数・使用中シート数に加え、ローカルキャッシュ由来の参考値 `cached_users`/`cached_outside_users` を含む。未取得の場合はエラー |
 | `view_settings` | マスク済み設定の確認 | なし | `organization`, `allow_pull`/`allow_write`, DB パスなど |
 
 ### auditlogs (常時利用可能)
@@ -84,6 +85,7 @@ GitHub API を呼び出し、成功時に既定で SQLite を更新します。�
 | `pull_all-repos-teams` | 全リポジトリのチーム権限取得 | なし | SQLite に既に保存済みのリポジトリのみを走査（事前に `pull_repositories` が必要）。失敗時は即時中断 |
 | `pull_outside-users` | Outside Collaborator 取得 | なし | |
 | `pull_token-permission` | トークン権限情報取得 | なし | 最新のレスポンスを DB に保存 |
+| `pull_org-plan` | 組織の契約プラン・シート数取得 | なし | 組織の member/admin 権限（`read:org`）を持つトークンが必要。プラン情報が取得できない場合はエラー |
 
 ### push_* (`allow_write: true` の場合のみ)
 GitHub 側へ変更を加える操作です。既定では DRYRUN として実行内容を返し、`exec: true` を指定したときのみ API を呼び出します。`no_store: true` で成功後のローカル DB 同期 (`SyncPushAdd/Remove`) をスキップできます。

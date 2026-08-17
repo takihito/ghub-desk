@@ -932,6 +932,94 @@ func FetchUserRepositories(db *sql.DB, userLogin string) ([]UserRepoAccessEntry,
 	return output, nil
 }
 
+// OrgPlanEntry represents the cached organization plan snapshot (seats and contract info).
+// CachedUsers/CachedOutsideUsers are not part of the persisted snapshot: they are counted
+// from ghub_users/ghub_outside_users at fetch time as reference info alongside the plan
+// (e.g. to eyeball filled_seats against how many users the local cache actually knows about).
+type OrgPlanEntry struct {
+	Login              string `json:"login" yaml:"login"`
+	PlanName           string `json:"plan_name" yaml:"plan_name"`
+	Seats              int    `json:"seats" yaml:"seats"`
+	FilledSeats        int    `json:"filled_seats" yaml:"filled_seats"`
+	PrivateRepos       int64  `json:"private_repos" yaml:"private_repos"`
+	Collaborators      int    `json:"collaborators" yaml:"collaborators"`
+	CreatedAt          string `json:"created_at" yaml:"created_at"`
+	UpdatedAt          string `json:"updated_at" yaml:"updated_at"`
+	CachedUsers        int    `json:"cached_users" yaml:"cached_users"`
+	CachedOutsideUsers int    `json:"cached_outside_users" yaml:"cached_outside_users"`
+}
+
+// CountUsers returns the number of organization members cached in ghub_users.
+func CountUsers(db *sql.DB) (int, error) {
+	var count int
+	query := `SELECT COUNT(*) FROM ghub_users`
+	debuglog.Debugf("SQL: %s", query)
+	if err := db.QueryRow(query).Scan(&count); err != nil {
+		return 0, fmt.Errorf("failed to count users: %w", err)
+	}
+	return count, nil
+}
+
+// CountOutsideUsers returns the number of outside collaborators cached in ghub_outside_users.
+func CountOutsideUsers(db *sql.DB) (int, error) {
+	var count int
+	query := `SELECT COUNT(*) FROM ghub_outside_users`
+	debuglog.Debugf("SQL: %s", query)
+	if err := db.QueryRow(query).Scan(&count); err != nil {
+		return 0, fmt.Errorf("failed to count outside users: %w", err)
+	}
+	return count, nil
+}
+
+// FetchOrgPlan retrieves the latest organization plan snapshot.
+func FetchOrgPlan(db *sql.DB) (OrgPlanEntry, bool, error) {
+	if db == nil {
+		return OrgPlanEntry{}, false, fmt.Errorf("database connection is required to fetch organization plan")
+	}
+	// Databases created before the org-plan feature lack this table; create it
+	// here so view --org-plan reports "no data" instead of a missing-table error.
+	if err := EnsureOrgPlanTable(db); err != nil {
+		return OrgPlanEntry{}, false, err
+	}
+	query := `
+		SELECT login, plan_name, seats, filled_seats, private_repos, collaborators,
+		       created_at, updated_at
+		FROM ghub_org_plans
+		ORDER BY created_at DESC
+		LIMIT 1`
+	debuglog.Debugf("SQL: %s", query)
+	row := db.QueryRow(query)
+
+	var record OrgPlanEntry
+	err := row.Scan(
+		&record.Login,
+		&record.PlanName,
+		&record.Seats,
+		&record.FilledSeats,
+		&record.PrivateRepos,
+		&record.Collaborators,
+		&record.CreatedAt,
+		&record.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return OrgPlanEntry{}, false, nil
+	}
+	if err != nil {
+		return OrgPlanEntry{}, false, fmt.Errorf("failed to query organization plan: %w", err)
+	}
+
+	record.CachedUsers, err = CountUsers(db)
+	if err != nil {
+		return OrgPlanEntry{}, false, err
+	}
+	record.CachedOutsideUsers, err = CountOutsideUsers(db)
+	if err != nil {
+		return OrgPlanEntry{}, false, err
+	}
+
+	return record, true, nil
+}
+
 // FetchTokenPermission retrieves the latest token permission metadata.
 func FetchTokenPermission(db *sql.DB) (TokenPermissionEntry, bool, error) {
 	if db == nil {

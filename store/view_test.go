@@ -772,6 +772,141 @@ func TestViewTokenPermission(t *testing.T) {
 	}
 }
 
+func TestViewOrgPlan(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// Test with no data (should not error, just print guidance)
+	if err := ViewOrgPlan(db, FormatTable); err != nil {
+		t.Errorf("ViewOrgPlan() with no data error = %v", err)
+	}
+
+	_, err := db.Exec(`INSERT INTO ghub_org_plans(
+		login, plan_name, seats, filled_seats, private_repos, collaborators,
+		created_at, updated_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		"acme", "enterprise", 100, 87, 500, 20,
+		"2026-08-10 12:00:00", "2026-08-10 12:00:00")
+	if err != nil {
+		t.Fatalf("Failed to insert test org plan: %v", err)
+	}
+
+	for _, format := range []OutputFormat{FormatTable, FormatJSON, FormatYAML} {
+		if err := ViewOrgPlan(db, format); err != nil {
+			t.Errorf("ViewOrgPlan() with data (format=%s) error = %v", format, err)
+		}
+	}
+}
+
+func TestFetchOrgPlanUpgradesLegacyDatabase(t *testing.T) {
+	// A database created before the org-plan feature has no ghub_org_plans table;
+	// FetchOrgPlan must create it and report "no data" instead of erroring.
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open test database: %v", err)
+	}
+	defer db.Close()
+
+	_, found, err := FetchOrgPlan(db)
+	if err != nil {
+		t.Fatalf("FetchOrgPlan() on legacy database error = %v", err)
+	}
+	if found {
+		t.Fatal("expected found=false for legacy database without org plan data")
+	}
+}
+
+func TestFetchOrgPlan(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	// No data: found must be false without error
+	_, found, err := FetchOrgPlan(db)
+	if err != nil {
+		t.Fatalf("FetchOrgPlan() with no data error = %v", err)
+	}
+	if found {
+		t.Fatal("expected found=false for empty table")
+	}
+
+	// Two rows: the latest by created_at must win
+	rows := []struct {
+		login     string
+		seats     int
+		createdAt string
+	}{
+		{"acme", 50, "2026-08-01 00:00:00"},
+		{"acme", 100, "2026-08-10 00:00:00"},
+	}
+	for _, r := range rows {
+		_, err := db.Exec(`INSERT INTO ghub_org_plans(
+			login, plan_name, seats, filled_seats, private_repos, collaborators,
+			created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			r.login, "enterprise", r.seats, 40, 500, 20, r.createdAt, r.createdAt)
+		if err != nil {
+			t.Fatalf("Failed to insert test org plan: %v", err)
+		}
+	}
+
+	record, found, err := FetchOrgPlan(db)
+	if err != nil {
+		t.Fatalf("FetchOrgPlan() error = %v", err)
+	}
+	if !found {
+		t.Fatal("expected found=true")
+	}
+	if record.Login != "acme" || record.PlanName != "enterprise" {
+		t.Fatalf("unexpected record: %+v", record)
+	}
+	if record.Seats != 100 {
+		t.Fatalf("expected latest snapshot (seats=100), got seats=%d", record.Seats)
+	}
+	// No cached users/outside users inserted in this test: reference counts must be zero,
+	// not left unset or erroring.
+	if record.CachedUsers != 0 || record.CachedOutsideUsers != 0 {
+		t.Fatalf("expected zero cached counts, got users=%d outside_users=%d", record.CachedUsers, record.CachedOutsideUsers)
+	}
+}
+
+func TestFetchOrgPlanIncludesCachedUserCounts(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	if err := StoreUsers(db, []*github.User{
+		{ID: github.Int64(1), Login: github.String("alice")},
+		{ID: github.Int64(2), Login: github.String("bob")},
+	}); err != nil {
+		t.Fatalf("Failed to seed users: %v", err)
+	}
+	if err := StoreOutsideUsers(db, []*github.User{
+		{ID: github.Int64(3), Login: github.String("carol")},
+	}); err != nil {
+		t.Fatalf("Failed to seed outside users: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO ghub_org_plans(
+		login, plan_name, seats, filled_seats, private_repos, collaborators,
+		created_at, updated_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		"acme", "enterprise", 100, 87, 500, 20, "2026-08-10 00:00:00", "2026-08-10 00:00:00"); err != nil {
+		t.Fatalf("Failed to insert test org plan: %v", err)
+	}
+
+	record, found, err := FetchOrgPlan(db)
+	if err != nil {
+		t.Fatalf("FetchOrgPlan() error = %v", err)
+	}
+	if !found {
+		t.Fatal("expected found=true")
+	}
+	if record.CachedUsers != 2 {
+		t.Fatalf("expected 2 cached users, got %d", record.CachedUsers)
+	}
+	if record.CachedOutsideUsers != 1 {
+		t.Fatalf("expected 1 cached outside user, got %d", record.CachedOutsideUsers)
+	}
+}
+
 func TestViewOutsideUsers(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()

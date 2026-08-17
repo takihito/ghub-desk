@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"math"
+	"os"
 	"strings"
 	"time"
 
@@ -34,6 +35,7 @@ var pullToolDefs = []toolDef{
 	{name: "pull_repos-teams", tier: tierPull, register: registerPullRepoTeamsTool},
 	{name: "pull_outside-users", tier: tierPull, register: registerPullOutsideUsersTool},
 	{name: "pull_token-permission", tier: tierPull, register: registerPullTokenPermissionTool},
+	{name: "pull_org-plan", tier: tierPull, register: registerPullOrgPlanTool},
 }
 
 func pullOptionProperties(extra map[string]*jsonschema.Schema) map[string]*jsonschema.Schema {
@@ -322,6 +324,21 @@ func registerPullTokenPermissionTool(srv *sdk.Server, name string, cfg *appcfg.C
 	})
 }
 
+func registerPullOrgPlanTool(srv *sdk.Server, name string, cfg *appcfg.Config) {
+	sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
+		Name:        name,
+		Title:       "Pull Organization Plan",
+		Description: "Fetch the organization plan (seats and contract info); optionally store it in SQLite. Requires a token with organization member/admin access. Usage: " + docsToolsURI + "#pull_org-plan.",
+		InputSchema: pullSchema(nil, nil),
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
+		opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
+		if err := doPull(ctx, cfg, "org-plan", opts, "", ""); err != nil {
+			return &sdk.CallToolResult{}, PullResult{}, err
+		}
+		return nil, PullResult{Ok: true, Target: "org-plan"}, nil
+	})
+}
+
 // resolvePullOptions converts MCP inputs to GitHub pull options.
 // Default is to save, disable only when `no_store` is specified. The interval is specified in seconds, with a default of 3 seconds.
 func resolvePullOptions(noStore, stdout bool, intervalSeconds float64) ghubclient.PullOptions {
@@ -334,6 +351,10 @@ func resolvePullOptions(noStore, stdout bool, intervalSeconds float64) ghubclien
 		Store:    !noStore,
 		Stdout:   stdout,
 		Interval: interval,
+		// The MCP server speaks JSON-RPC over stdio, so pull progress text must
+		// never reach os.Stdout (the PullOptions default) or it corrupts the
+		// protocol stream. Route it to stderr, which serve logs already use.
+		Output: os.Stderr,
 	}
 }
 

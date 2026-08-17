@@ -146,6 +146,7 @@ The tables below describe every published tool. Copy the sample JSON into tools/
 | view_all-teams-users | Every cached team membership | {} | Returns team_slug, user_login, and role for all records |
 | view_all-repos-users | All repository collaborators | {} | Each entry includes repository name, user login, and permission |
 | view_all-repos-teams | All repository-team links | {} | Enumerates repository, team slug, permission, timestamps |
+| view_org-plan | Cached organization plan snapshot | {} | Shows plan name, seats, filled seats, plus cached_users/cached_outside_users reference counts; errors when empty |
 
 ## pull_* (requires allow_pull)
 | Tool | Purpose | Sample Input | Notes |
@@ -162,6 +163,7 @@ The tables below describe every published tool. Copy the sample JSON into tools/
 | pull_repos-teams | Fetch repo-team links | {"repository":"admin-console"} | Useful before push_remove team access |
 | pull_outside-users | Fetch outside collaborators | {} | Populates view_outside-users |
 | pull_token-permission | Fetch token headers | {} | Stores rate limit and scope headers for later inspection |
+| pull_org-plan | Fetch organization plan (seats and contract) | {} | Requires org member/admin token (read:org); populates view_org-plan |
 
 ## auditlogs (always available)
 | Tool | Purpose | Sample Input | Notes |

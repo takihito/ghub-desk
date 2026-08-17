@@ -3,6 +3,7 @@ package ghubclient
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -122,6 +123,8 @@ func HandlePullTarget(ctx context.Context, client *github.Client, db *sql.DB, or
 		return PullAllTeamsUsers(ctx, client, db, org, opts)
 	case "token-permission":
 		return PullTokenPermission(ctx, client, db, opts)
+	case "org-plan":
+		return PullOrgPlan(ctx, client, db, org, opts)
 	case "outside-users":
 		return PullOutsideUsers(ctx, client, db, org, opts)
 	case "team-user":
@@ -840,6 +843,50 @@ func PullTokenPermission(ctx context.Context, client *github.Client, db *sql.DB,
 		if err := store.PrintJSON(output); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// PullOrgPlan fetches the organization plan (seats and contract info) and optionally stores it.
+func PullOrgPlan(ctx context.Context, client *github.Client, db *sql.DB, org string, opts PullOptions) error {
+	orgInfo, _, err := client.Organizations.Get(ctx, org)
+	if err != nil {
+		return fmt.Errorf("failed to get organization information: %w", err)
+	}
+	if orgInfo.Plan == nil {
+		return fmt.Errorf("organization plan is not available: the token needs organization member/admin access (read:org) to read plan information")
+	}
+
+	plan := orgInfo.Plan
+	fmt.Fprintf(opts.output(), "Organization: %s\n", orgInfo.GetLogin())
+	fmt.Fprintf(opts.output(), "Plan: %s\n", plan.GetName())
+	fmt.Fprintf(opts.output(), "Seats: %d (filled: %d)\n", plan.GetSeats(), plan.GetFilledSeats())
+
+	if opts.Store && db != nil {
+		if err := store.StoreOrgPlan(db, orgInfo); err != nil {
+			return err
+		}
+		fmt.Fprintf(opts.output(), "Organization plan information stored in database\n")
+	}
+
+	if opts.Stdout {
+		output := map[string]any{
+			"login":         orgInfo.GetLogin(),
+			"plan_name":     plan.GetName(),
+			"seats":         plan.GetSeats(),
+			"filled_seats":  plan.GetFilledSeats(),
+			"private_repos": plan.GetPrivateRepos(),
+			"collaborators": plan.GetCollaborators(),
+		}
+		// Mirror through opts.output() rather than store.PrintJSON so callers that
+		// redirect output (e.g. the MCP server, whose stdout carries JSON-RPC) are
+		// not bypassed. CLI behavior is unchanged: output() defaults to os.Stdout.
+		data, err := json.MarshalIndent(output, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal organization plan: %w", err)
+		}
+		fmt.Fprintln(opts.output(), string(data))
 	}
 
 	return nil

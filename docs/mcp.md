@@ -61,6 +61,7 @@ All view tools read from the local database.
 | `view_outside-users` | Outside collaborators | none | `users[]` |
 | `view_settings` | Application configuration with secrets masked | none | Masked config, useful for confirming `allow_pull`/`allow_write` |
 | `view_token-permission` | Cached response from `pull_token-permission` | none | Permission data for PAT or GitHub App; errors when missing |
+| `view_org-plan` | Cached organization plan from `pull_org-plan` | none | Plan name, contracted seats, filled seats, plus `cached_users`/`cached_outside_users` reference counts from the local cache; errors when missing |
 
 ### auditlogs (always available)
 | Tool | Description | Input | Notes |
@@ -84,6 +85,7 @@ These tools call the GitHub API and update SQLite by default. Every pull_* tool 
 | `pull_all-repos-teams` | Fetch team access for every repository | none | Loops over repositories already cached in SQLite (run `pull_repositories` first); fails fast on error |
 | `pull_outside-users` | Fetch outside collaborators | none | |
 | `pull_token-permission` | Fetch token permission headers | none | Persists the latest response in the database |
+| `pull_org-plan` | Fetch organization plan (seats and contract info) | none | Requires a token with organization member/admin access (`read:org`); errors when plan info is unavailable |
 
 ### push_* (requires `allow_write: true`)
 These operations modify GitHub state. They run in DRYRUN mode by default, returning the intended action. Set `exec: true` to perform the API call. Use `no_store: true` to skip syncing local state after successful execution (`SyncPushAdd/Remove`).
