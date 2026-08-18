@@ -72,7 +72,7 @@ func registerViewUsersTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 	sdk.AddTool[struct{}, ViewUsersOut](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Users",
-		Description: "List users from local database. Usage: " + docsToolsURI + "#view_users.",
+		Description: "List users from local database. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{Type: "object"},
 	}, func(_ context.Context, _ *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewUsersOut, error) {
 		users, err := listUsers()
@@ -89,7 +89,7 @@ func registerViewDetailUsersTool(srv *sdk.Server, name string, _ *appcfg.Config)
 	sdk.AddTool[struct{}, ViewUsersOut](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Detail Users",
-		Description: "List users with details from local database. Usage: " + docsToolsURI + "#view_detail-users.",
+		Description: "List users with details from local database. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{Type: "object"},
 	}, func(_ context.Context, _ *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewUsersOut, error) {
 		users, err := listUsers()
@@ -124,7 +124,7 @@ func registerViewUserTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 	sdk.AddTool[ViewUserIn, ViewUserOut](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Single User",
-		Description: "Show one user profile from local database. Pass {\"user\":\"github-login\"}. Usage: " + docsToolsURI + "#view_user.",
+		Description: "Show one user profile from local database. Pass {\"user\":\"github-login\"}. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{
 			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
@@ -225,7 +225,7 @@ func registerViewUserTeamsTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 	sdk.AddTool[ViewUserTeamsIn, ViewUserTeamsOut](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View User Teams",
-		Description: "List teams a user belongs to from local database. Pass {\"user\":\"github-login\"}. Usage: " + docsToolsURI + "#view_user-teams.",
+		Description: "List teams a user belongs to from local database. Pass {\"user\":\"github-login\"}. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{
 			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
@@ -272,7 +272,7 @@ func registerViewTeamsTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 	sdk.AddTool[struct{}, ViewTeamsOut](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Teams",
-		Description: "List teams from local database. Usage: " + docsToolsURI + "#view_teams.",
+		Description: "List teams from local database. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{Type: "object"},
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewTeamsOut, error) {
 		teams, err := listTeams()
@@ -301,7 +301,7 @@ func registerViewReposTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 	sdk.AddTool[struct{}, ViewReposOut](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Repositories",
-		Description: "List repositories from local database. Usage: " + docsToolsURI + "#view_repos.",
+		Description: "List repositories from local database. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{Type: "object"},
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewReposOut, error) {
 		repos, err := listRepositories()
@@ -331,7 +331,7 @@ func registerViewTeamUserTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 	sdk.AddTool[ViewTeamUsersIn, ViewTeamUsersOut](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Team Users",
-		Description: "List users in a specific team from local database. Pass {\"team\":\"team-slug\"} using the lowercase-slug format (alnum + hyphen). Usage: " + docsToolsURI + "#view_team-user.",
+		Description: "List users in a specific team from local database. Pass {\"team\":\"team-slug\"} using the lowercase-slug format (alnum + hyphen). Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{
 			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
@@ -474,7 +474,7 @@ func registerViewRepoUsersTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 	sdk.AddTool[ViewRepoUsersIn, ViewRepoUsersOut](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Repository Collaborators",
-		Description: "List direct collaborators for a repository from the local cache. Pass {\"repository\":\"repo-name\"} (1-100 chars, alnum/underscore/hyphen). Usage: " + docsToolsURI + "#view_repos-users.",
+		Description: "List direct collaborators for a repository from the local cache. Pass {\"repository\":\"repo-name\"} (1-100 chars, alnum/underscore/hyphen). Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{
 			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
@@ -556,7 +556,7 @@ func registerViewRepoTeamsTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 	sdk.AddTool[ViewRepoTeamsIn, ViewRepoTeamsOut](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Repository Teams",
-		Description: "List teams with access to a repository from the local cache. Pass {\"repository\":\"repo-name\"} (1-100 chars, alnum/underscore/hyphen). Usage: " + docsToolsURI + "#view_repos-teams.",
+		Description: "List teams with access to a repository from the local cache. Pass {\"repository\":\"repo-name\"} (1-100 chars, alnum/underscore/hyphen). Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{
 			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
@@ -612,7 +612,7 @@ func registerViewRepoTeamsUsersTool(srv *sdk.Server, name string, _ *appcfg.Conf
 	sdk.AddTool[ViewRepoTeamsUsersIn, ViewRepoTeamsUsersOut](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Repository Team Users",
-		Description: "List members of teams linked to a repository from the local cache. Pass {\"repository\":\"repo-name\"} (1-100 chars, alnum/underscore/hyphen). Usage: " + docsToolsURI + "#view_repos-teams-users.",
+		Description: "List members of teams linked to a repository from the local cache. Pass {\"repository\":\"repo-name\"} (1-100 chars, alnum/underscore/hyphen). Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{
 			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
@@ -664,7 +664,7 @@ func registerViewTeamReposTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 	sdk.AddTool[ViewTeamReposIn, ViewTeamReposOut](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Team Repositories",
-		Description: "List repositories a team can access from local database. Pass {\"team\":\"team-slug\"}. Usage: " + docsToolsURI + "#view_team-repos.",
+		Description: "List repositories a team can access from local database. Pass {\"team\":\"team-slug\"}. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{
 			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
@@ -800,7 +800,7 @@ func registerViewAllTeamsUsersTool(srv *sdk.Server, name string, _ *appcfg.Confi
 	sdk.AddTool[struct{}, ViewAllTeamsUsersOut](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View All Team Memberships",
-		Description: "Enumerate every team membership entry stored in the local database. Usage: " + docsToolsURI + "#view_all-teams-users.",
+		Description: "Enumerate every team membership entry stored in the local database. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{Type: "object"},
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewAllTeamsUsersOut, error) {
 		entries, err := listAllTeamsUsers()
@@ -853,7 +853,7 @@ func registerViewAllReposUsersTool(srv *sdk.Server, name string, _ *appcfg.Confi
 	sdk.AddTool[struct{}, ViewAllReposUsersOut](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View All Repository Collaborators",
-		Description: "Enumerate collaborators for every repository stored in the local database. Usage: " + docsToolsURI + "#view_all-repos-users.",
+		Description: "Enumerate collaborators for every repository stored in the local database. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{Type: "object"},
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewAllReposUsersOut, error) {
 		entries, err := listAllRepositoriesUsers()
@@ -908,7 +908,7 @@ func registerViewAllReposTeamsTool(srv *sdk.Server, name string, _ *appcfg.Confi
 	sdk.AddTool[struct{}, ViewAllReposTeamsOut](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View All Repository Teams",
-		Description: "Enumerate team access for every repository stored in the local database. Usage: " + docsToolsURI + "#view_all-repos-teams.",
+		Description: "Enumerate team access for every repository stored in the local database. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{Type: "object"},
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewAllReposTeamsOut, error) {
 		entries, err := listAllRepositoriesTeams()
@@ -966,7 +966,7 @@ func registerViewUserReposTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 	sdk.AddTool[ViewUserReposIn, ViewUserReposOut](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View User Repository Access",
-		Description: "List repositories a user can access and how the access is granted. Pass {\"user\":\"github-login\"} (1-39 chars, alnum or hyphen). Usage: " + docsToolsURI + "#view_user-repos.",
+		Description: "List repositories a user can access and how the access is granted. Pass {\"user\":\"github-login\"} (1-39 chars, alnum or hyphen). Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{
 			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
@@ -1030,7 +1030,7 @@ func registerViewOutsideUsersTool(srv *sdk.Server, name string, _ *appcfg.Config
 	sdk.AddTool[struct{}, ViewOutsideUsersOut](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Outside Collaborators",
-		Description: "List outside collaborators from local database. Usage: " + docsToolsURI + "#view_outside-users.",
+		Description: "List outside collaborators from local database. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{Type: "object"},
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewOutsideUsersOut, error) {
 		users, err := listOutsideUsers()
@@ -1070,7 +1070,7 @@ func registerViewSettingsTool(srv *sdk.Server, name string, cfg *appcfg.Config) 
 	sdk.AddTool[struct{}, appcfg.Masked](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Masked Settings",
-		Description: "Show application configuration with secrets masked, useful for confirming MCP permissions. Usage: " + docsToolsURI + "#view_settings.",
+		Description: "Show application configuration with secrets masked, useful for confirming MCP permissions. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{Type: "object"},
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, appcfg.Masked, error) {
 		return nil, appcfg.Mask(cfg), nil
@@ -1093,7 +1093,7 @@ func registerViewTokenPermissionTool(srv *sdk.Server, name string, _ *appcfg.Con
 	sdk.AddTool[struct{}, ViewTokenPermissionOut](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Token Permission",
-		Description: "Show token permission info from local database. Usage: " + docsToolsURI + "#view_token-permission.",
+		Description: "Show token permission info from local database. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{Type: "object"},
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewTokenPermissionOut, error) {
 		tp, err := getTokenPermission()
@@ -1126,7 +1126,7 @@ func registerViewOrgPlanTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 	sdk.AddTool[struct{}, ViewOrgPlanOut](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Organization Plan",
-		Description: "Show the cached organization plan (seats and contract info) from local database. Usage: " + docsToolsURI + "#view_org-plan.",
+		Description: "Show the cached organization plan (seats and contract info) from local database. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{Type: "object"},
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewOrgPlanOut, error) {
 		out, err := getOrgPlan()

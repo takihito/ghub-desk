@@ -51,7 +51,7 @@ func registerPushAddTool(srv *sdk.Server, name string, cfg *appcfg.Config) {
 	sdk.AddTool[PushAddIn, PushResult](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "Push Add",
-		Description: "Add users to teams or invite outside collaborators. Use team_user=\"team-slug/username\" or outside_user=\"repository/username\"; dry-run unless exec=true. Usage: " + docsToolsURI + "#push_add. Safety: " + docsSafetyURI + ".",
+		Description: "Add users to teams or invite outside collaborators. Use team_user=\"team-slug/username\" or outside_user=\"repository/username\"; dry-run unless exec=true. Usage: " + docsToolsURI + ". Safety: " + docsSafetyURI + ".",
 		InputSchema: &jsonschema.Schema{
 			Type:        "object",
 			Description: "Provide exactly one of team_user or outside_user.",
@@ -105,7 +105,7 @@ func registerPushRemoveTool(srv *sdk.Server, name string, cfg *appcfg.Config) {
 	sdk.AddTool[PushRemoveIn, PushResult](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "Push Remove",
-		Description: "Remove teams, users, or collaborators. Choose one target (team, user, team_user, outside_user, repos_user); dry-run unless exec=true. Usage: " + docsToolsURI + "#push_remove. Safety: " + docsSafetyURI + ".",
+		Description: "Remove teams, users, or collaborators. Choose one target (team, user, team_user, outside_user, repos_user); dry-run unless exec=true. Usage: " + docsToolsURI + ". Safety: " + docsSafetyURI + ".",
 		InputSchema: &jsonschema.Schema{
 			Type:        "object",
 			Description: "Provide exactly one removal target (team, user, team_user, outside_user, or repos_user).",

@@ -2,7 +2,6 @@ package mcp
 
 import (
 	"context"
-	"strings"
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -55,13 +54,13 @@ func registerDocsResources(srv *sdk.Server) {
 }
 
 func staticMarkdownResource(uri, body string) sdk.ResourceHandler {
+	// NOTE: the SDK resolves resources by exact URI before invoking this handler, so a
+	// fragment-bearing URI (resource://.../mcp-tools#view_users) never reaches here and is
+	// rejected upstream as ResourceNotFound. Tool descriptions must therefore reference the
+	// plain URI only; TestToolDescriptionsReferenceExistingResources guards that.
 	return func(_ context.Context, req *sdk.ReadResourceRequest) (*sdk.ReadResourceResult, error) {
 		if req != nil && req.Params != nil {
-			target := req.Params.URI
-			if idx := strings.IndexByte(target, '#'); idx >= 0 {
-				target = target[:idx]
-			}
-			if target != "" && target != uri {
+			if target := req.Params.URI; target != "" && target != uri {
 				return nil, sdk.ResourceNotFoundError(target)
 			}
 		}
@@ -102,7 +101,7 @@ calling tools or resources.
 | resource://ghub-desk/mcp-tools | Usage for every tool plus JSON examples and response hints. |
 | resource://ghub-desk/mcp-safety | Push-specific guardrails, DRYRUN vs exec, and post-run cleanup tips. |
 
-Use anchors such as resource://ghub-desk/mcp-tools#view_team-user to deep-link to individual tools.
+Read a resource with its exact URI as listed above; fragment suffixes are not supported.
 
 ## Typical MCP workflow
 1. Run tools/list and resources/list to understand what is available.

@@ -100,7 +100,7 @@ func registerPullUsersTool(srv *sdk.Server, name string, cfg *appcfg.Config) {
 	sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "Pull Users",
-		Description: "Fetch organization members from GitHub; optionally store them in SQLite. Usage: " + docsToolsURI + "#pull_users.",
+		Description: "Fetch organization members from GitHub; optionally store them in SQLite. Usage: " + docsToolsURI + ".",
 		InputSchema: pullSchema(nil, nil),
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
 		opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
@@ -115,7 +115,7 @@ func registerPullDetailUsersTool(srv *sdk.Server, name string, cfg *appcfg.Confi
 	sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "Pull Detailed Users",
-		Description: "Fetch organization members with profile details; optionally store them in SQLite. Usage: " + docsToolsURI + "#pull_detail-users.",
+		Description: "Fetch organization members with profile details; optionally store them in SQLite. Usage: " + docsToolsURI + ".",
 		InputSchema: pullSchema(nil, nil),
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
 		opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
@@ -130,7 +130,7 @@ func registerPullTeamsTool(srv *sdk.Server, name string, cfg *appcfg.Config) {
 	sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "Pull Teams",
-		Description: "Fetch organization teams from GitHub; optionally store them in SQLite. Usage: " + docsToolsURI + "#pull_teams.",
+		Description: "Fetch organization teams from GitHub; optionally store them in SQLite. Usage: " + docsToolsURI + ".",
 		InputSchema: pullSchema(nil, nil),
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
 		opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
@@ -145,7 +145,7 @@ func registerPullRepositoriesTool(srv *sdk.Server, name string, cfg *appcfg.Conf
 	sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "Pull Repositories",
-		Description: "Fetch repositories from GitHub; optionally store them in SQLite. Usage: " + docsToolsURI + "#pull_repositories.",
+		Description: "Fetch repositories from GitHub; optionally store them in SQLite. Usage: " + docsToolsURI + ".",
 		InputSchema: pullSchema(nil, nil),
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
 		opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
@@ -160,7 +160,7 @@ func registerPullAllTeamsUsersTool(srv *sdk.Server, name string, cfg *appcfg.Con
 	sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "Pull All Team Memberships",
-		Description: "Fetch every team membership from GitHub; optionally store them in SQLite. Usage: " + docsToolsURI + "#pull_all-teams-users.",
+		Description: "Fetch every team membership from GitHub; optionally store them in SQLite. Usage: " + docsToolsURI + ".",
 		InputSchema: pullSchema(nil, nil),
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
 		opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
@@ -175,7 +175,7 @@ func registerPullAllReposUsersTool(srv *sdk.Server, name string, cfg *appcfg.Con
 	sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "Pull All Repository Collaborators",
-		Description: "Fetch collaborators for every repository; optionally store them in SQLite. Usage: " + docsToolsURI + "#pull_all-repos-users.",
+		Description: "Fetch collaborators for every repository; optionally store them in SQLite. Usage: " + docsToolsURI + ".",
 		InputSchema: pullSchema(nil, nil),
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
 		opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
@@ -190,7 +190,7 @@ func registerPullAllReposTeamsTool(srv *sdk.Server, name string, cfg *appcfg.Con
 	sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "Pull All Repository Teams",
-		Description: "Fetch team access for every repository; optionally store them in SQLite. Usage: " + docsToolsURI + "#pull_all-repos-teams.",
+		Description: "Fetch team access for every repository; optionally store them in SQLite. Usage: " + docsToolsURI + ".",
 		InputSchema: pullSchema(nil, nil),
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
 		opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
@@ -205,7 +205,7 @@ func registerPullTeamUserTool(srv *sdk.Server, name string, cfg *appcfg.Config) 
 	sdk.AddTool[PullTeamUsersIn, PullResult](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "Pull Team Users",
-		Description: "Fetch members for a specific team; optionally store them in SQLite. Provide {\"team\":\"team-slug\"} plus optional pull flags (no_store/stdout/interval_seconds). Usage: " + docsToolsURI + "#pull_team-user.",
+		Description: "Fetch members for a specific team; optionally store them in SQLite. Provide {\"team\":\"team-slug\"} plus optional pull flags (no_store/stdout/interval_seconds). Usage: " + docsToolsURI + ".",
 		InputSchema: pullSchema(map[string]*jsonschema.Schema{
 			"team": {
 				Type:        "string",
@@ -236,7 +236,7 @@ func registerPullRepoUsersTool(srv *sdk.Server, name string, cfg *appcfg.Config)
 	sdk.AddTool[PullRepoTargetIn, PullResult](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "Pull Repository Collaborators",
-		Description: "Fetch direct collaborators for a repository; optionally store them in SQLite. Provide {\"repository\":\"repo-name\"} plus optional pull flags. Usage: " + docsToolsURI + "#pull_repos-users.",
+		Description: "Fetch direct collaborators for a repository; optionally store them in SQLite. Provide {\"repository\":\"repo-name\"} plus optional pull flags. Usage: " + docsToolsURI + ".",
 		InputSchema: pullSchema(map[string]*jsonschema.Schema{
 			"repository": {
 				Type:        "string",
@@ -267,7 +267,7 @@ func registerPullRepoTeamsTool(srv *sdk.Server, name string, cfg *appcfg.Config)
 	sdk.AddTool[PullRepoTargetIn, PullResult](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "Pull Repository Teams",
-		Description: "Fetch team permissions for a repository; optionally store them in SQLite. Provide {\"repository\":\"repo-name\"} plus optional pull flags. Usage: " + docsToolsURI + "#pull_repos-teams.",
+		Description: "Fetch team permissions for a repository; optionally store them in SQLite. Provide {\"repository\":\"repo-name\"} plus optional pull flags. Usage: " + docsToolsURI + ".",
 		InputSchema: pullSchema(map[string]*jsonschema.Schema{
 			"repository": {
 				Type:        "string",
@@ -298,7 +298,7 @@ func registerPullOutsideUsersTool(srv *sdk.Server, name string, cfg *appcfg.Conf
 	sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "Pull Outside Collaborators",
-		Description: "Fetch outside collaborators; optionally store them in SQLite. Usage: " + docsToolsURI + "#pull_outside-users.",
+		Description: "Fetch outside collaborators; optionally store them in SQLite. Usage: " + docsToolsURI + ".",
 		InputSchema: pullSchema(nil, nil),
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
 		opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
@@ -313,7 +313,7 @@ func registerPullTokenPermissionTool(srv *sdk.Server, name string, cfg *appcfg.C
 	sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "Pull Token Permission",
-		Description: "Fetch GitHub token permission headers; optionally store them in SQLite. Usage: " + docsToolsURI + "#pull_token-permission.",
+		Description: "Fetch GitHub token permission headers; optionally store them in SQLite. Usage: " + docsToolsURI + ".",
 		InputSchema: pullSchema(nil, nil),
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
 		opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)
@@ -328,7 +328,7 @@ func registerPullOrgPlanTool(srv *sdk.Server, name string, cfg *appcfg.Config) {
 	sdk.AddTool[PullCommonIn, PullResult](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "Pull Organization Plan",
-		Description: "Fetch the organization plan (seats and contract info); optionally store it in SQLite. Requires a token with organization member/admin access. Usage: " + docsToolsURI + "#pull_org-plan.",
+		Description: "Fetch the organization plan (seats and contract info); optionally store it in SQLite. Requires a token with organization member/admin access. Usage: " + docsToolsURI + ".",
 		InputSchema: pullSchema(nil, nil),
 	}, func(ctx context.Context, req *sdk.CallToolRequest, in PullCommonIn) (*sdk.CallToolResult, PullResult, error) {
 		opts := resolvePullOptions(in.NoStore, in.Stdout, in.IntervalSeconds)

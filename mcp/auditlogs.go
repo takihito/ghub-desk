@@ -36,7 +36,7 @@ func registerAuditLogsTool(srv *sdk.Server, name string, cfg *appcfg.Config) {
 	sdk.AddTool[AuditLogsIn, AuditLogsOut](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "Audit Logs",
-		Description: "Fetch organization audit log entries by actor. Usage: " + docsToolsURI + "#auditlogs.",
+		Description: "Fetch organization audit log entries by actor. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{
 			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
