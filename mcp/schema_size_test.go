@@ -12,12 +12,15 @@ import (
 )
 
 // withTempStore points the store at an initialized SQLite file under t.TempDir so view
-// tools can run without touching the developer's ghub-desk.db.
+// tools can run without touching the developer's ghub-desk.db. The previous path is
+// restored (rather than cleared) so the helper composes with any caller that already
+// configured a custom path.
 func withTempStore(t *testing.T) {
 	t.Helper()
 
+	prev := store.DBPath
 	store.SetDBPath(filepath.Join(t.TempDir(), "test.db"))
-	t.Cleanup(func() { store.SetDBPath("") })
+	t.Cleanup(func() { store.SetDBPath(prev) })
 
 	db, err := store.InitDatabase()
 	if err != nil {
