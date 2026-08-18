@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.3.3](https://github.com/takihito/ghub-desk/compare/v0.3.2...v0.3.3) - 2026-08-18
+- fix(mcp): ドキュメントリソースへの導線が常に失敗する問題を修正 by @takihito in https://github.com/takihito/ghub-desk/pull/215
+- perf(mcp): tools/list のコンテキスト消費を約52%削減 by @takihito in https://github.com/takihito/ghub-desk/pull/217
+
 ## [v0.3.2](https://github.com/takihito/ghub-desk/compare/v0.3.1...v0.3.2) - 2026-08-17
 - ci(release): タグ push でリリースを自動公開する by @takihito in https://github.com/takihito/ghub-desk/pull/213
 
