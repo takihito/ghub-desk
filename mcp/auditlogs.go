@@ -33,7 +33,7 @@ type AuditLogsOut struct {
 }
 
 func registerAuditLogsTool(srv *sdk.Server, name string, cfg *appcfg.Config) {
-	sdk.AddTool[AuditLogsIn, AuditLogsOut](srv, &sdk.Tool{
+	sdk.AddTool[AuditLogsIn, any](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "Audit Logs",
 		Description: "Fetch organization audit log entries by actor. Usage: " + docsToolsURI + ".",
@@ -43,7 +43,7 @@ func registerAuditLogsTool(srv *sdk.Server, name string, cfg *appcfg.Config) {
 				"user": {
 					Type:        "string",
 					Title:       "User Login",
-					Description: "GitHub username (1-39 chars, alnum or hyphen).",
+					Description: "GitHub username.",
 					MinLength:   intPtr(v.UserNameMin),
 					MaxLength:   intPtr(v.UserNameMax),
 					Pattern:     v.UserNamePattern,
@@ -71,7 +71,7 @@ func registerAuditLogsTool(srv *sdk.Server, name string, cfg *appcfg.Config) {
 			},
 			Required: []string{"user"},
 		},
-	}, func(ctx context.Context, req *sdk.CallToolRequest, in AuditLogsIn) (*sdk.CallToolResult, AuditLogsOut, error) {
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in AuditLogsIn) (*sdk.CallToolResult, any, error) {
 		perPage := in.PerPage
 		if perPage == 0 {
 			perPage = 100

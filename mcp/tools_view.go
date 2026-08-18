@@ -45,12 +45,12 @@ type HealthOut struct {
 }
 
 func registerHealthTool(srv *sdk.Server, name string, _ *appcfg.Config) {
-	sdk.AddTool[struct{}, HealthOut](srv, &sdk.Tool{
+	sdk.AddTool[struct{}, any](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "Health Check",
 		Description: "Returns server health status.",
 		InputSchema: &jsonschema.Schema{Type: "object"},
-	}, func(_ context.Context, _ *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, HealthOut, error) {
+	}, func(_ context.Context, _ *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, any, error) {
 		return nil, HealthOut{Status: "ok", Time: time.Now().UTC().Format(time.RFC3339)}, nil
 	})
 }
@@ -69,12 +69,12 @@ type User struct {
 }
 
 func registerViewUsersTool(srv *sdk.Server, name string, _ *appcfg.Config) {
-	sdk.AddTool[struct{}, ViewUsersOut](srv, &sdk.Tool{
+	sdk.AddTool[struct{}, any](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Users",
 		Description: "List users from local database. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{Type: "object"},
-	}, func(_ context.Context, _ *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewUsersOut, error) {
+	}, func(_ context.Context, _ *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, any, error) {
 		users, err := listUsers()
 		if err != nil {
 			// return as tool error (not protocol error)
@@ -86,12 +86,12 @@ func registerViewUsersTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 
 // registerViewDetailUsersTool exposes the same output shape as view_users for now.
 func registerViewDetailUsersTool(srv *sdk.Server, name string, _ *appcfg.Config) {
-	sdk.AddTool[struct{}, ViewUsersOut](srv, &sdk.Tool{
+	sdk.AddTool[struct{}, any](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Detail Users",
 		Description: "List users with details from local database. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{Type: "object"},
-	}, func(_ context.Context, _ *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewUsersOut, error) {
+	}, func(_ context.Context, _ *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, any, error) {
 		users, err := listUsers()
 		if err != nil {
 			return &sdk.CallToolResult{}, ViewUsersOut{}, fmt.Errorf("failed to list users: %w", err)
@@ -121,7 +121,7 @@ type ViewUserOut struct {
 }
 
 func registerViewUserTool(srv *sdk.Server, name string, _ *appcfg.Config) {
-	sdk.AddTool[ViewUserIn, ViewUserOut](srv, &sdk.Tool{
+	sdk.AddTool[ViewUserIn, any](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Single User",
 		Description: "Show one user profile from local database. Pass {\"user\":\"github-login\"}. Usage: " + docsToolsURI + ".",
@@ -131,7 +131,7 @@ func registerViewUserTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 				"user": {
 					Type:        "string",
 					Title:       "User Login",
-					Description: "GitHub username (1-39 chars, alnum or hyphen).",
+					Description: "GitHub username.",
 					MinLength:   intPtr(v.UserNameMin),
 					MaxLength:   intPtr(v.UserNameMax),
 					Pattern:     v.UserNamePattern,
@@ -139,7 +139,7 @@ func registerViewUserTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 			},
 			Required: []string{"user"},
 		},
-	}, func(ctx context.Context, req *sdk.CallToolRequest, in ViewUserIn) (*sdk.CallToolResult, ViewUserOut, error) {
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in ViewUserIn) (*sdk.CallToolResult, any, error) {
 		login := strings.TrimSpace(in.User)
 		if login == "" {
 			return &sdk.CallToolResult{}, ViewUserOut{}, fmt.Errorf("user is required")
@@ -222,7 +222,7 @@ type ViewUserTeamsOut struct {
 }
 
 func registerViewUserTeamsTool(srv *sdk.Server, name string, _ *appcfg.Config) {
-	sdk.AddTool[ViewUserTeamsIn, ViewUserTeamsOut](srv, &sdk.Tool{
+	sdk.AddTool[ViewUserTeamsIn, any](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View User Teams",
 		Description: "List teams a user belongs to from local database. Pass {\"user\":\"github-login\"}. Usage: " + docsToolsURI + ".",
@@ -232,7 +232,7 @@ func registerViewUserTeamsTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 				"user": {
 					Type:        "string",
 					Title:       "User Login",
-					Description: "GitHub username (1-39 chars, alnum or hyphen).",
+					Description: "GitHub username.",
 					MinLength:   intPtr(v.UserNameMin),
 					MaxLength:   intPtr(v.UserNameMax),
 					Pattern:     v.UserNamePattern,
@@ -240,7 +240,7 @@ func registerViewUserTeamsTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 			},
 			Required: []string{"user"},
 		},
-	}, func(ctx context.Context, req *sdk.CallToolRequest, in ViewUserTeamsIn) (*sdk.CallToolResult, ViewUserTeamsOut, error) {
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in ViewUserTeamsIn) (*sdk.CallToolResult, any, error) {
 		login := strings.TrimSpace(in.User)
 		if login == "" {
 			return &sdk.CallToolResult{}, ViewUserTeamsOut{}, fmt.Errorf("user is required")
@@ -269,12 +269,12 @@ type ViewTeamsOut struct {
 }
 
 func registerViewTeamsTool(srv *sdk.Server, name string, _ *appcfg.Config) {
-	sdk.AddTool[struct{}, ViewTeamsOut](srv, &sdk.Tool{
+	sdk.AddTool[struct{}, any](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Teams",
 		Description: "List teams from local database. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{Type: "object"},
-	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewTeamsOut, error) {
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, any, error) {
 		teams, err := listTeams()
 		if err != nil {
 			return &sdk.CallToolResult{}, ViewTeamsOut{}, fmt.Errorf("failed to list teams: %w", err)
@@ -298,12 +298,12 @@ type ViewReposOut struct {
 }
 
 func registerViewReposTool(srv *sdk.Server, name string, _ *appcfg.Config) {
-	sdk.AddTool[struct{}, ViewReposOut](srv, &sdk.Tool{
+	sdk.AddTool[struct{}, any](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Repositories",
 		Description: "List repositories from local database. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{Type: "object"},
-	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewReposOut, error) {
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, any, error) {
 		repos, err := listRepositories()
 		if err != nil {
 			return &sdk.CallToolResult{}, ViewReposOut{}, fmt.Errorf("failed to list repositories: %w", err)
@@ -328,7 +328,7 @@ type ViewTeamUsersOut struct {
 }
 
 func registerViewTeamUserTool(srv *sdk.Server, name string, _ *appcfg.Config) {
-	sdk.AddTool[ViewTeamUsersIn, ViewTeamUsersOut](srv, &sdk.Tool{
+	sdk.AddTool[ViewTeamUsersIn, any](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Team Users",
 		Description: "List users in a specific team from local database. Pass {\"team\":\"team-slug\"} using the lowercase-slug format (alnum + hyphen). Usage: " + docsToolsURI + ".",
@@ -346,7 +346,7 @@ func registerViewTeamUserTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 			},
 			Required: []string{"team"},
 		},
-	}, func(ctx context.Context, req *sdk.CallToolRequest, in ViewTeamUsersIn) (*sdk.CallToolResult, ViewTeamUsersOut, error) {
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in ViewTeamUsersIn) (*sdk.CallToolResult, any, error) {
 		if in.Team == "" {
 			return &sdk.CallToolResult{}, ViewTeamUsersOut{}, fmt.Errorf("team is required")
 		}
@@ -471,7 +471,7 @@ type ViewRepoUsersOut struct {
 }
 
 func registerViewRepoUsersTool(srv *sdk.Server, name string, _ *appcfg.Config) {
-	sdk.AddTool[ViewRepoUsersIn, ViewRepoUsersOut](srv, &sdk.Tool{
+	sdk.AddTool[ViewRepoUsersIn, any](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Repository Collaborators",
 		Description: "List direct collaborators for a repository from the local cache. Pass {\"repository\":\"repo-name\"} (1-100 chars, alnum/underscore/hyphen). Usage: " + docsToolsURI + ".",
@@ -481,7 +481,7 @@ func registerViewRepoUsersTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 				"repository": {
 					Type:        "string",
 					Title:       "Repository Name",
-					Description: "Repository name (1-100 chars, alnum/underscore/hyphen).",
+					Description: "Repository name.",
 					MinLength:   intPtr(v.RepoNameMin),
 					MaxLength:   intPtr(v.RepoNameMax),
 					Pattern:     v.RepoNamePattern,
@@ -489,7 +489,7 @@ func registerViewRepoUsersTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 			},
 			Required: []string{"repository"},
 		},
-	}, func(ctx context.Context, req *sdk.CallToolRequest, in ViewRepoUsersIn) (*sdk.CallToolResult, ViewRepoUsersOut, error) {
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in ViewRepoUsersIn) (*sdk.CallToolResult, any, error) {
 		repo := strings.TrimSpace(in.Repository)
 		if repo == "" {
 			return &sdk.CallToolResult{}, ViewRepoUsersOut{}, fmt.Errorf("repository is required")
@@ -553,7 +553,7 @@ type ViewRepoTeamsOut struct {
 }
 
 func registerViewRepoTeamsTool(srv *sdk.Server, name string, _ *appcfg.Config) {
-	sdk.AddTool[ViewRepoTeamsIn, ViewRepoTeamsOut](srv, &sdk.Tool{
+	sdk.AddTool[ViewRepoTeamsIn, any](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Repository Teams",
 		Description: "List teams with access to a repository from the local cache. Pass {\"repository\":\"repo-name\"} (1-100 chars, alnum/underscore/hyphen). Usage: " + docsToolsURI + ".",
@@ -563,7 +563,7 @@ func registerViewRepoTeamsTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 				"repository": {
 					Type:        "string",
 					Title:       "Repository Name",
-					Description: "Repository name (1-100 chars, alnum/underscore/hyphen).",
+					Description: "Repository name.",
 					MinLength:   intPtr(v.RepoNameMin),
 					MaxLength:   intPtr(v.RepoNameMax),
 					Pattern:     v.RepoNamePattern,
@@ -571,7 +571,7 @@ func registerViewRepoTeamsTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 			},
 			Required: []string{"repository"},
 		},
-	}, func(ctx context.Context, req *sdk.CallToolRequest, in ViewRepoTeamsIn) (*sdk.CallToolResult, ViewRepoTeamsOut, error) {
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in ViewRepoTeamsIn) (*sdk.CallToolResult, any, error) {
 		repo := strings.TrimSpace(in.Repository)
 		if repo == "" {
 			return &sdk.CallToolResult{}, ViewRepoTeamsOut{}, fmt.Errorf("repository is required")
@@ -609,7 +609,7 @@ type ViewRepoTeamsUsersOut struct {
 }
 
 func registerViewRepoTeamsUsersTool(srv *sdk.Server, name string, _ *appcfg.Config) {
-	sdk.AddTool[ViewRepoTeamsUsersIn, ViewRepoTeamsUsersOut](srv, &sdk.Tool{
+	sdk.AddTool[ViewRepoTeamsUsersIn, any](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Repository Team Users",
 		Description: "List members of teams linked to a repository from the local cache. Pass {\"repository\":\"repo-name\"} (1-100 chars, alnum/underscore/hyphen). Usage: " + docsToolsURI + ".",
@@ -619,7 +619,7 @@ func registerViewRepoTeamsUsersTool(srv *sdk.Server, name string, _ *appcfg.Conf
 				"repository": {
 					Type:        "string",
 					Title:       "Repository Name",
-					Description: "Repository name (1-100 chars, alnum/underscore/hyphen).",
+					Description: "Repository name.",
 					MinLength:   intPtr(v.RepoNameMin),
 					MaxLength:   intPtr(v.RepoNameMax),
 					Pattern:     v.RepoNamePattern,
@@ -627,7 +627,7 @@ func registerViewRepoTeamsUsersTool(srv *sdk.Server, name string, _ *appcfg.Conf
 			},
 			Required: []string{"repository"},
 		},
-	}, func(ctx context.Context, req *sdk.CallToolRequest, in ViewRepoTeamsUsersIn) (*sdk.CallToolResult, ViewRepoTeamsUsersOut, error) {
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in ViewRepoTeamsUsersIn) (*sdk.CallToolResult, any, error) {
 		repo := strings.TrimSpace(in.Repository)
 		if repo == "" {
 			return &sdk.CallToolResult{}, ViewRepoTeamsUsersOut{}, fmt.Errorf("repository is required")
@@ -661,7 +661,7 @@ type ViewTeamReposOut struct {
 }
 
 func registerViewTeamReposTool(srv *sdk.Server, name string, _ *appcfg.Config) {
-	sdk.AddTool[ViewTeamReposIn, ViewTeamReposOut](srv, &sdk.Tool{
+	sdk.AddTool[ViewTeamReposIn, any](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Team Repositories",
 		Description: "List repositories a team can access from local database. Pass {\"team\":\"team-slug\"}. Usage: " + docsToolsURI + ".",
@@ -671,7 +671,7 @@ func registerViewTeamReposTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 				"team": {
 					Type:        "string",
 					Title:       "Team Slug",
-					Description: "Team slug (lowercase alnum + hyphen).",
+					Description: "Team slug.",
 					MinLength:   intPtr(v.TeamSlugMin),
 					MaxLength:   intPtr(v.TeamSlugMax),
 					Pattern:     v.TeamSlugPattern,
@@ -679,7 +679,7 @@ func registerViewTeamReposTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 			},
 			Required: []string{"team"},
 		},
-	}, func(ctx context.Context, req *sdk.CallToolRequest, in ViewTeamReposIn) (*sdk.CallToolResult, ViewTeamReposOut, error) {
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in ViewTeamReposIn) (*sdk.CallToolResult, any, error) {
 		team := strings.TrimSpace(in.Team)
 		if team == "" {
 			return &sdk.CallToolResult{}, ViewTeamReposOut{}, fmt.Errorf("team is required")
@@ -797,12 +797,12 @@ type ViewAllTeamsUsersOut struct {
 }
 
 func registerViewAllTeamsUsersTool(srv *sdk.Server, name string, _ *appcfg.Config) {
-	sdk.AddTool[struct{}, ViewAllTeamsUsersOut](srv, &sdk.Tool{
+	sdk.AddTool[struct{}, any](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View All Team Memberships",
 		Description: "Enumerate every team membership entry stored in the local database. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{Type: "object"},
-	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewAllTeamsUsersOut, error) {
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, any, error) {
 		entries, err := listAllTeamsUsers()
 		if err != nil {
 			return &sdk.CallToolResult{}, ViewAllTeamsUsersOut{}, fmt.Errorf("failed to list team memberships: %w", err)
@@ -850,12 +850,12 @@ type ViewAllReposUsersOut struct {
 }
 
 func registerViewAllReposUsersTool(srv *sdk.Server, name string, _ *appcfg.Config) {
-	sdk.AddTool[struct{}, ViewAllReposUsersOut](srv, &sdk.Tool{
+	sdk.AddTool[struct{}, any](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View All Repository Collaborators",
 		Description: "Enumerate collaborators for every repository stored in the local database. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{Type: "object"},
-	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewAllReposUsersOut, error) {
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, any, error) {
 		entries, err := listAllRepositoriesUsers()
 		if err != nil {
 			return &sdk.CallToolResult{}, ViewAllReposUsersOut{}, fmt.Errorf("failed to list repository collaborators: %w", err)
@@ -905,12 +905,12 @@ type ViewAllReposTeamsOut struct {
 }
 
 func registerViewAllReposTeamsTool(srv *sdk.Server, name string, _ *appcfg.Config) {
-	sdk.AddTool[struct{}, ViewAllReposTeamsOut](srv, &sdk.Tool{
+	sdk.AddTool[struct{}, any](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View All Repository Teams",
 		Description: "Enumerate team access for every repository stored in the local database. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{Type: "object"},
-	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewAllReposTeamsOut, error) {
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, any, error) {
 		entries, err := listAllRepositoriesTeams()
 		if err != nil {
 			return &sdk.CallToolResult{}, ViewAllReposTeamsOut{}, fmt.Errorf("failed to list repository teams: %w", err)
@@ -963,7 +963,7 @@ type ViewUserReposOut struct {
 }
 
 func registerViewUserReposTool(srv *sdk.Server, name string, _ *appcfg.Config) {
-	sdk.AddTool[ViewUserReposIn, ViewUserReposOut](srv, &sdk.Tool{
+	sdk.AddTool[ViewUserReposIn, any](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View User Repository Access",
 		Description: "List repositories a user can access and how the access is granted. Pass {\"user\":\"github-login\"} (1-39 chars, alnum or hyphen). Usage: " + docsToolsURI + ".",
@@ -973,7 +973,7 @@ func registerViewUserReposTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 				"user": {
 					Type:        "string",
 					Title:       "User Login",
-					Description: "GitHub username (1-39 chars, alnum or hyphen).",
+					Description: "GitHub username.",
 					MinLength:   intPtr(v.UserNameMin),
 					MaxLength:   intPtr(v.UserNameMax),
 					Pattern:     v.UserNamePattern,
@@ -981,7 +981,7 @@ func registerViewUserReposTool(srv *sdk.Server, name string, _ *appcfg.Config) {
 			},
 			Required: []string{"user"},
 		},
-	}, func(ctx context.Context, req *sdk.CallToolRequest, in ViewUserReposIn) (*sdk.CallToolResult, ViewUserReposOut, error) {
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in ViewUserReposIn) (*sdk.CallToolResult, any, error) {
 		login := strings.TrimSpace(in.User)
 		if login == "" {
 			return &sdk.CallToolResult{}, ViewUserReposOut{}, fmt.Errorf("user is required")
@@ -1027,12 +1027,12 @@ type ViewOutsideUsersOut struct {
 }
 
 func registerViewOutsideUsersTool(srv *sdk.Server, name string, _ *appcfg.Config) {
-	sdk.AddTool[struct{}, ViewOutsideUsersOut](srv, &sdk.Tool{
+	sdk.AddTool[struct{}, any](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Outside Collaborators",
 		Description: "List outside collaborators from local database. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{Type: "object"},
-	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewOutsideUsersOut, error) {
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, any, error) {
 		users, err := listOutsideUsers()
 		if err != nil {
 			return &sdk.CallToolResult{}, ViewOutsideUsersOut{}, fmt.Errorf("failed to list outside users: %w", err)
@@ -1067,12 +1067,12 @@ func listOutsideUsers() ([]User, error) {
 }
 
 func registerViewSettingsTool(srv *sdk.Server, name string, cfg *appcfg.Config) {
-	sdk.AddTool[struct{}, appcfg.Masked](srv, &sdk.Tool{
+	sdk.AddTool[struct{}, any](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Masked Settings",
 		Description: "Show application configuration with secrets masked, useful for confirming MCP permissions. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{Type: "object"},
-	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, appcfg.Masked, error) {
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, any, error) {
 		return nil, appcfg.Mask(cfg), nil
 	})
 }
@@ -1090,12 +1090,12 @@ type ViewTokenPermissionOut struct {
 }
 
 func registerViewTokenPermissionTool(srv *sdk.Server, name string, _ *appcfg.Config) {
-	sdk.AddTool[struct{}, ViewTokenPermissionOut](srv, &sdk.Tool{
+	sdk.AddTool[struct{}, any](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Token Permission",
 		Description: "Show token permission info from local database. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{Type: "object"},
-	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewTokenPermissionOut, error) {
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, any, error) {
 		tp, err := getTokenPermission()
 		if err != nil {
 			return &sdk.CallToolResult{}, ViewTokenPermissionOut{}, fmt.Errorf("failed to get token permission: %w", err)
@@ -1123,12 +1123,12 @@ type ViewOrgPlanOut struct {
 }
 
 func registerViewOrgPlanTool(srv *sdk.Server, name string, _ *appcfg.Config) {
-	sdk.AddTool[struct{}, ViewOrgPlanOut](srv, &sdk.Tool{
+	sdk.AddTool[struct{}, any](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "View Organization Plan",
 		Description: "Show the cached organization plan (seats and contract info) from local database. Usage: " + docsToolsURI + ".",
 		InputSchema: &jsonschema.Schema{Type: "object"},
-	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, ViewOrgPlanOut, error) {
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in struct{}) (*sdk.CallToolResult, any, error) {
 		out, err := getOrgPlan()
 		if err != nil {
 			return &sdk.CallToolResult{}, ViewOrgPlanOut{}, fmt.Errorf("failed to get organization plan: %w", err)

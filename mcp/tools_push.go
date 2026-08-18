@@ -48,7 +48,7 @@ type PushResult struct {
 }
 
 func registerPushAddTool(srv *sdk.Server, name string, cfg *appcfg.Config) {
-	sdk.AddTool[PushAddIn, PushResult](srv, &sdk.Tool{
+	sdk.AddTool[PushAddIn, any](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "Push Add",
 		Description: "Add users to teams or invite outside collaborators. Use team_user=\"team-slug/username\" or outside_user=\"repository/username\"; dry-run unless exec=true. Usage: " + docsToolsURI + ". Safety: " + docsSafetyURI + ".",
@@ -78,7 +78,7 @@ func registerPushAddTool(srv *sdk.Server, name string, cfg *appcfg.Config) {
 				},
 			},
 		},
-	}, func(ctx context.Context, req *sdk.CallToolRequest, in PushAddIn) (*sdk.CallToolResult, PushResult, error) {
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in PushAddIn) (*sdk.CallToolResult, any, error) {
 		target, value, permission, err := resolvePushAddInput(in)
 		if err != nil {
 			return &sdk.CallToolResult{}, PushResult{}, err
@@ -102,7 +102,7 @@ func registerPushAddTool(srv *sdk.Server, name string, cfg *appcfg.Config) {
 }
 
 func registerPushRemoveTool(srv *sdk.Server, name string, cfg *appcfg.Config) {
-	sdk.AddTool[PushRemoveIn, PushResult](srv, &sdk.Tool{
+	sdk.AddTool[PushRemoveIn, any](srv, &sdk.Tool{
 		Name:        name,
 		Title:       "Push Remove",
 		Description: "Remove teams, users, or collaborators. Choose one target (team, user, team_user, outside_user, repos_user); dry-run unless exec=true. Usage: " + docsToolsURI + ". Safety: " + docsSafetyURI + ".",
@@ -146,7 +146,7 @@ func registerPushRemoveTool(srv *sdk.Server, name string, cfg *appcfg.Config) {
 				},
 			},
 		},
-	}, func(ctx context.Context, req *sdk.CallToolRequest, in PushRemoveIn) (*sdk.CallToolResult, PushResult, error) {
+	}, func(ctx context.Context, req *sdk.CallToolRequest, in PushRemoveIn) (*sdk.CallToolResult, any, error) {
 		target, value, err := resolvePushRemoveInput(in)
 		if err != nil {
 			return &sdk.CallToolResult{}, PushResult{}, err
