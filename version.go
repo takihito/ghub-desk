@@ -2,7 +2,7 @@ package main
 
 var (
 	// version is set during build via ldflags
-	Version = "v0.3.1"
+	Version = "v0.3.2"
 	// commit is set during build via ldflags. see Makefile.
 	Commit = "none"
 	// date is set during build via ldflags. see Makefile.
