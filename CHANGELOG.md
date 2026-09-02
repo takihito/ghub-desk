@@ -1,5 +1,17 @@
 # Changelog
 
+## [v0.3.4](https://github.com/takihito/ghub-desk/compare/v0.3.3...v0.3.4) - 2026-09-02
+
+- chore(dependabot): group github-actions updates and limit open PRs by @takihito in https://github.com/takihito/ghub-desk/pull/224
+- chore(deps): Bump github.com/alecthomas/kong from 1.16.0 to 1.16.1 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/218
+- chore(deps): Bump Songmu/tagpr from 1.19.0 to 1.20.1 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/221
+- chore(deps): Bump ossf/scorecard-action from 2.4.3 to 2.4.4 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/222
+- chore(deps): Bump modernc.org/sqlite from 1.56.0 to 1.57.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/226
+- chore(deps): Bump the codeql-action group across 1 directory with 4 updates by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/227
+- chore(deps): Bump step-security/harden-runner from 2.20.1 to 2.21.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/228
+- chore(deps): Bump the codeql-action group with 4 updates by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/229
+- chore(deps): Bump Songmu/tagpr from 1.20.1 to 1.20.2 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/230
+
 ## [v0.3.3](https://github.com/takihito/ghub-desk/compare/v0.3.2...v0.3.3) - 2026-08-18
 - fix(mcp): ドキュメントリソースへの導線が常に失敗する問題を修正 by @takihito in https://github.com/takihito/ghub-desk/pull/215
 - perf(mcp): tools/list のコンテキスト消費を約52%削減 by @takihito in https://github.com/takihito/ghub-desk/pull/217
