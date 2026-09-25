@@ -1,5 +1,24 @@
 # Changelog
 
+## [v0.3.4](https://github.com/takihito/ghub-desk/compare/v0.3.3...v0.3.4) - 2026-09-25
+
+- chore(dependabot): group github-actions updates and limit open PRs by @takihito in https://github.com/takihito/ghub-desk/pull/224
+- chore(deps): Bump github.com/alecthomas/kong from 1.16.0 to 1.16.1 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/218
+- chore(deps): Bump Songmu/tagpr from 1.19.0 to 1.20.1 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/221
+- chore(deps): Bump ossf/scorecard-action from 2.4.3 to 2.4.4 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/222
+- chore(deps): Bump modernc.org/sqlite from 1.56.0 to 1.57.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/226
+- chore(deps): Bump the codeql-action group across 1 directory with 4 updates by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/227
+- chore(deps): Bump step-security/harden-runner from 2.20.1 to 2.21.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/228
+- chore(deps): Bump the codeql-action group with 4 updates by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/229
+- chore(deps): Bump Songmu/tagpr from 1.20.1 to 1.20.2 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/230
+- chore(deps): Bump golang.org/x/oauth2 from 0.36.0 to 0.37.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/231
+- chore(deps): Bump modernc.org/sqlite from 1.57.0 to 1.58.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/232
+- chore(deps): Bump step-security/harden-runner from 2.21.0 to 2.21.1 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/233
+- chore(deps): Bump Songmu/tagpr from 1.20.2 to 1.20.3 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/234
+- chore(deps): Bump actions/deploy-pages from 5.0.0 to 5.0.1 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/235
+- chore(deps): Bump github.com/modelcontextprotocol/go-sdk from 1.7.0 to 1.8.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/236
+- chore(deps): Bump modernc.org/sqlite from 1.58.0 to 1.59.0 by @dependabot[bot] in https://github.com/takihito/ghub-desk/pull/238
+
 ## [v0.3.3](https://github.com/takihito/ghub-desk/compare/v0.3.2...v0.3.3) - 2026-08-18
 - fix(mcp): ドキュメントリソースへの導線が常に失敗する問題を修正 by @takihito in https://github.com/takihito/ghub-desk/pull/215
 - perf(mcp): tools/list のコンテキスト消費を約52%削減 by @takihito in https://github.com/takihito/ghub-desk/pull/217
