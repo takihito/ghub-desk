@@ -22,6 +22,6 @@ jobs:
           persist-credentials: false
       # NOTE: デフォルトの GITHUB_TOKEN が push したタグは他のワークフローを起動しない。
       # release.yml をタグ push で起動させるため PAT を使う。
-      - uses: Songmu/tagpr@7ebae2dcc300132baa7cc9dd108c8923b07fc366 # v1.20.3
+      - uses: Songmu/tagpr@0c4eb5a3b0862693702acea436a7c68bd586530d # v1.21.2
         env:
           GITHUB_TOKEN: ${{ secrets.GHUB_DESK_TAGPR_TOKEN }}
